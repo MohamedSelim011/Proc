@@ -286,7 +286,7 @@ export default function ServiceRequisitionDetail() {
           <h3 className="text-lg font-medium text-gray-900">
             {sr.itemType === 'SERVICE' ? 'Service Requirements' : 'Non-Stock Items'}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">{sr.items.length} item(s) requested</p>
+          <p className="mt-1 text-sm text-gray-500">{sr.items?.length || 0} item(s) requested</p>
         </div>
 
         <div className="overflow-hidden">
@@ -311,42 +311,50 @@ export default function ServiceRequisitionDetail() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sr.items.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {item.item.itemCode}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {item.item.nameEn}
-                      </div>
-                      {item.specifications && (
-                        <div className="text-xs text-gray-400 mt-1 max-w-md">
-                          <div className="bg-gray-50 p-2 rounded text-xs">
-                            <strong>Specifications:</strong><br />
-                            {item.specifications.split('\n').map((line, idx) => (
-                              <div key={idx}>{line}</div>
-                            ))}
-                          </div>
+              {sr.items && sr.items.length > 0 ? (
+                sr.items.map((item, index) => (
+                  <tr key={item.id || index}>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {item.item?.itemCode || 'N/A'}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.item.category.nameEn}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.quantity} {item.item.unitOfMeasure}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(item.estimatedPrice)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(item.quantity * item.estimatedPrice)}
+                        <div className="text-sm text-gray-500">
+                          {item.item?.nameEn || 'N/A'}
+                        </div>
+                        {item.specifications && (
+                          <div className="text-xs text-gray-400 mt-1 max-w-md">
+                            <div className="bg-gray-50 p-2 rounded text-xs">
+                              <strong>Specifications:</strong><br />
+                              {item.specifications.split('\n').map((line, idx) => (
+                                <div key={idx}>{line}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.item?.category?.nameEn || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.quantity || 0} {item.item?.unitOfMeasure || 'units'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(item.estimatedPrice)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency((item.quantity || 0) * (item.estimatedPrice || 0))}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    No items found in this requisition
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
             <tfoot className="bg-gray-50">
               <tr>
