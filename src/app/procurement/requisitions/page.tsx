@@ -106,6 +106,30 @@ export default function PurchaseRequisitionsPage() {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
 
+  const handleSubmitDraft = async (prId: string) => {
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${prId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstApproverId: 'manager001'
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh the list to show updated status
+        fetchRequisitions();
+      } else {
+        const data = await response.json();
+        console.error('Error submitting draft:', data.error);
+      }
+    } catch (error) {
+      console.error('Error submitting draft:', error);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
       style: 'currency',
@@ -372,17 +396,30 @@ export default function PurchaseRequisitionsPage() {
                           <Eye className="h-4 w-4" />
                         </Link>
                         {(pr.status === 'DRAFT' || pr.status === 'REJECTED') && (
-                          <Link
-                            href={`/procurement/requisitions/${pr.id}/edit`}
-                            className="text-gray-600 hover:text-gray-900"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
+                          <>
+                            <Link
+                              href={`/procurement/requisitions/${pr.id}/edit`}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="Edit"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                            {pr.status === 'DRAFT' && (
+                              <button
+                                onClick={() => handleSubmitDraft(pr.id)}
+                                className="text-green-600 hover:text-green-900 ml-2"
+                                title="Submit for Approval"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                          </>
                         )}
                         {pr.status === 'SUBMITTED' && (
                           <Link
                             href={`/procurement/requisitions/${pr.id}/approve`}
                             className="text-green-600 hover:text-green-900"
+                            title="Review & Approve"
                           >
                             <CheckCircle className="h-4 w-4" />
                           </Link>

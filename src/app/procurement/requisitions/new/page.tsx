@@ -71,6 +71,7 @@ export default function NewPurchaseRequisition() {
     budgetCode: ''
   });
 
+  const [submissionType, setSubmissionType] = useState<'submit' | 'draft'>('submit');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -195,7 +196,8 @@ export default function NewPurchaseRequisition() {
         ...formData,
         requesterId: 'emp001', // This should come from auth context
         estimatedCost: calculateTotalCost(),
-        autoSubmit: false // Keep as draft initially
+        autoSubmit: submissionType === 'submit', // Submit for approval based on user choice
+        firstApproverId: submissionType === 'submit' ? 'manager001' : undefined // First level approver only if submitting
       };
 
       const response = await fetch('/api/purchase-requisitions', {
@@ -654,6 +656,50 @@ export default function NewPurchaseRequisition() {
                 </div>
               </div>
 
+              {/* Submission Options */}
+              <div className="bg-blue-50 rounded-lg p-6">
+                <h4 className="text-lg font-medium text-blue-900 mb-4">Submission Options</h4>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <input
+                      id="submit-immediately"
+                      type="radio"
+                      name="submission-type"
+                      value="submit"
+                      checked={submissionType === 'submit'}
+                      onChange={(e) => setSubmissionType(e.target.value as 'submit' | 'draft')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <label htmlFor="submit-immediately" className="ml-3 block text-sm font-medium text-blue-900">
+                      Submit for Approval Immediately
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      id="save-draft"
+                      type="radio"
+                      name="submission-type"
+                      value="draft"
+                      checked={submissionType === 'draft'}
+                      onChange={(e) => setSubmissionType(e.target.value as 'submit' | 'draft')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <label htmlFor="save-draft" className="ml-3 block text-sm font-medium text-blue-900">
+                      Save as Draft (Submit Later)
+                    </label>
+                  </div>
+                  
+                  <p className="text-sm text-blue-700">
+                    <strong>Submit for Approval:</strong> Your requisition will be sent to your manager for approval and can be converted to a purchase order once approved.
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    <strong>Save as Draft:</strong> Your requisition will be saved as a draft and you can submit it for approval later from the requisitions list.
+                  </p>
+                </div>
+              </div>
+
               {errors.submit && (
                 <div className="rounded-md bg-red-50 p-4">
                   <div className="flex">
@@ -687,7 +733,7 @@ export default function NewPurchaseRequisition() {
             {loading ? (
               'Creating...'
             ) : currentStep === 3 ? (
-              'Create Requisition'
+              submissionType === 'submit' ? 'Submit for Approval' : 'Save as Draft'
             ) : (
               <>
                 Next
