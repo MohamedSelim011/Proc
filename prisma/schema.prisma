@@ -1,0 +1,781 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Vendor Management
+model Vendor {
+  id                String   @id @default(cuid())
+  vendorCode        String   @unique
+  nameEn            String
+  nameAr            String
+  crNumber          String   @unique
+  taxId             String   @unique
+  vatNumber         String?
+  
+  // Contact Information
+  primaryContactName String
+  email             String
+  mobile            String
+  address           Json
+  
+  // Business Details
+  businessType      String
+  yearEstablished   Int
+  numberOfEmployees Int
+  omanizationPercentage Float?
+  
+  // Status
+  status            VendorStatus @default(PENDING)
+  performanceScore  Float?
+  
+  // Relationships
+  categories        VendorCategory[]
+  purchaseOrders    PurchaseOrder[]
+  invoices          Invoice[]
+  documents         VendorDocument[]
+  evaluations       VendorEvaluation[]
+  rfqResponses      RFQResponse[]
+  serviceContracts  ServiceContract[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VendorCategory {
+  id         String   @id @default(cuid())
+  vendorId   String
+  vendor     Vendor   @relation(fields: [vendorId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  isPrimary  Boolean  @default(false)
+  
+  @@unique([vendorId, categoryId])
+}
+
+model VendorDocument {
+  id           String   @id @default(cuid())
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  documentType String
+  documentName String
+  fileUrl      String
+  expiryDate   DateTime?
+  uploadedAt   DateTime @default(now())
+}
+
+model VendorEvaluation {
+  id                String   @id @default(cuid())
+  vendorId          String
+  vendor            Vendor   @relation(fields: [vendorId], references: [id])
+  evaluationDate    DateTime @default(now())
+  qualityScore      Float
+  deliveryScore     Float
+  priceScore        Float
+  serviceScore      Float
+  overallScore      Float
+  comments          String?
+  evaluatedBy       String
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  nameEn      String
+  nameAr      String
+  description String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parentId    String?
+  children    Category[] @relation("CategoryHierarchy")
+  vendors     VendorCategory[]
+  items       Item[]
+}
+
+model Item {
+  id             String   @id @default(cuid())
+  itemCode       String   @unique
+  nameEn         String
+  nameAr         String
+  description    String?
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id])
+  unitOfMeasure  String
+  minStockLevel  Int?
+  maxStockLevel  Int?
+  reorderPoint   Int?
+  
+  // Relationships
+  prItems        PRItem[]
+  poItems        POItem[]
+  grItems        GRItem[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Purchase Requisition
+model PurchaseRequisition {
+  id              String   @id @default(cuid())
+  prNumber        String   @unique
+  requestDate     DateTime @default(now())
+  requesterId     String
+  departmentId    String
+  itemType        ItemType
+  priority        Priority @default(NORMAL)
+  status          PRStatus @default(DRAFT)
+  
+  // Budget
+  estimatedCost   Decimal
+  budgetCode      String
+  justification   String?
+  
+  // Items
+  items           PRItem[]
+  
+  // Approval
+  approvals       Approval[]
+  
+  // Relationships
+  purchaseOrders  PurchaseOrder[]
+  rfqs            RFQ[]
+  servicePR       ServicePR?
+  serviceContracts ServiceContract[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PRItem {
+  id              String   @id @default(cuid())
+  prId            String
+  pr              PurchaseRequisition @relation(fields: [prId], references: [id])
+  itemId          String
+  item            Item     @relation(fields: [itemId], references: [id])
+  quantity        Int
+  estimatedPrice  Decimal
+  specifications  String?
+  requiredDate    DateTime?
+}
+
+// RFQ Management
+model RFQ {
+  id           String   @id @default(cuid())
+  rfqNumber    String   @unique
+  prId         String?
+  pr           PurchaseRequisition? @relation(fields: [prId], references: [id])
+  title        String
+  description  String?
+  issueDate    DateTime @default(now())
+  closingDate  DateTime
+  status       RFQStatus @default(DRAFT)
+  
+  // Responses
+  responses    RFQResponse[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RFQResponse {
+  id           String   @id @default(cuid())
+  rfqId        String
+  rfq          RFQ      @relation(fields: [rfqId], references: [id])
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  submittedAt  DateTime @default(now())
+  totalAmount  Decimal
+  validUntil   DateTime
+  status       RFQResponseStatus @default(SUBMITTED)
+  technicalScore Float?
+  commercialScore Float?
+  
+  @@unique([rfqId, vendorId])
+}
+
+// Purchase Order
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  poNumber        String   @unique
+  prId            String?
+  pr              PurchaseRequisition? @relation(fields: [prId], references: [id])
+  vendorId        String
+  vendor          Vendor   @relation(fields: [vendorId], references: [id])
+  orderDate       DateTime @default(now())
+  deliveryDate    DateTime
+  deliveryAddress Json
+  paymentTerms    String
+  status          POStatus @default(DRAFT)
+  totalAmount     Decimal
+  currency        String   @default("OMR")
+  
+  // Items
+  items           POItem[]
+  
+  // Related documents
+  goodsReceipts   GoodsReceipt[]
+  invoices        Invoice[]
+  amendments      POAmendment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model POItem {
+  id           String   @id @default(cuid())
+  poId         String
+  po           PurchaseOrder @relation(fields: [poId], references: [id])
+  itemId       String
+  item         Item     @relation(fields: [itemId], references: [id])
+  quantity     Int
+  unitPrice    Decimal
+  totalPrice   Decimal
+  deliveryDate DateTime?
+}
+
+model POAmendment {
+  id            String   @id @default(cuid())
+  poId          String
+  po            PurchaseOrder @relation(fields: [poId], references: [id])
+  amendmentNo   Int
+  changeType    String
+  description   String
+  oldValue      Json
+  newValue      Json
+  approvedBy    String?
+  approvedDate  DateTime?
+  createdAt     DateTime @default(now())
+}
+
+// Goods Receipt
+model GoodsReceipt {
+  id              String   @id @default(cuid())
+  grNumber        String   @unique
+  poId            String
+  po              PurchaseOrder @relation(fields: [poId], references: [id])
+  receivedDate    DateTime @default(now())
+  receivedBy      String
+  status          GRStatus @default(PENDING)
+  
+  // Items
+  items           GRItem[]
+  
+  // Quality Check
+  qualityChecked  Boolean  @default(false)
+  qualityComments String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model GRItem {
+  id               String   @id @default(cuid())
+  grId             String
+  gr               GoodsReceipt @relation(fields: [grId], references: [id])
+  itemId           String
+  item             Item     @relation(fields: [itemId], references: [id])
+  orderedQuantity  Int
+  receivedQuantity Int
+  acceptedQuantity Int
+  rejectedQuantity Int
+  rejectionReason  String?
+}
+
+// Invoice Management
+model Invoice {
+  id                String   @id @default(cuid())
+  invoiceNumber     String   @unique
+  vendorId          String
+  vendor            Vendor   @relation(fields: [vendorId], references: [id])
+  poId              String?
+  po                PurchaseOrder? @relation(fields: [poId], references: [id])
+  invoiceDate       DateTime
+  dueDate           DateTime
+  totalAmount       Decimal
+  taxAmount         Decimal
+  status            InvoiceStatus @default(PENDING)
+  
+  // Three-way matching
+  threeWayMatched   Boolean  @default(false)
+  matchingComments  String?
+  
+  // Payment
+  paymentStatus     PaymentStatus @default(UNPAID)
+  paymentDate       DateTime?
+  paymentReference  String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Approval Workflow
+model Approval {
+  id           String   @id @default(cuid())
+  documentType String
+  documentId   String
+  prId         String?
+  pr           PurchaseRequisition? @relation(fields: [prId], references: [id])
+  approverId   String
+  status       ApprovalStatus @default(PENDING)
+  comments     String?
+  approvedAt   DateTime?
+  level        Int
+  
+  createdAt    DateTime @default(now())
+}
+
+// Enums
+enum VendorStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
+}
+
+enum ItemType {
+  STOCK
+  NON_STOCK
+  SERVICE
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum PRStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CONVERTED
+  CANCELLED
+}
+
+enum POStatus {
+  DRAFT
+  APPROVED
+  SENT
+  ACKNOWLEDGED
+  PARTIAL
+  COMPLETED
+  CANCELLED
+}
+
+enum RFQStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  EVALUATED
+  AWARDED
+}
+
+enum RFQResponseStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  SELECTED
+  REJECTED
+}
+
+enum GRStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
+  REJECTED
+}
+
+enum InvoiceStatus {
+  PENDING
+  VERIFIED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+// Service-specific models for proper non-stock/service procurement
+
+model ServiceCategory {
+  id                     String   @id @default(cuid())
+  code                   String   @unique
+  nameEn                 String
+  nameAr                 String
+  description            String?
+  requiresInsurance      Boolean  @default(false)
+  requiresCertification  Boolean  @default(false)
+  requiresPerformanceBond Boolean @default(false)
+  
+  // Relationships
+  serviceItems           ServiceItem[]
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ServiceItem {
+  id                String         @id @default(cuid())
+  serviceCode       String         @unique
+  nameEn            String
+  nameAr            String
+  description       String?
+  serviceCategoryId String
+  serviceCategory   ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+  unitOfMeasure     String
+  standardRate      Decimal?
+  currency          String         @default("OMR")
+  slaRequired       Boolean        @default(false)
+  performanceMetrics Json?
+  
+  // Relationships
+  servicePRItems    ServicePRItem[]
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model ServicePR {
+  id                     String   @id @default(cuid())
+  prId                   String   @unique
+  pr                     PurchaseRequisition @relation(fields: [prId], references: [id])
+  serviceScope           String
+  technicalSpecifications String?
+  duration               Int
+  durationUnit           String   @default("DAYS")
+  deliverables           Json
+  performanceMetrics     Json?
+  slaRequirements        Json?
+  insuranceRequired      Boolean  @default(false)
+  certificationRequired  Boolean  @default(false)
+  safetyRequirements     String?
+  paymentSchedule        String   @default("MILESTONE")
+  retentionPercentage    Decimal? @default(0)
+  
+  // Relationships
+  items                  ServicePRItem[]
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ServicePRItem {
+  id                String      @id @default(cuid())
+  servicePRId       String
+  servicePR         ServicePR   @relation(fields: [servicePRId], references: [id], onDelete: Cascade)
+  serviceItemId     String
+  serviceItem       ServiceItem @relation(fields: [serviceItemId], references: [id])
+  quantity          Decimal
+  estimatedRate     Decimal
+  duration          Int
+  durationUnit      String      @default("DAYS")
+  specifications    String?
+  deliverables      Json?
+  performanceMetrics Json?
+}
+
+model ServiceContract {
+  id                   String   @id @default(cuid())
+  contractNumber       String   @unique
+  prId                 String
+  pr                   PurchaseRequisition @relation(fields: [prId], references: [id])
+  vendorId             String
+  vendor               Vendor   @relation(fields: [vendorId], references: [id])
+  contractType         String   @default("SERVICE_AGREEMENT")
+  startDate            DateTime
+  endDate              DateTime
+  totalValue           Decimal
+  currency             String   @default("OMR")
+  paymentTerms         String
+  slaTerms             Json?
+  penaltyClause        String?
+  performanceBond      Decimal?
+  retentionAmount      Decimal?
+  insuranceRequirements Json?
+  status               ServiceContractStatus @default(DRAFT)
+  signedAt             DateTime?
+  
+  // Relationships
+  milestones           ServiceMilestone[]
+  receipts             ServiceReceipt[]
+  performances         ServicePerformance[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model ServiceMilestone {
+  id                 String          @id @default(cuid())
+  contractId         String
+  contract           ServiceContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestoneNumber    Int
+  name               String
+  description        String?
+  targetDate         DateTime
+  completionCriteria String
+  paymentPercentage  Decimal
+  amount             Decimal
+  status             MilestoneStatus @default(PENDING)
+  completedAt        DateTime?
+  approvedBy         String?
+  approvedAt         DateTime?
+  notes              String?
+  
+  // Relationships
+  receipts           ServiceReceipt[]
+}
+
+model ServiceReceipt {
+  id                   String           @id @default(cuid())
+  srnNumber            String           @unique
+  contractId           String
+  contract             ServiceContract  @relation(fields: [contractId], references: [id])
+  milestoneId          String?
+  milestone            ServiceMilestone? @relation(fields: [milestoneId], references: [id])
+  receiptDate          DateTime         @default(now())
+  serviceDescription   String
+  deliverables         Json
+  qualityRating        Decimal?
+  performanceRating    Decimal?
+  completionPercentage Decimal
+  acceptanceStatus     AcceptanceStatus @default(PENDING)
+  acceptedBy           String?
+  acceptedAt           DateTime?
+  rejectionReason      String?
+  notes                String?
+  attachments          Json?
+  createdBy            String
+  
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+model ServicePerformance {
+  id               String          @id @default(cuid())
+  contractId       String
+  contract         ServiceContract @relation(fields: [contractId], references: [id])
+  evaluationPeriod String
+  startDate        DateTime
+  endDate          DateTime
+  qualityScore     Decimal
+  timelinessScore  Decimal
+  complianceScore  Decimal
+  overallScore     Decimal
+  kpiMetrics       Json?
+  slaCompliance    Json?
+  penalties        Decimal?        @default(0)
+  bonuses          Decimal?        @default(0)
+  evaluatedBy      String
+  evaluatedAt      DateTime        @default(now())
+  comments         String?
+}
+
+// Additional enums for services
+enum ServiceContractStatus {
+  DRAFT
+  APPROVED
+  SIGNED
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum AcceptanceStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CONDITIONAL
+}
+
+// Automation and Workflow Models for 100% BRD Compliance
+
+model WorkflowDefinition {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  workflowType      WorkflowType
+  documentType      String   // PR, PO, Invoice, etc.
+  triggerConditions Json     // Conditions that start this workflow
+  approvalSteps     Json     // Sequential approval steps
+  notifications     Json     // Email notification settings
+  isActive          Boolean  @default(true)
+  
+  // Relationships
+  instances         WorkflowInstance[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model WorkflowInstance {
+  id                String            @id @default(cuid())
+  workflowDefId     String
+  workflowDef       WorkflowDefinition @relation(fields: [workflowDefId], references: [id])
+  documentId        String            // ID of PR, PO, Invoice being processed
+  documentType      String            // Type of document
+  currentStep       Int               @default(1)
+  totalSteps        Int
+  status            WorkflowStatus    @default(IN_PROGRESS)
+  assignedTo        String?           // Current approver
+  assignedAt        DateTime?
+  completedAt       DateTime?
+  
+  // Relationships
+  steps             WorkflowStep[]
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model WorkflowStep {
+  id                String            @id @default(cuid())
+  instanceId        String
+  instance          WorkflowInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepNumber        Int
+  stepName          String
+  approverId        String
+  approverRole      String?
+  status            StepStatus        @default(PENDING)
+  comments          String?
+  actionTaken       String?           // APPROVED, REJECTED, ESCALATED
+  processedAt       DateTime?
+  dueDate           DateTime?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model AutomationTrigger {
+  id                String            @id @default(cuid())
+  name              String
+  triggerType       TriggerType
+  conditions        Json              // When to trigger (inventory level, budget, etc.)
+  actions           Json              // What to do (create PR, send notification, etc.)
+  targetWorkflow    String?           // Workflow to start
+  isActive          Boolean           @default(true)
+  lastTriggered     DateTime?
+  triggerCount      Int               @default(0)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model NotificationQueue {
+  id                String            @id @default(cuid())
+  type              NotificationType
+  recipient         String            // Email address or user ID
+  subject           String
+  body              String
+  templateData      Json?             // Data for email template
+  status            NotificationStatus @default(PENDING)
+  scheduledAt       DateTime          @default(now())
+  sentAt            DateTime?
+  errorMessage      String?
+  retryCount        Int               @default(0)
+  maxRetries        Int               @default(3)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model ApprovalMatrix {
+  id                String            @id @default(cuid())
+  documentType      String            // PR, PO, Invoice
+  department        String?
+  amountMin         Decimal?
+  amountMax         Decimal?
+  approverRole      String
+  approverLevel     Int               // 1st level, 2nd level, etc.
+  isRequired        Boolean           @default(true)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model ProcessAudit {
+  id                String            @id @default(cuid())
+  processType       String            // PR_CREATION, PO_APPROVAL, etc.
+  documentId        String
+  documentType      String
+  action            String            // CREATED, APPROVED, REJECTED, etc.
+  performedBy       String
+  performedAt       DateTime          @default(now())
+  details           Json?             // Additional audit details
+  ipAddress         String?
+  userAgent         String?
+}
+
+// Automation Enums
+enum WorkflowType {
+  APPROVAL
+  NOTIFICATION
+  VALIDATION
+  GENERATION
+}
+
+enum WorkflowStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ESCALATED
+  ERROR
+}
+
+enum StepStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  ESCALATED
+  SKIPPED
+}
+
+enum TriggerType {
+  INVENTORY_LEVEL
+  BUDGET_THRESHOLD
+  TIME_BASED
+  STATUS_CHANGE
+  DOCUMENT_CREATION
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  SYSTEM
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}

@@ -1,0 +1,570 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { 
+  FileText, 
+  Building, 
+  Calendar, 
+  DollarSign, 
+  Package, 
+  Truck,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Edit,
+  Download,
+  Mail,
+  Phone,
+  MapPin,
+  User,
+  CreditCard
+} from 'lucide-react';
+import Link from 'next/link';
+
+interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  status: string;
+  itemType: string;
+  vendor: {
+    id: string;
+    nameEn: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  };
+  pr: {
+    id: string;
+    prNumber: string;
+    departmentId: string;
+    requestor: string;
+  };
+  items: {
+    id: string;
+    item: {
+      id: string;
+      nameEn: string;
+      itemCode: string;
+      unit: string;
+    };
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    specifications?: string;
+  }[];
+  totalAmount: number;
+  currency: string;
+  orderDate: string;
+  deliveryDate?: string;
+  deliveryAddress?: string;
+  paymentTerms?: string;
+  notes?: string;
+  goodsReceipts: {
+    id: string;
+    grnNumber: string;
+    receiptDate: string;
+    status: string;
+    totalReceived: number;
+    totalRejected: number;
+  }[];
+  invoices: {
+    id: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    totalAmount: number;
+    paymentStatus: string;
+  }[];
+  amendments: {
+    id: string;
+    amendmentNumber: string;
+    amendmentDate: string;
+    reason: string;
+    changes: string;
+  }[];
+  deliveryStats?: {
+    totalOrdered: number;
+    totalReceived: number;
+    totalRejected: number;
+    totalPending: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function PurchaseOrderDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [po, setPo] = useState<PurchaseOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('details');
+
+  useEffect(() => {
+    if (params.id) {
+      fetchPurchaseOrder(params.id as string);
+    }
+  }, [params.id]);
+
+  const fetchPurchaseOrder = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/purchase-orders/${id}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPo(data);
+      } else {
+        console.error('Error fetching purchase order:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase order:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'DRAFT': return 'bg-gray-100 text-gray-800';
+      case 'APPROVED': return 'bg-green-100 text-green-800';
+      case 'SENT': return 'bg-blue-100 text-blue-800';
+      case 'ACKNOWLEDGED': return 'bg-purple-100 text-purple-800';
+      case 'DELIVERED': return 'bg-green-100 text-green-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'UNPAID': return 'bg-red-100 text-red-800';
+      case 'PARTIAL': return 'bg-yellow-100 text-yellow-800';
+      case 'PAID': return 'bg-green-100 text-green-800';
+      case 'OVERDUE': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    );
+  }
+
+  if (!po) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="mx-auto h-12 w-12 text-red-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Purchase Order Not Found</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          The purchase order you&apos;re looking for doesn&apos;t exist or has been removed.
+        </p>
+        <div className="mt-6">
+          <Link
+            href="/procurement/purchase-orders"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+          >
+            Back to Purchase Orders
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-4 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900">{po.poNumber}</h1>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(po.status)}`}>
+                {po.status}
+              </span>
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                {po.itemType}
+              </span>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <Building className="h-4 w-4" />
+                {po.vendor.nameEn}
+              </div>
+              <div className="flex items-center gap-1">
+                <FileText className="h-4 w-4" />
+                PR: {po.pr.prNumber}
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {new Date(po.orderDate).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold text-gray-900">
+              {po.totalAmount.toLocaleString()} {po.currency}
+            </p>
+            <p className="text-sm text-gray-500">Total Amount</p>
+            <div className="flex gap-2 mt-4">
+              {po.status === 'DRAFT' && (
+                <button className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                  <Edit className="h-4 w-4 inline mr-1" />
+                  Edit
+                </button>
+              )}
+              <button className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
+                <Download className="h-4 w-4 inline mr-1" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6">
+            {[
+              { id: 'details', name: 'Details', icon: FileText },
+              { id: 'items', name: 'Items', icon: Package },
+              { id: 'delivery', name: 'Delivery', icon: Truck },
+              { id: 'invoices', name: 'Invoices', icon: CreditCard },
+              { id: 'history', name: 'History', icon: Clock }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-orange-500 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="p-6">
+          {activeTab === 'details' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* PO Information */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Purchase Order Information</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">PO Number:</span>
+                    <span className="text-sm font-medium text-gray-900">{po.poNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Order Date:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {new Date(po.orderDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Delivery Date:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {po.deliveryDate ? new Date(po.deliveryDate).toLocaleDateString() : 'Not specified'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Payment Terms:</span>
+                    <span className="text-sm font-medium text-gray-900">{po.paymentTerms || 'Standard'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Currency:</span>
+                    <span className="text-sm font-medium text-gray-900">{po.currency}</span>
+                  </div>
+                </div>
+
+                {po.notes && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Notes</h4>
+                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{po.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Vendor Information */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Information</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Vendor Name:</span>
+                    <span className="text-sm font-medium text-gray-900">{po.vendor.nameEn}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Email:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      <Mail className="h-4 w-4 inline mr-1" />
+                      {po.vendor.email}
+                    </span>
+                  </div>
+                  {po.vendor.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Phone:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        <Phone className="h-4 w-4 inline mr-1" />
+                        {po.vendor.phone}
+                      </span>
+                    </div>
+                  )}
+                  {po.deliveryAddress && (
+                    <div>
+                      <span className="text-sm text-gray-600">Delivery Address:</span>
+                      <p className="text-sm font-medium text-gray-900 mt-1">
+                        <MapPin className="h-4 w-4 inline mr-1" />
+                        {po.deliveryAddress}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* PR Reference */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Purchase Requisition</h4>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">{po.pr.prNumber}</p>
+                        <p className="text-xs text-blue-700">Department: {po.pr.departmentId}</p>
+                        <p className="text-xs text-blue-700">Requestor: {po.pr.requestor}</p>
+                      </div>
+                      <Link
+                        href={`/procurement/requisitions/${po.pr.id}`}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'items' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Order Items</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Item
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Quantity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Unit Price
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Specifications
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {po.items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{item.item.nameEn}</div>
+                            <div className="text-sm text-gray-500">{item.item.itemCode}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.quantity} {item.item.unit}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.unitPrice.toLocaleString()} {po.currency}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {item.totalPrice.toLocaleString()} {po.currency}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                          {item.specifications || 'Standard specifications'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan={3} className="px-6 py-3 text-sm font-medium text-gray-900 text-right">
+                        Total Amount:
+                      </td>
+                      <td className="px-6 py-3 text-sm font-bold text-gray-900">
+                        {po.totalAmount.toLocaleString()} {po.currency}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'delivery' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Delivery Status</h3>
+              
+              {po.deliveryStats && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <Package className="h-8 w-8 text-blue-600" />
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-blue-900">Ordered</p>
+                        <p className="text-2xl font-bold text-blue-900">{po.deliveryStats.totalOrdered}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="h-8 w-8 text-green-600" />
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-green-900">Received</p>
+                        <p className="text-2xl font-bold text-green-900">{po.deliveryStats.totalReceived}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-8 w-8 text-red-600" />
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-red-900">Rejected</p>
+                        <p className="text-2xl font-bold text-red-900">{po.deliveryStats.totalRejected}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <Clock className="h-8 w-8 text-yellow-600" />
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-yellow-900">Pending</p>
+                        <p className="text-2xl font-bold text-yellow-900">{po.deliveryStats.totalPending}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4">Goods Receipt Notes</h4>
+                {po.goodsReceipts.length > 0 ? (
+                  <div className="space-y-4">
+                    {po.goodsReceipts.map((grn) => (
+                      <div key={grn.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="text-sm font-medium text-gray-900">{grn.grnNumber}</h5>
+                            <p className="text-sm text-gray-500">
+                              Receipt Date: {new Date(grn.receiptDate).toLocaleDateString()}
+                            </p>
+                            <div className="flex gap-4 mt-2">
+                              <span className="text-sm text-green-600">
+                                Received: {grn.totalReceived}
+                              </span>
+                              <span className="text-sm text-red-600">
+                                Rejected: {grn.totalRejected}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(grn.status)}`}>
+                            {grn.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No goods receipts recorded yet.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'invoices' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Related Invoices</h3>
+              {po.invoices.length > 0 ? (
+                <div className="space-y-4">
+                  {po.invoices.map((invoice) => (
+                    <div key={invoice.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900">{invoice.invoiceNumber}</h5>
+                          <p className="text-sm text-gray-500">
+                            Invoice Date: {new Date(invoice.invoiceDate).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm font-medium text-gray-900 mt-1">
+                            Amount: {invoice.totalAmount.toLocaleString()} {po.currency}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(invoice.paymentStatus)}`}>
+                            {invoice.paymentStatus}
+                          </span>
+                          <div className="mt-2">
+                            <Link
+                              href={`/procurement/invoices/${invoice.id}`}
+                              className="text-orange-600 hover:text-orange-800 text-sm"
+                            >
+                              View Invoice
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No invoices created yet.</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Amendment History</h3>
+              {po.amendments.length > 0 ? (
+                <div className="space-y-4">
+                  {po.amendments.map((amendment) => (
+                    <div key={amendment.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900">{amendment.amendmentNumber}</h5>
+                          <p className="text-sm text-gray-500">
+                            Date: {new Date(amendment.amendmentDate).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <strong>Reason:</strong> {amendment.reason}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <strong>Changes:</strong> {amendment.changes}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No amendments recorded.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

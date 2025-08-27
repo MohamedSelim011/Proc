@@ -1,0 +1,187 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// GET /api/services/requisitions - Get service requisitions
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const status = searchParams.get('status') || '';
+    const search = searchParams.get('search') || '';
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      itemType: 'SERVICE' // Only service PRs
+    };
+    
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.OR = [
+        { prNumber: { contains: search, mode: 'insensitive' } },
+        { departmentId: { contains: search, mode: 'insensitive' } },
+        { requesterId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [prs, total] = await Promise.all([
+      prisma.purchaseRequisition.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          servicePR: {
+            include: {
+              items: {
+                include: {
+                  serviceItem: {
+                    include: {
+                      serviceCategory: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          approvals: {
+            orderBy: {
+              createdAt: 'desc'
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      prisma.purchaseRequisition.count({ where })
+    ]);
+
+    return NextResponse.json({
+      serviceRequisitions: prs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching service requisitions:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch service requisitions' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/services/requisitions - Create service requisition
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      departmentId,
+      requesterId,
+      priority,
+      budgetCode,
+      justification,
+      serviceScope,
+      technicalSpecifications,
+      duration,
+      durationUnit,
+      deliverables,
+      performanceMetrics,
+      slaRequirements,
+      insuranceRequired,
+      certificationRequired,
+      safetyRequirements,
+      paymentSchedule,
+      retentionPercentage,
+      items
+    } = body;
+
+    if (!departmentId || !requesterId || !serviceScope || !items || items.length === 0) {
+      return NextResponse.json(
+        { error: 'Required fields missing' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate total estimated cost
+    const totalEstimatedCost = items.reduce(
+      (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate) * item.duration),
+      0
+    );
+
+    // Generate PR number
+    const prCount = await prisma.purchaseRequisition.count();
+    const prNumber = `SPR-${String(prCount + 1).padStart(6, '0')}`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the main PR
+      const pr = await tx.purchaseRequisition.create({
+        data: {
+          prNumber,
+          requesterId,
+          departmentId,
+          itemType: 'SERVICE',
+          priority: priority || 'NORMAL',
+          estimatedCost: totalEstimatedCost,
+          budgetCode,
+          justification
+        }
+      });
+
+      // Create the service PR
+      const servicePR = await tx.servicePR.create({
+        data: {
+          prId: pr.id,
+          serviceScope,
+          technicalSpecifications,
+          duration: duration || 30,
+          durationUnit: durationUnit || 'DAYS',
+          deliverables,
+          performanceMetrics,
+          slaRequirements,
+          insuranceRequired: insuranceRequired || false,
+          certificationRequired: certificationRequired || false,
+          safetyRequirements,
+          paymentSchedule: paymentSchedule || 'MILESTONE',
+          retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0
+        }
+      });
+
+      // Create service PR items
+      for (const item of items) {
+        await tx.servicePRItem.create({
+          data: {
+            servicePRId: servicePR.id,
+            serviceItemId: item.serviceItemId,
+            quantity: parseFloat(item.quantity),
+            estimatedRate: parseFloat(item.estimatedRate),
+            duration: item.duration || 1,
+            durationUnit: item.durationUnit || 'DAYS',
+            specifications: item.specifications,
+            deliverables: item.deliverables,
+            performanceMetrics: item.performanceMetrics
+          }
+        });
+      }
+
+      return pr;
+    });
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    console.error('Error creating service requisition:', error);
+    return NextResponse.json(
+      { error: 'Failed to create service requisition' },
+      { status: 500 }
+    );
+  }
+}
