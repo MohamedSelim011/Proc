@@ -217,16 +217,6 @@ export default function EditRFQPage() {
     );
   }
 
-  // Debug logging
-  console.log('RFQ Status Debug:', {
-    status: rfq.status,
-    statusType: typeof rfq.status,
-    statusLength: rfq.status?.length,
-    trimmedStatus: rfq.status?.trim(),
-    canEdit: ['DRAFT', 'NEW', 'PENDING'].includes(rfq.status?.trim()),
-    statusInArray: ['DRAFT', 'NEW', 'PENDING'].includes(rfq.status?.trim())
-  });
-
   // Check if RFQ can be edited based on database status
   // Allow editing for DRAFT status, and potentially other early stages
   const canEdit = ['DRAFT', 'NEW', 'PENDING'].includes(rfq.status?.trim());
