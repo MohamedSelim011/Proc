@@ -429,7 +429,7 @@ function NewPurchaseOrderContent() {
                     <input
                       type="text"
                       placeholder="Search vendors..."
-                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={searchVendor}
                       onChange={(e) => setSearchVendor(e.target.value)}
                     />
@@ -484,7 +484,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.deliveryDate ? 'border-red-300' : ''
                     }`}
                     value={formData.deliveryDate}
@@ -501,7 +501,7 @@ function NewPurchaseOrderContent() {
                     Currency
                   </label>
                   <select
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
@@ -525,7 +525,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.building ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.building}
@@ -546,7 +546,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.street ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.street}
@@ -567,7 +567,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.city}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -581,7 +581,7 @@ function NewPurchaseOrderContent() {
                       Governorate
                     </label>
                     <select
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.governorate}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -608,7 +608,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.postalCode ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.postalCode}
@@ -629,7 +629,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.country}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -647,7 +647,7 @@ function NewPurchaseOrderContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                  className={`block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
                   value={formData.paymentTerms}
@@ -736,7 +736,7 @@ function NewPurchaseOrderContent() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`pl-12 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                                className={`pl-12 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                   errors[`item_${index}_price`] ? 'border-red-300' : ''
                                 }`}
                                 value={poItem?.unitPrice || 0}
@@ -783,7 +783,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialConditions || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialConditions: e.target.value }))}
                     placeholder="Any special conditions or requirements..."
@@ -796,7 +796,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.warrantyRequirements || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, warrantyRequirements: e.target.value }))}
                     placeholder="Warranty terms and requirements..."
@@ -809,7 +809,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.qualityStandards || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                     placeholder="Quality standards and inspection requirements..."
@@ -874,7 +874,7 @@ function NewPurchaseOrderContent() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -883,7 +883,7 @@ function NewPurchaseOrderContent() {
           <button
             onClick={handleNext}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               'Creating...'

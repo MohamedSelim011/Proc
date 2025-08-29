@@ -133,9 +133,9 @@ async function calculateProcurementCycleTime(dateRange: any) {
     for (const po of pr.purchaseOrders) {
       if (po.goodsReceipts.length > 0) {
         const latestReceipt = po.goodsReceipts.sort((a, b) => 
-          new Date(b.receiptDate).getTime() - new Date(a.receiptDate).getTime()
+          new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime()
         )[0];
-        completionDate = latestReceipt.receiptDate;
+        completionDate = latestReceipt.receivedDate;
         break;
       }
     }
@@ -165,7 +165,7 @@ async function calculateProcurementCycleTime(dateRange: any) {
 async function calculateOnTimeDeliveryRate(dateRange: any) {
   const deliveries = await prisma.goodsReceipt.findMany({
     where: {
-      receiptDate: {
+      receivedDate: {
         gte: dateRange.start,
         lte: dateRange.end
       }
@@ -180,7 +180,7 @@ async function calculateOnTimeDeliveryRate(dateRange: any) {
 
   deliveries.forEach(gr => {
     if (gr.po && gr.po.deliveryDate) {
-      const deliveryDate = new Date(gr.receiptDate);
+      const deliveryDate = new Date(gr.receivedDate);
       const expectedDate = new Date(gr.po.deliveryDate);
       
       if (deliveryDate <= expectedDate) {
@@ -459,7 +459,7 @@ async function calculateStockItemDeliveryAccuracy(dateRange: any) {
   const stockDeliveries = await prisma.gRItem.findMany({
     where: {
       gr: {
-        receiptDate: {
+        receivedDate: {
           gte: dateRange.start,
           lte: dateRange.end
         }
@@ -563,7 +563,7 @@ async function calculateInventoryTurnoverRate(dateRange: any) {
       grItems: {
         where: {
           gr: {
-            receiptDate: {
+            receivedDate: {
               gte: dateRange.start,
               lte: dateRange.end
             }

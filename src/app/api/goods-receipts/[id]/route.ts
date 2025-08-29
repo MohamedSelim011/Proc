@@ -117,20 +117,13 @@ export async function PUT(
       );
     }
 
-    // Check if GR can be edited
-    if (!['PENDING', 'PARTIAL'].includes(existingGR.status)) {
-      return NextResponse.json(
-        { error: 'Cannot edit goods receipt in current status' },
-        { status: 400 }
-      );
-    }
-
     // Update GR and items in transaction
     const receipt = await prisma.$transaction(async (tx) => {
       // Update goods receipt
       const updatedGR = await tx.goodsReceipt.update({
         where: { id: params.id },
         data: {
+          receivedDate: body.receivedDate ? new Date(body.receivedDate) : existingGR.receivedDate,
           receivedBy: body.receivedBy || existingGR.receivedBy,
           qualityChecked: body.qualityChecked !== undefined ? body.qualityChecked : existingGR.qualityChecked,
           qualityComments: body.qualityComments || existingGR.qualityComments,
@@ -140,27 +133,22 @@ export async function PUT(
 
       // Update items if provided
       if (body.items && Array.isArray(body.items)) {
-        // Delete existing items
-        await tx.gRItem.deleteMany({
-          where: { grId: params.id }
-        });
-
-        // Create updated items
-        await tx.gRItem.createMany({
-          data: body.items.map((item: any) => ({
-            grId: params.id,
-            itemId: item.itemId,
-            orderedQuantity: item.orderedQuantity,
-            receivedQuantity: item.receivedQuantity,
-            acceptedQuantity: item.acceptedQuantity || item.receivedQuantity,
-            rejectedQuantity: item.rejectedQuantity || 0,
-            rejectionReason: item.rejectionReason
-          }))
-        });
+        // Update existing items instead of deleting and recreating
+        for (const item of body.items) {
+          await tx.gRItem.update({
+            where: { id: item.id },
+            data: {
+              receivedQuantity: item.receivedQuantity,
+              acceptedQuantity: item.acceptedQuantity,
+              rejectedQuantity: item.rejectedQuantity,
+              rejectionReason: item.rejectionReason
+            }
+          });
+        }
 
         // Determine new status based on items
         const allFullyReceived = body.items.every((item: any) => 
-          item.receivedQuantity >= item.orderedQuantity
+          item.receivedQuantity >= item.acceptedQuantity + item.rejectedQuantity
         );
 
         const newStatus = allFullyReceived ? 'COMPLETED' : 'PARTIAL';
