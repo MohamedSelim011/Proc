@@ -68,15 +68,26 @@ export async function POST(request: NextRequest) {
     const count = await prisma.rFQ.count();
     const rfqNumber = `RFQ-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+    // Create RFQ with additional fields
+    const rfqData: any = {
+      rfqNumber,
+      prId: body.prId,
+      title: body.title,
+      description: body.description,
+      closingDate: new Date(body.closingDate),
+      status: body.status || 'DRAFT'
+    };
+
+    // Add custom fields if they exist
+    if (body.evaluationCriteria) {
+      rfqData.evaluationCriteria = body.evaluationCriteria;
+    }
+    if (body.termsAndConditions) {
+      rfqData.termsAndConditions = body.termsAndConditions;
+    }
+
     const rfq = await prisma.rFQ.create({
-      data: {
-        rfqNumber,
-        prId: body.prId,
-        title: body.title,
-        description: body.description,
-        closingDate: new Date(body.closingDate),
-        status: body.status || 'DRAFT'
-      },
+      data: rfqData,
       include: {
         pr: {
           include: {
@@ -91,8 +102,9 @@ export async function POST(request: NextRequest) {
     });
 
     // If publishing immediately, send to vendors
-    if (body.publishNow && body.vendorIds?.length > 0) {
+    if (body.status === 'PUBLISHED' && body.vendorIds?.length > 0) {
       // In real implementation, this would send emails to vendors
+      // For now, just update the status
       await prisma.rFQ.update({
         where: { id: rfq.id },
         data: { status: 'PUBLISHED' }

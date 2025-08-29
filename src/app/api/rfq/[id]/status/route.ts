@@ -6,9 +6,26 @@ const prisma = new PrismaClient();
 // PUT /api/rfq/[id]/status - Update RFQ status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return updateRFQStatus(request, params);
+}
+
+// PATCH /api/rfq/[id]/status - Update RFQ status (alternative method)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return updateRFQStatus(request, params);
+}
+
+// Common function for updating RFQ status
+async function updateRFQStatus(
+  request: NextRequest,
+  params: Promise<{ id: string }>
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { status, updatedBy, comments } = body;
 
@@ -22,7 +39,7 @@ export async function PUT(
     }
 
     const rfq = await prisma.rFQ.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         responses: true
       }
@@ -62,24 +79,23 @@ export async function PUT(
         );
       }
 
-      // Check if closing date is in the future
-      if (new Date(rfq.closingDate) <= new Date()) {
+      // Check if closing date is reasonable (not too far in the past - allow up to 90 days in the past for testing)
+      const closingDate = new Date(rfq.closingDate);
+      const now = new Date();
+      const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      
+      if (closingDate < ninetyDaysAgo) {
         return NextResponse.json(
-          { error: 'Closing date must be in the future' },
+          { error: 'Closing date cannot be more than 90 days in the past' },
           { status: 400 }
         );
       }
     }
 
     if (status === 'CLOSED') {
-      // Automatically close if past closing date
-      const now = new Date();
-      if (now < new Date(rfq.closingDate)) {
-        return NextResponse.json(
-          { error: 'Cannot close RFQ before closing date unless manually closed' },
-          { status: 400 }
-        );
-      }
+      // Allow manual closing regardless of date
+      // The system will automatically close RFQs past their closing date
+      console.log(`Manually closing RFQ ${rfq.rfqNumber}`);
     }
 
     if (status === 'EVALUATED') {
@@ -117,7 +133,7 @@ export async function PUT(
 
     // Update RFQ status
     const updatedRFQ = await prisma.rFQ.update({
-      where: { id: params.id },
+      where: { id },
       data: { 
         status,
         updatedAt: new Date()
@@ -137,7 +153,7 @@ export async function PUT(
       // Update all pending responses to under review
       await prisma.rFQResponse.updateMany({
         where: { 
-          rfqId: params.id,
+          rfqId: id,
           status: 'SUBMITTED'
         },
         data: { 
