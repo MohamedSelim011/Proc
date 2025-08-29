@@ -173,6 +173,10 @@ model RFQ {
   closingDate  DateTime
   status       RFQStatus @default(DRAFT)
   
+  // Additional fields for enhanced RFQ management
+  evaluationCriteria String? // JSON string for evaluation criteria
+  termsAndConditions String? // Terms and conditions text
+  
   // Responses
   responses    RFQResponse[]
   

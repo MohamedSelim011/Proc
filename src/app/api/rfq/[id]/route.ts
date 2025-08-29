@@ -6,11 +6,12 @@ const prisma = new PrismaClient();
 // GET /api/rfq/[id] - Get RFQ by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const rfq = await prisma.rFQ.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         pr: {
           include: {
@@ -73,8 +74,10 @@ export async function GET(
     };
 
     return NextResponse.json({
-      ...rfq,
-      statistics: stats
+      rfq: {
+        ...rfq,
+        statistics: stats
+      }
     });
   } catch (error) {
     console.error('Error fetching RFQ:', error);

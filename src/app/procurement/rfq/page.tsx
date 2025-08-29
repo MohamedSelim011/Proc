@@ -87,45 +87,49 @@ export default function RFQPage() {
       const response = await fetch(`/api/rfq?${params}`);
       const data = await response.json();
       
-      if (response.ok) {
-        // Transform RFQ data to include mock evaluation criteria and responses
-        const transformedRFQs: RFQ[] = data.rfqs?.map((rfq: any) => ({
-          id: rfq.id,
-          rfqNumber: rfq.rfqNumber,
-          title: rfq.title,
-          description: rfq.description,
-          purchaseRequisition: {
-            id: rfq.pr?.id || 'N/A',
-            prNumber: rfq.pr?.prNumber || 'N/A',
-            itemType: rfq.pr?.itemType || 'STOCK'
-          },
-          issueDate: rfq.issueDate,
-          submissionDeadline: rfq.submissionDeadline,
-          status: rfq.status,
-          totalEstimatedValue: rfq.totalEstimatedValue || Math.random() * 100000 + 10000,
-          currency: 'OMR',
-          responseCount: rfq.responses?.length || 0,
-          evaluationCriteria: rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : {
-            technical: 40,
-            commercial: 30,
-            delivery: 20,
-            experience: 10
-          },
-          responses: rfq.responses?.map((response: any) => ({
-            id: response.id,
-            vendor: {
-              id: response.vendor?.id || 'vendor-1',
-              nameEn: response.vendor?.nameEn || 'Sample Vendor'
+              if (response.ok) {
+          // Transform RFQ data to match the expected interface
+          const transformedRFQs: RFQ[] = data.rfqs?.map((rfq: any) => ({
+            id: rfq.id,
+            rfqNumber: rfq.rfqNumber,
+            title: rfq.title,
+            description: rfq.description,
+            purchaseRequisition: {
+              id: rfq.pr?.id || 'N/A',
+              prNumber: rfq.pr?.prNumber || 'N/A',
+              itemType: rfq.pr?.itemType || 'STOCK'
             },
-            status: response.status,
-            submittedAt: response.submittedAt,
-            totalQuotedPrice: response.totalQuotedPrice || Math.random() * 80000 + 20000,
-            technicalScore: response.technicalScore || Math.random() * 40 + 60,
-            commercialScore: response.commercialScore || Math.random() * 30 + 70
-          })) || [],
-          createdAt: rfq.createdAt,
-          updatedAt: rfq.updatedAt
-        })) || [];
+            issueDate: rfq.issueDate,
+            submissionDeadline: rfq.closingDate, // Map closingDate to submissionDeadline
+            status: mapRFQStatus(rfq.status), // Map database status to frontend status
+            totalEstimatedValue: (() => {
+              const rawValue = rfq.pr?.estimatedCost || '0';
+              const parsedValue = parseFloat(rawValue) || 0;
+              return parsedValue;
+            })(), // Convert string to number safely
+            currency: 'OMR',
+            responseCount: rfq.responses?.length || 0,
+            evaluationCriteria: rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : {
+              technical: 40,
+              commercial: 30,
+              delivery: 20,
+              experience: 10
+            },
+            responses: rfq.responses?.map((response: any) => ({
+              id: response.id,
+              vendor: {
+                id: response.vendor?.id || 'vendor-1',
+                nameEn: response.vendor?.nameEn || 'Sample Vendor'
+              },
+              status: mapRFQResponseStatus(response.status), // Map response status
+              submittedAt: response.submittedAt,
+              totalQuotedPrice: response.totalAmount || 0, // Map totalAmount to totalQuotedPrice
+              technicalScore: response.technicalScore || 0,
+              commercialScore: response.commercialScore || 0
+            })) || [],
+            createdAt: rfq.createdAt,
+            updatedAt: rfq.updatedAt
+          })) || [];
         
         setRfqs(transformedRFQs);
         setTotalPages(Math.ceil((data.total || 0) / 10));
@@ -159,14 +163,41 @@ export default function RFQPage() {
     }
   };
 
+  // Helper functions to map database statuses to frontend statuses
+  const mapRFQStatus = (dbStatus: string): string => {
+    switch (dbStatus) {
+      case 'DRAFT': return 'DRAFT';
+      case 'PUBLISHED': return 'ISSUED';
+      case 'CLOSED': return 'UNDER_EVALUATION';
+      case 'EVALUATED': return 'UNDER_EVALUATION';
+      case 'AWARDED': return 'COMPLETED';
+      default: return 'DRAFT';
+    }
+  };
+
+  const mapRFQResponseStatus = (dbStatus: string): string => {
+    switch (dbStatus) {
+      case 'SUBMITTED': return 'SUBMITTED';
+      case 'UNDER_REVIEW': return 'EVALUATED';
+      case 'SHORTLISTED': return 'EVALUATED';
+      case 'SELECTED': return 'SELECTED';
+      case 'REJECTED': return 'REJECTED';
+      default: return 'PENDING';
+    }
+  };
+
   // Calculate statistics
   const stats = {
     total: rfqs.length,
     issued: rfqs.filter(rfq => rfq.status === 'ISSUED').length,
     underEvaluation: rfqs.filter(rfq => rfq.status === 'UNDER_EVALUATION').length,
     completed: rfqs.filter(rfq => rfq.status === 'COMPLETED').length,
-    totalValue: rfqs.reduce((sum, rfq) => sum + rfq.totalEstimatedValue, 0),
-    avgResponseRate: rfqs.length > 0 ? rfqs.reduce((sum, rfq) => sum + rfq.responseCount, 0) / rfqs.length : 0
+    totalValue: rfqs.reduce((sum, rfq) => {
+      const value = rfq.totalEstimatedValue || 0;
+      return sum + value;
+    }, 0),
+    avgResponseRate: rfqs.length > 0 ? 
+      rfqs.reduce((sum, rfq) => sum + (rfq.responseCount || 0), 0) / rfqs.length : 0
   };
 
   if (loading) {
@@ -251,8 +282,8 @@ export default function RFQPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {stats.totalValue.toLocaleString()} OMR
+              <p className="text-xl font-bold text-purple-600 truncate">
+                   {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}
               </p>
             </div>
           </div>
