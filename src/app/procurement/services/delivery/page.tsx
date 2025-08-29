@@ -87,7 +87,11 @@ export default function ServiceDeliveryPage() {
           scheduledDate: po.deliveryDate || po.createdAt,
           actualStartDate: po.status === 'DELIVERED' ? po.deliveryDate : undefined,
           estimatedCompletionDate: addDays(po.deliveryDate || po.createdAt, 30),
-          deliveryLocation: po.deliveryAddress || 'Muscat, Oman',
+          deliveryLocation: typeof po.deliveryAddress === 'string' 
+            ? po.deliveryAddress 
+            : po.deliveryAddress 
+              ? `${po.deliveryAddress.building}, ${po.deliveryAddress.street}, ${po.deliveryAddress.city}, ${po.deliveryAddress.governorate}, ${po.deliveryAddress.postalCode}, ${po.deliveryAddress.country}`
+              : 'Muscat, Oman',
           projectManager: 'Ahmed Al-Rashid',
           resources: {
             personnel: Math.floor(Math.random() * 10) + 2,

@@ -6,9 +6,10 @@ const prisma = new PrismaClient();
 // PUT /api/purchase-orders/[id]/status - Update PO status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { status, comments, updatedBy } = body;
 
@@ -22,7 +23,7 @@ export async function PUT(
     }
 
     const order = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         vendor: true
       }
@@ -56,7 +57,7 @@ export async function PUT(
 
     // Update PO status
     const updatedOrder = await prisma.purchaseOrder.update({
-      where: { id: params.id },
+      where: { id },
       data: { 
         status,
         updatedAt: new Date()

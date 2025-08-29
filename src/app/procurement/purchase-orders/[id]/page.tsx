@@ -18,7 +18,8 @@ import {
   Phone,
   MapPin,
   User,
-  CreditCard
+  CreditCard,
+  XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -57,7 +58,14 @@ interface PurchaseOrder {
   currency: string;
   orderDate: string;
   deliveryDate?: string;
-  deliveryAddress?: string;
+  deliveryAddress?: string | {
+    building: string;
+    street: string;
+    city: string;
+    governorate: string;
+    postalCode: string;
+    country: string;
+  };
   paymentTerms?: string;
   notes?: string;
   goodsReceipts: {
@@ -98,6 +106,10 @@ export default function PurchaseOrderDetailPage() {
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string>('');
+  const [statusComments, setStatusComments] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -120,6 +132,45 @@ export default function PurchaseOrderDetailPage() {
       console.error('Error fetching purchase order:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    setPendingStatus(newStatus);
+    setStatusComments('');
+    setShowStatusDialog(true);
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!po) return;
+    
+    try {
+      setUpdatingStatus(true);
+      const response = await fetch(`/api/purchase-orders/${po.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: pendingStatus,
+          updatedBy: 'current-user', // This should come from auth context
+          comments: statusComments || `Status updated to ${pendingStatus}`
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh PO data
+        await fetchPurchaseOrder(po.id);
+        setShowStatusDialog(false);
+      } else {
+        const error = await response.json();
+        alert(`Failed to update status: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -210,9 +261,59 @@ export default function PurchaseOrderDetailPage() {
             <p className="text-sm text-gray-500">Total Amount</p>
             <div className="flex gap-2 mt-4">
               {po.status === 'DRAFT' && (
-                <button className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
-                  <Edit className="h-4 w-4 inline mr-1" />
-                  Edit
+                <>
+                  <button 
+                    onClick={() => handleStatusUpdate('APPROVED')}
+                    disabled={updatingStatus}
+                    className="px-4 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle className="h-4 w-4 inline mr-1" />
+                    {updatingStatus ? 'Approving...' : 'Approve'}
+                  </button>
+                  <button 
+                    onClick={() => handleStatusUpdate('CANCELLED')}
+                    disabled={updatingStatus}
+                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <XCircle className="h-4 w-4 inline mr-1" />
+                    {updatingStatus ? 'Rejecting...' : 'Reject'}
+                  </button>
+                  <button 
+                    onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                  >
+                    <Edit className="h-4 w-4 inline mr-1" />
+                    Edit
+                  </button>
+                </>
+              )}
+              {po.status === 'APPROVED' && (
+                <>
+                  <button 
+                    onClick={() => handleStatusUpdate('SENT')}
+                    disabled={updatingStatus}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Mail className="h-4 w-4 inline mr-1" />
+                    {updatingStatus ? 'Sending...' : 'Send to Vendor'}
+                  </button>
+                  <button 
+                    onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  >
+                    <Edit className="h-4 w-4 inline mr-1" />
+                    Edit
+                  </button>
+                </>
+              )}
+              {po.status === 'SENT' && (
+                <button 
+                  onClick={() => handleStatusUpdate('ACKNOWLEDGED')}
+                  disabled={updatingStatus}
+                  className="px-4 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle className="h-4 w-4 inline mr-1" />
+                  {updatingStatus ? 'Updating...' : 'Mark Acknowledged'}
                 </button>
               )}
               <button className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
@@ -290,6 +391,75 @@ export default function PurchaseOrderDetailPage() {
                     <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{po.notes}</p>
                   </div>
                 )}
+
+                {/* Status History */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Status History</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Current Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(po.status)}`}>
+                        {po.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Created:</span>
+                      <span className="text-gray-900">{new Date(po.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    {po.updatedAt && po.updatedAt !== po.createdAt && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Last Updated:</span>
+                        <span className="text-gray-900">{new Date(po.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workflow Progress */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Approval Workflow</h4>
+                  <div className="space-y-3">
+                    {[
+                      { status: 'DRAFT', label: 'Draft Created', icon: FileText },
+                      { status: 'APPROVED', label: 'Approved', icon: CheckCircle },
+                      { status: 'SENT', label: 'Sent to Vendor', icon: Mail },
+                      { status: 'ACKNOWLEDGED', label: 'Vendor Acknowledged', icon: CheckCircle },
+                      { status: 'PARTIAL', label: 'Partial Delivery', icon: Package },
+                      { status: 'COMPLETED', label: 'Completed', icon: CheckCircle }
+                    ].map((step, index) => {
+                      const isCompleted = ['DRAFT', 'APPROVED', 'SENT', 'ACKNOWLEDGED', 'PARTIAL', 'COMPLETED'].indexOf(po.status) >= index;
+                      const isCurrent = po.status === step.status;
+                      
+                      return (
+                        <div key={step.status} className="flex items-center gap-3">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                            isCompleted 
+                              ? 'bg-green-500 border-green-500 text-white' 
+                              : isCurrent
+                              ? 'bg-orange-500 border-orange-500 text-white'
+                              : 'bg-gray-100 border-gray-300 text-gray-400'
+                          }`}>
+                            {isCompleted || isCurrent ? (
+                              <step.icon className="h-4 w-4" />
+                            ) : (
+                              <span className="text-sm font-medium">{index + 1}</span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-medium ${
+                              isCompleted ? 'text-green-700' : isCurrent ? 'text-orange-700' : 'text-gray-500'
+                            }`}>
+                              {step.label}
+                            </div>
+                            {isCurrent && (
+                              <div className="text-xs text-orange-600">Current Step</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Vendor Information */}
@@ -321,7 +491,10 @@ export default function PurchaseOrderDetailPage() {
                       <span className="text-sm text-gray-600">Delivery Address:</span>
                       <p className="text-sm font-medium text-gray-900 mt-1">
                         <MapPin className="h-4 w-4 inline mr-1" />
-                        {po.deliveryAddress}
+                        {typeof po.deliveryAddress === 'string' 
+                          ? po.deliveryAddress 
+                          : `${po.deliveryAddress.building}, ${po.deliveryAddress.street}, ${po.deliveryAddress.city}, ${po.deliveryAddress.governorate}, ${po.deliveryAddress.postalCode}, ${po.deliveryAddress.country}`
+                        }
                       </p>
                     </div>
                   )}
@@ -565,6 +738,51 @@ export default function PurchaseOrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Status Update Confirmation Dialog */}
+      {showStatusDialog && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Update Purchase Order Status
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to change the status to <strong>{pendingStatus}</strong>?
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comments (Optional)
+                </label>
+                <textarea
+                  value={statusComments}
+                  onChange={(e) => setStatusComments(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Add any comments about this status change..."
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowStatusDialog(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmStatusUpdate}
+                  disabled={updatingStatus}
+                  className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updatingStatus ? 'Updating...' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
