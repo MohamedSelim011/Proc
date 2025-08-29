@@ -93,7 +93,6 @@ export default function NewRFQPage() {
       const response = await fetch('/api/purchase-requisitions?status=APPROVED');
       if (response.ok) {
         const data = await response.json();
-        console.log('PRs data:', data);
         setPrs(data.requisitions || []);
       }
     } catch (error) {
