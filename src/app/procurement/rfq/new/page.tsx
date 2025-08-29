@@ -242,7 +242,7 @@ export default function NewRFQPage() {
                 ))}
                 {/* Debug info */}
                 {prs.length === 0 && (
-                  <option disabled>No PRs available (Debug: {JSON.stringify(prs)})</option>
+                  <option disabled>No PRs available</option>
                 )}
               </select>
             </div>
