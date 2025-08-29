@@ -237,7 +237,7 @@ export default function EditRFQPage() {
         <CheckCircle className="mx-auto h-12 w-12 text-green-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">RFQ cannot be edited</h3>
         <p className="mt-1 text-sm text-gray-500">
-          This RFQ has already been issued and cannot be modified. Current status: "{rfq.status}" (Type: {typeof rfq.status})
+          This RFQ has already been issued and cannot be modified. Current status: "{rfq.status}"
         </p>
         <div className="mt-6">
           <Link
