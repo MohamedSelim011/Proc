@@ -95,7 +95,6 @@ async function updateRFQStatus(
     if (status === 'CLOSED') {
       // Allow manual closing regardless of date
       // The system will automatically close RFQs past their closing date
-      console.log(`Manually closing RFQ ${rfq.rfqNumber}`);
     }
 
     if (status === 'EVALUATED') {
