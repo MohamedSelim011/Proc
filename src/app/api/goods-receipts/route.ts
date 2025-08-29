@@ -74,6 +74,11 @@ export async function POST(request: NextRequest) {
       item.receivedQuantity === item.orderedQuantity
     );
 
+    // Get PO items to map poItemId to itemId
+    const poItems = await prisma.pOItem.findMany({
+      where: { poId: body.poId }
+    });
+
     const receipt = await prisma.goodsReceipt.create({
       data: {
         grNumber,
@@ -83,14 +88,20 @@ export async function POST(request: NextRequest) {
         qualityChecked: body.qualityChecked || false,
         qualityComments: body.qualityComments,
         items: {
-          create: body.items.map((item: any) => ({
-            itemId: item.itemId,
-            orderedQuantity: item.orderedQuantity,
-            receivedQuantity: item.receivedQuantity,
-            acceptedQuantity: item.acceptedQuantity || item.receivedQuantity,
-            rejectedQuantity: item.rejectedQuantity || 0,
-            rejectionReason: item.rejectionReason
-          }))
+          create: body.items.map((item: any) => {
+            const poItem = poItems.find(poi => poi.id === item.poItemId);
+            if (!poItem) {
+              throw new Error(`PO item not found: ${item.poItemId}`);
+            }
+            return {
+              itemId: poItem.itemId,
+              orderedQuantity: item.orderedQuantity,
+              receivedQuantity: item.receivedQuantity,
+              acceptedQuantity: item.acceptedQuantity || item.receivedQuantity,
+              rejectedQuantity: item.rejectedQuantity || 0,
+              rejectionReason: item.rejectionReason
+            };
+          })
         }
       },
       include: {
@@ -115,10 +126,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Calculate total received quantities
-    const poItems = await prisma.pOItem.findMany({
-      where: { poId: body.poId }
-    });
+    // Calculate total received quantities (reuse poItems from above)
 
     let fullyReceived = true;
     let partiallyReceived = false;
@@ -138,7 +146,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update PO status
-    let newStatus = 'ACKNOWLEDGED';
+    let newStatus: 'ACKNOWLEDGED' | 'COMPLETED' | 'PARTIAL' = 'ACKNOWLEDGED';
     if (fullyReceived) {
       newStatus = 'COMPLETED';
     } else if (partiallyReceived) {

@@ -328,7 +328,7 @@ function NewGoodsReceiptContent() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Create Goods Receipt Note</h1>
@@ -339,42 +339,46 @@ function NewGoodsReceiptContent() {
 
       {/* Progress Steps */}
       <div className="mb-8">
-        <nav aria-label="Progress">
-          <ol className="flex items-center">
+        <nav aria-label="Progress" className="bg-gray-50 rounded-lg p-6">
+          <ol className="flex items-center justify-between w-full">
             {[
               { id: 1, name: 'PO Selection', description: 'Select purchase order' },
               { id: 2, name: 'Receipt Details', description: 'Receipt information' },
               { id: 3, name: 'Items Inspection', description: 'Inspect and count items' },
               { id: 4, name: 'Quality Check', description: 'Quality verification' }
             ].map((step, stepIdx) => (
-              <li key={step.id} className={`${stepIdx !== 3 ? 'pr-8 sm:pr-20' : ''} relative`}>
+              <li key={step.id} className="relative flex-1">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                  {stepIdx < 4 && (
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                  )}
                 </div>
-                <div className={`relative flex h-8 w-8 items-center justify-center rounded-full ${
-                  step.id < currentStep 
-                    ? 'bg-blue-600' 
-                    : step.id === currentStep 
-                      ? 'border-2 border-blue-600 bg-white' 
-                      : 'border-2 border-gray-300 bg-white'
-                }`}>
-                  {step.id < currentStep ? (
-                    <CheckCircle className="h-5 w-5 text-white" />
-                  ) : (
+                <div className="relative flex flex-col items-center">
+                  <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                    step.id < currentStep 
+                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      : step.id === currentStep 
+                        ? 'border-blue-600 bg-white shadow-lg' 
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}>
+                    {step.id < currentStep ? (
+                      <CheckCircle className="h-5 w-5 text-white" />
+                    ) : (
+                      <span className={`text-sm font-medium ${
+                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      }`}>
+                        {step.id}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
                       step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
                     }`}>
-                      {step.id}
+                      {step.name}
                     </span>
-                  )}
-                </div>
-                <div className="mt-2">
-                  <span className={`text-sm font-medium ${
-                    step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
-                  }`}>
-                    {step.name}
-                  </span>
-                  <p className="text-xs text-gray-500">{step.description}</p>
+                    <p className="text-xs text-gray-500 mt-1 max-w-32 hidden sm:block">{step.description}</p>
+                  </div>
                 </div>
               </li>
             ))}
@@ -462,7 +466,7 @@ function NewGoodsReceiptContent() {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Receipt Details</h3>
               
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Received Date *
@@ -498,45 +502,59 @@ function NewGoodsReceiptContent() {
                     <p className="mt-1 text-sm text-red-600">{errors.receivedBy}</p>
                   )}
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Delivery Note Number
+                  </label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.deliveryNote || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryNote: e.target.value }))}
+                    placeholder="Delivery note reference"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Storage Location
+                  </label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.storageLocation || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, storageLocation: e.target.value }))}
+                    placeholder="Warehouse location, bin number..."
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Delivery Note Number
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.deliveryNote || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, deliveryNote: e.target.value }))}
-                  placeholder="Delivery note reference"
-                />
-              </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Transport Details
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.transportDetails || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, transportDetails: e.target.value }))}
+                    placeholder="Vehicle details, driver info, condition on arrival..."
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Transport Details
-                </label>
-                <textarea
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.transportDetails || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, transportDetails: e.target.value }))}
-                  placeholder="Vehicle details, driver info, condition on arrival..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Storage Location
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.storageLocation || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, storageLocation: e.target.value }))}
-                  placeholder="Warehouse location, bin number..."
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Special Handling Instructions
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.specialHandling || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
+                    placeholder="Any special handling requirements..."
+                  />
+                </div>
               </div>
             </div>
           )}
