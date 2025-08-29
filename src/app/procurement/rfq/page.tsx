@@ -194,14 +194,11 @@ export default function RFQPage() {
     completed: rfqs.filter(rfq => rfq.status === 'COMPLETED').length,
     totalValue: rfqs.reduce((sum, rfq) => {
       const value = rfq.totalEstimatedValue || 0;
-      console.log(`RFQ ${rfq.rfqNumber}: totalEstimatedValue=${value}, current sum=${sum}`);
       return sum + value;
     }, 0),
     avgResponseRate: rfqs.length > 0 ? 
       rfqs.reduce((sum, rfq) => sum + (rfq.responseCount || 0), 0) / rfqs.length : 0
   };
-
-  console.log('Final stats:', stats);
 
   if (loading) {
     return (
