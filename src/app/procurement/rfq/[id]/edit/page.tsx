@@ -77,13 +77,6 @@ export default function EditRFQPage() {
       const data = await response.json();
       
       // Debug: Log the raw API response
-      console.log('Raw API Response:', data);
-      console.log('Data structure:', {
-        hasRfq: !!data.rfq,
-        rfqStatus: data.rfq?.status,
-        directStatus: data.status,
-        keys: Object.keys(data)
-      });
       
       // Transform the data to match our interface
       // Handle both direct data and nested rfq data
