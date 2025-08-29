@@ -132,11 +132,6 @@ export default function RFQPage() {
           })) || [];
         
         setRfqs(transformedRFQs);
-        console.log('Transformed RFQs:', transformedRFQs.map(rfq => ({
-          rfqNumber: rfq.rfqNumber,
-          totalEstimatedValue: rfq.totalEstimatedValue,
-          type: typeof rfq.totalEstimatedValue
-        })));
         setTotalPages(Math.ceil((data.total || 0) / 10));
       }
     } catch (error) {
