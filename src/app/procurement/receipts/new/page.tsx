@@ -419,7 +419,7 @@ function NewGoodsReceiptContent() {
                       <input
                         type="text"
                         placeholder="Search purchase orders..."
-                        className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         value={searchPO}
                         onChange={(e) => setSearchPO(e.target.value)}
                       />
@@ -473,7 +473,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.receivedDate ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedDate}
@@ -491,7 +491,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.receivedBy ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedBy}
@@ -508,7 +508,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.deliveryNote || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, deliveryNote: e.target.value }))}
                     placeholder="Delivery note reference"
@@ -521,7 +521,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.storageLocation || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, storageLocation: e.target.value }))}
                     placeholder="Warehouse location, bin number..."
@@ -536,7 +536,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.transportDetails || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, transportDetails: e.target.value }))}
                     placeholder="Vehicle details, driver info, condition on arrival..."
@@ -549,7 +549,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Any special handling requirements..."
@@ -622,7 +622,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={poItem.quantity}
-                              className={`block w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                              className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                 errors[`item_${index}_received`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.receivedQuantity || 0}
@@ -637,7 +637,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={grItem?.receivedQuantity || 0}
-                              className={`block w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                              className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                 errors[`item_${index}_accepted`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.acceptedQuantity || 0}
@@ -653,7 +653,7 @@ function NewGoodsReceiptContent() {
                                 type="number"
                                 min="0"
                                 max={grItem?.receivedQuantity || 0}
-                                className={`block w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                                className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                   errors[`item_${index}_rejected`] ? 'border-red-300' : ''
                                 }`}
                                 value={grItem?.rejectedQuantity || 0}
@@ -663,7 +663,7 @@ function NewGoodsReceiptContent() {
                                 <input
                                   type="text"
                                   placeholder="Reason"
-                                  className={`block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs ${
+                                  className={`block w-32 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs ${
                                     errors[`item_${index}_reason`] ? 'border-red-300' : ''
                                   }`}
                                   value={grItem?.rejectionReason || ''}
@@ -684,7 +684,7 @@ function NewGoodsReceiptContent() {
                           <td className="px-6 py-4">
                             <textarea
                               rows={2}
-                              className="block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs"
+                              className="block w-40 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs"
                               placeholder="Inspection notes..."
                               value={grItem?.inspectionNotes || ''}
                               onChange={(e) => updateItemField(index, 'inspectionNotes', e.target.value)}
@@ -739,7 +739,7 @@ function NewGoodsReceiptContent() {
                   <input
                     id="quality-check"
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                     checked={formData.qualityChecked}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityChecked: e.target.checked }))}
                   />
@@ -756,7 +756,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <input
                         type="text"
-                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                        className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                           errors.qualityInspector ? 'border-red-300' : ''
                         }`}
                         value={formData.qualityInspector || ''}
@@ -774,7 +774,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <textarea
                         rows={3}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         value={formData.qualityComments || ''}
                         onChange={(e) => setFormData(prev => ({ ...prev, qualityComments: e.target.value }))}
                         placeholder="Quality inspection results, defects found, compliance notes..."
@@ -789,7 +789,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Special storage requirements, handling instructions..."
@@ -881,7 +881,7 @@ function NewGoodsReceiptContent() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -890,7 +890,7 @@ function NewGoodsReceiptContent() {
           <button
             onClick={handleNext}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               'Creating...'
