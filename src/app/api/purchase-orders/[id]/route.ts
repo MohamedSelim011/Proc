@@ -6,11 +6,12 @@ const prisma = new PrismaClient();
 // GET /api/purchase-orders/[id] - Get PO by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const order = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         vendor: {
           include: {
@@ -79,7 +80,8 @@ export async function GET(
       ),
       totalRejected: order.goodsReceipts.reduce((sum, gr) => 
         sum + gr.items.reduce((itemSum, grItem) => itemSum + grItem.rejectedQuantity, 0), 0
-      )
+      ),
+      totalPending: 0
     };
 
     deliveryStats.totalPending = deliveryStats.totalOrdered - deliveryStats.totalReceived - deliveryStats.totalRejected;
@@ -111,14 +113,15 @@ export async function GET(
 // PUT /api/purchase-orders/[id] - Update PO
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     // Check if PO can be edited
     const existingPO = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!existingPO) {
@@ -140,7 +143,7 @@ export async function PUT(
       // Delete existing items if items are being updated
       if (body.items) {
         await tx.pOItem.deleteMany({
-          where: { poId: params.id }
+          where: { poId: id }
         });
       }
 
@@ -151,7 +154,7 @@ export async function PUT(
 
       // Update PO
       const updated = await tx.purchaseOrder.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           vendorId: body.vendorId || existingPO.vendorId,
           deliveryDate: body.deliveryDate ? new Date(body.deliveryDate) : existingPO.deliveryDate,
@@ -197,11 +200,12 @@ export async function PUT(
 // DELETE /api/purchase-orders/[id] - Cancel PO
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const order = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -236,7 +240,7 @@ export async function DELETE(
 
     // Update status to CANCELLED instead of deleting
     await prisma.purchaseOrder.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: 'CANCELLED' }
     });
 

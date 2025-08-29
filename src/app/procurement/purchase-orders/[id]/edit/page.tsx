@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -13,7 +13,9 @@ import {
   User,
   Calendar,
   MapPin,
-  CreditCard
+  CreditCard,
+  Save,
+  XCircle
 } from 'lucide-react';
 
 interface Vendor {
@@ -46,12 +48,58 @@ interface PurchaseRequisition {
   }>;
 }
 
+interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  status: string;
+  itemType: string;
+  vendor: {
+    id: string;
+    nameEn: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  };
+  pr: {
+    id: string;
+    prNumber: string;
+    departmentId: string;
+    requestor: string;
+  };
+  items: {
+    id: string;
+    item: {
+      id: string;
+      nameEn: string;
+      itemCode: string;
+      unit: string;
+    };
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    specifications?: string;
+  }[];
+  totalAmount: number;
+  currency: string;
+  orderDate: string;
+  deliveryDate?: string;
+  deliveryAddress?: string | {
+    building: string;
+    street: string;
+    city: string;
+    governorate: string;
+    postalCode: string;
+    country: string;
+  };
+  paymentTerms?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface POFormData {
-  // Step 1: PR Selection & Vendor
   prId?: string;
   vendorId: string;
-  
-  // Step 2: PO Details
   deliveryDate: string;
   deliveryAddress: {
     building: string;
@@ -63,8 +111,6 @@ interface POFormData {
   };
   paymentTerms: string;
   currency: string;
-  
-  // Step 3: Items & Pricing
   items: Array<{
     itemId: string;
     quantity: number;
@@ -72,27 +118,26 @@ interface POFormData {
     totalPrice: number;
     deliveryDate?: string;
   }>;
-  
-  // Step 4: Terms & Conditions
   specialConditions?: string;
   warrantyRequirements?: string;
   qualityStandards?: string;
 }
 
-function NewPurchaseOrderContent() {
+function EditPurchaseOrderContent() {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const prId = searchParams.get('prId');
+  const poId = params.id as string;
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [approvedPRs, setApprovedPRs] = useState<PurchaseRequisition[]>([]);
-  const [selectedPR, setSelectedPR] = useState<PurchaseRequisition | null>(null);
   const [searchVendor, setSearchVendor] = useState('');
 
   const [formData, setFormData] = useState<POFormData>({
-    prId: prId || '',
+    prId: '',
     vendorId: '',
     deliveryDate: '',
     deliveryAddress: {
@@ -111,12 +156,65 @@ function NewPurchaseOrderContent() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchVendors();
-    fetchApprovedPRs();
-    if (prId) {
-      fetchPRDetails(prId);
+    if (poId) {
+      fetchPurchaseOrder(poId);
+      fetchVendors();
+      fetchApprovedPRs();
     }
-  }, [prId]);
+  }, [poId]);
+
+  const fetchPurchaseOrder = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/purchase-orders/${id}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPo(data);
+        // Populate form data
+        setFormData({
+          prId: data.prId || '',
+          vendorId: data.vendorId,
+          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate).toISOString().split('T')[0] : '',
+          deliveryAddress: typeof data.deliveryAddress === 'string' 
+            ? {
+                building: '',
+                street: '',
+                city: 'Muscat',
+                governorate: 'Muscat',
+                postalCode: '',
+                country: 'Oman'
+              }
+            : data.deliveryAddress || {
+                building: '',
+                street: '',
+                city: 'Muscat',
+                governorate: 'Muscat',
+                postalCode: '',
+                country: 'Oman'
+              },
+          paymentTerms: data.paymentTerms || 'Net 30 days',
+          currency: data.currency || 'OMR',
+          items: data.items.map((item: any) => ({
+            itemId: item.itemId,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            totalPrice: Number(item.totalPrice),
+            deliveryDate: item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : undefined
+          })),
+          specialConditions: data.specialConditions || '',
+          warrantyRequirements: data.warrantyRequirements || '',
+          qualityStandards: data.qualityStandards || ''
+        });
+      } else {
+        console.error('Error fetching purchase order:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase order:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchVendors = async () => {
     try {
@@ -139,28 +237,6 @@ function NewPurchaseOrderContent() {
       }
     } catch (error) {
       console.error('Error fetching approved PRs:', error);
-    }
-  };
-
-  const fetchPRDetails = async (id: string) => {
-    try {
-      const response = await fetch(`/api/purchase-requisitions/${id}`);
-      const data = await response.json();
-      if (response.ok) {
-        setSelectedPR(data);
-        setFormData(prev => ({
-          ...prev,
-          prId: id,
-          items: data.items.map((item: any) => ({
-            itemId: item.item.id,
-            quantity: item.quantity,
-            unitPrice: Number(item.estimatedPrice),
-            totalPrice: item.quantity * Number(item.estimatedPrice)
-          }))
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching PR details:', error);
     }
   };
 
@@ -198,88 +274,49 @@ function NewPurchaseOrderContent() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      if (currentStep === 4) {
-        handleSubmit();
-      } else {
-        setCurrentStep(currentStep + 1);
-      }
+      setCurrentStep(prev => Math.min(prev + 1, 4));
     }
   };
 
   const handlePrevious = () => {
-    setCurrentStep(currentStep - 1);
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handlePRSelection = (pr: PurchaseRequisition) => {
-    setSelectedPR(pr);
-    setFormData(prev => ({
-      ...prev,
-      prId: pr.id,
-      items: pr.items.map(item => ({
-        itemId: item.item.id,
-        quantity: item.quantity,
-        unitPrice: Number(item.estimatedPrice),
-        totalPrice: item.quantity * Number(item.estimatedPrice)
-      }))
-    }));
-  };
-
-  const updateItemPrice = (index: number, unitPrice: number) => {
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.map((item, i) => 
-        i === index 
-          ? { 
-              ...item, 
-              unitPrice, 
-              totalPrice: item.quantity * unitPrice 
-            } 
-          : item
-      )
-    }));
-  };
-
-  const calculateTotalAmount = () => {
-    return formData.items.reduce((total, item) => total + item.totalPrice, 0);
-  };
-
-  const handleSubmit = async () => {
+  const handleSave = async () => {
+    if (!validateStep(currentStep)) return;
+    
     try {
-      setLoading(true);
-
-      const submitData = {
-        prId: formData.prId,
-        vendorId: formData.vendorId,
-        deliveryDate: formData.deliveryDate,
-        deliveryAddress: formData.deliveryAddress,
-        paymentTerms: formData.paymentTerms,
-        currency: formData.currency,
-        status: 'DRAFT',
-        items: formData.items
-      };
-
-      const response = await fetch('/api/purchase-orders', {
-        method: 'POST',
+      setSaving(true);
+      const response = await fetch(`/api/purchase-orders/${poId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submitData),
+        body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        router.push(`/procurement/purchase-orders/${data.id}`);
+        router.push(`/procurement/purchase-orders/${poId}`);
       } else {
-        console.error('Error creating PO:', data.error);
-        setErrors({ submit: data.error || 'Failed to create purchase order' });
+        const error = await response.json();
+        alert(`Failed to update purchase order: ${error.error}`);
       }
     } catch (error) {
-      console.error('Error submitting PO:', error);
-      setErrors({ submit: 'Failed to create purchase order' });
+      console.error('Error updating purchase order:', error);
+      alert('Failed to update purchase order');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
+  };
+
+  const updateItemPrice = (index: number, unitPrice: number) => {
+    const newItems = [...formData.items];
+    newItems[index] = {
+      ...newItems[index],
+      unitPrice,
+      totalPrice: newItems[index].quantity * unitPrice
+    };
+    setFormData(prev => ({ ...prev, items: newItems }));
   };
 
   const formatCurrency = (amount: number) => {
@@ -289,19 +326,72 @@ function NewPurchaseOrderContent() {
     }).format(amount);
   };
 
+  const calculateTotalAmount = () => {
+    return formData.items.reduce((sum, item) => sum + item.totalPrice, 0);
+  };
+
   const filteredVendors = vendors.filter(vendor =>
     vendor.nameEn.toLowerCase().includes(searchVendor.toLowerCase()) ||
     vendor.vendorCode.toLowerCase().includes(searchVendor.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!po) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Purchase Order Not Found</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          The purchase order you're looking for doesn't exist or has been removed.
+        </p>
+        <div className="mt-6">
+          <button
+            onClick={() => router.push('/procurement/purchase-orders')}
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+          >
+            Back to Purchase Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Create Purchase Order</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Convert approved purchase requisition to purchase order
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Purchase Order</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              {po.poNumber} - Update purchase order details
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push(`/procurement/purchase-orders/${poId}`)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              <XCircle className="h-4 w-4 inline mr-2" />
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="h-4 w-4 inline mr-2" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Progress Steps */}
@@ -366,53 +456,34 @@ function NewPurchaseOrderContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Purchase Requisition *
                 </label>
-                {prId ? (
-                  selectedPR && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="space-y-3">
+                  {approvedPRs.map((pr) => (
+                    <div
+                      key={pr.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        formData.prId === pr.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setFormData(prev => ({ ...prev, prId: pr.id }))}
+                    >
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-medium text-blue-900">{selectedPR.prNumber}</h4>
-                          <p className="text-sm text-blue-700">
-                            {selectedPR.requesterId} • {selectedPR.departmentId}
+                          <h4 className="text-sm font-medium text-gray-900">{pr.prNumber}</h4>
+                          <p className="text-sm text-gray-500">
+                            {pr.requesterId} • {pr.departmentId}
                           </p>
-                          <p className="text-sm text-blue-700">
-                            {selectedPR.items.length} items • {formatCurrency(Number(selectedPR.estimatedCost))}
+                          <p className="text-sm text-gray-500">
+                            {pr.items.length} items • {formatCurrency(Number(pr.estimatedCost))}
                           </p>
                         </div>
-                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                        {formData.prId === pr.id && (
+                          <CheckCircle className="h-5 w-5 text-blue-600" />
+                        )}
                       </div>
                     </div>
-                  )
-                ) : (
-                  <div className="space-y-3">
-                    {approvedPRs.map((pr) => (
-                      <div
-                        key={pr.id}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                          formData.prId === pr.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => handlePRSelection(pr)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900">{pr.prNumber}</h4>
-                            <p className="text-sm text-gray-500">
-                              {pr.requesterId} • {pr.departmentId}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {pr.items.length} items • {formatCurrency(Number(pr.estimatedCost))}
-                            </p>
-                          </div>
-                          {formData.prId === pr.id && (
-                            <CheckCircle className="h-5 w-5 text-blue-600" />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
                 {errors.prId && (
                   <p className="mt-1 text-sm text-red-600">{errors.prId}</p>
                 )}
@@ -705,31 +776,31 @@ function NewPurchaseOrderContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {selectedPR?.items.map((prItem, index) => {
-                      const poItem = formData.items[index];
+                    {formData.items.map((poItem, index) => {
+                      const prItem = approvedPRs.find(pr => pr.id === formData.prId)?.items.find(item => item.item.id === poItem.itemId);
                       return (
-                        <tr key={prItem.id}>
+                        <tr key={poItem.itemId}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {prItem.item.itemCode}
+                                {prItem?.item.itemCode}
                               </div>
-                              <div className="text-sm text-gray-500">{prItem.item.nameEn}</div>
+                              <div className="text-sm text-gray-500">{prItem?.item.nameEn}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {prItem.quantity} {prItem.item.unitOfMeasure}
+                              {poItem.quantity} {prItem?.item.unitOfMeasure}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-500">
-                              {formatCurrency(Number(prItem.estimatedPrice))}
+                              {formatCurrency(Number(prItem?.estimatedPrice || 0))}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-px text-gray-500 text-sm">
                                 {formData.currency}
                               </span>
                               <input
@@ -824,7 +895,9 @@ function NewPurchaseOrderContent() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Purchase Requisition</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{selectedPR?.prNumber}</dd>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {approvedPRs.find(pr => pr.id === formData.prId)?.prNumber}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Vendor</dt>
@@ -835,7 +908,7 @@ function NewPurchaseOrderContent() {
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Delivery Date</dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {new Date(formData.deliveryDate).toLocaleDateString()}
+                      {formData.deliveryDate ? new Date(formData.deliveryDate).toLocaleDateString() : 'Not specified'}
                     </dd>
                   </div>
                   <div>
@@ -854,17 +927,6 @@ function NewPurchaseOrderContent() {
                   </div>
                 </div>
               </div>
-
-              {errors.submit && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <AlertCircle className="h-5 w-5 text-red-400" />
-                    <div className="ml-3">
-                      <p className="text-sm text-red-800">{errors.submit}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -880,36 +942,40 @@ function NewPurchaseOrderContent() {
             Previous
           </button>
 
-          <button
-            onClick={handleNext}
-            disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              'Creating...'
-            ) : currentStep === 4 ? (
-              'Create Purchase Order'
-            ) : (
-              <>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+            
+            {currentStep < 4 && (
+              <button
+                onClick={handleNext}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600"
+              >
                 Next
                 <ChevronRight className="h-4 w-4 ml-2" />
-              </>
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export default function NewPurchaseOrder() {
+export default function EditPurchaseOrder() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     }>
-      <NewPurchaseOrderContent />
+      <EditPurchaseOrderContent />
     </Suspense>
   );
-}
+} 

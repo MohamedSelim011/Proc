@@ -188,6 +188,64 @@ export default function PurchaseOrdersPage() {
     }
   };
 
+  const handleQuickApprove = async (poId: string) => {
+    if (confirm('Are you sure you want to approve this purchase order?')) {
+      try {
+        const response = await fetch(`/api/purchase-orders/${poId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: 'APPROVED',
+            updatedBy: 'current-user',
+            comments: 'Quick approved from list view'
+          }),
+        });
+
+        if (response.ok) {
+          // Refresh the orders list
+          fetchOrders();
+        } else {
+          const error = await response.json();
+          alert(`Failed to approve PO: ${error.error}`);
+        }
+      } catch (error) {
+        console.error('Error approving PO:', error);
+        alert('Failed to approve purchase order');
+      }
+    }
+  };
+
+  const handleQuickReject = async (poId: string) => {
+    if (confirm('Are you sure you want to reject this purchase order?')) {
+      try {
+        const response = await fetch(`/api/purchase-orders/${poId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: 'CANCELLED',
+            updatedBy: 'current-user',
+            comments: 'Quick rejected from list view'
+          }),
+        });
+
+        if (response.ok) {
+          // Refresh the orders list
+          fetchOrders();
+        } else {
+          const error = await response.json();
+          alert(`Failed to reject PO: ${error.error}`);
+        }
+      } catch (error) {
+        console.error('Error rejecting PO:', error);
+        alert('Failed to reject purchase order');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -280,7 +338,52 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
         </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Pending Approval</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {orders.filter(o => o.status === 'DRAFT').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Quick Actions */}
+      {orders.filter(o => o.status === 'DRAFT').length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 text-orange-600 mr-2" />
+              <div>
+                <h3 className="text-sm font-medium text-orange-800">
+                  Pending Approvals
+                </h3>
+                <p className="text-sm text-orange-700">
+                  You have {orders.filter(o => o.status === 'DRAFT').length} purchase order(s) waiting for approval
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleFilterChange('status', 'DRAFT')}
+                className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              >
+                View All Draft POs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white shadow rounded-lg p-6">
@@ -476,6 +579,24 @@ export default function PurchaseOrdersPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
+                          {po.status === 'DRAFT' && (
+                            <>
+                              <button
+                                onClick={() => handleQuickApprove(po.id)}
+                                className="text-green-600 hover:text-green-900"
+                                title="Quick Approve"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleQuickReject(po.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Quick Reject"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
                           {(po.status === 'DRAFT' || po.status === 'APPROVED') && (
                             <Link
                               href={`/procurement/purchase-orders/${po.id}/edit`}
