@@ -105,7 +105,6 @@ export default function NewRFQPage() {
       const response = await fetch('/api/vendors?status=ACTIVE');
       if (response.ok) {
         const data = await response.json();
-        console.log('Vendors data:', data);
         setVendors(data.vendors || []);
       }
     } catch (error) {
