@@ -105,7 +105,6 @@ export default function RFQPage() {
             totalEstimatedValue: (() => {
               const rawValue = rfq.pr?.estimatedCost || '0';
               const parsedValue = parseFloat(rawValue) || 0;
-              console.log(`RFQ ${rfq.rfqNumber}: raw="${rawValue}", parsed=${parsedValue}, type=${typeof parsedValue}`);
               return parsedValue;
             })(), // Convert string to number safely
             currency: 'OMR',
