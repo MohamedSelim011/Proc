@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (status) where.status = status;
+    if (status) {
+      if (status.includes(',')) {
+        where.status = { in: status.split(',').map(s => s.trim()) };
+      } else {
+        where.status = status;
+      }
+    }
     if (poId) where.poId = poId;
 
     const [receipts, total] = await Promise.all([

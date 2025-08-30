@@ -6,11 +6,12 @@ const prisma = new PrismaClient();
 // GET /api/invoices/[id] - Get invoice by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const invoice = await prisma.invoice.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         vendor: {
           include: {
@@ -112,13 +113,14 @@ export async function GET(
 // PUT /api/invoices/[id] - Update invoice
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     const existingInvoice = await prisma.invoice.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!existingInvoice) {
@@ -129,7 +131,7 @@ export async function PUT(
     }
 
     // Check if invoice can be edited
-    if (!['PENDING', 'REJECTED'].includes(existingInvoice.status)) {
+    if (!['DRAFT', 'SUBMITTED', 'REJECTED'].includes(existingInvoice.status)) {
       return NextResponse.json(
         { error: 'Cannot edit invoice in current status' },
         { status: 400 }
@@ -137,7 +139,7 @@ export async function PUT(
     }
 
     const invoice = await prisma.invoice.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         invoiceNumber: body.invoiceNumber || existingInvoice.invoiceNumber,
         invoiceDate: body.invoiceDate ? new Date(body.invoiceDate) : existingInvoice.invoiceDate,
@@ -173,11 +175,12 @@ export async function PUT(
 // DELETE /api/invoices/[id] - Delete invoice (only if PENDING)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const invoice = await prisma.invoice.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!invoice) {
@@ -188,9 +191,9 @@ export async function DELETE(
     }
 
     // Check if invoice can be deleted
-    if (invoice.status !== 'PENDING') {
+    if (invoice.status !== 'DRAFT') {
       return NextResponse.json(
-        { error: 'Can only delete invoice in PENDING status' },
+        { error: 'Can only delete invoice in DRAFT status' },
         { status: 400 }
       );
     }
@@ -203,7 +206,7 @@ export async function DELETE(
     }
 
     await prisma.invoice.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ 

@@ -484,7 +484,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.deliveryDate ? 'border-red-300' : ''
                     }`}
                     value={formData.deliveryDate}
@@ -501,8 +501,7 @@ function NewPurchaseOrderContent() {
                     Currency
                   </label>
                   <select
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    value={formData.currency}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
                     <option value="OMR">Omani Rial (OMR)</option>
@@ -525,7 +524,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.building ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.building}
@@ -546,7 +545,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.street ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.street}
@@ -567,7 +566,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.city}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -581,7 +580,7 @@ function NewPurchaseOrderContent() {
                       Governorate
                     </label>
                     <select
-                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.governorate}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -608,7 +607,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                         errors.postalCode ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.postalCode}
@@ -629,7 +628,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={formData.deliveryAddress.country}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -647,7 +646,7 @@ function NewPurchaseOrderContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
                   value={formData.paymentTerms}
@@ -729,14 +728,14 @@ function NewPurchaseOrderContent() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm pointer-events-none z-10">
                                 {formData.currency}
                               </span>
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`pl-12 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                                className={`w-2/3 pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                                   errors[`item_${index}_price`] ? 'border-red-300' : ''
                                 }`}
                                 value={poItem?.unitPrice || 0}
@@ -783,7 +782,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialConditions || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialConditions: e.target.value }))}
                     placeholder="Any special conditions or requirements..."
@@ -796,7 +795,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.warrantyRequirements || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, warrantyRequirements: e.target.value }))}
                     placeholder="Warranty terms and requirements..."
@@ -809,7 +808,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.qualityStandards || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                     placeholder="Quality standards and inspection requirements..."

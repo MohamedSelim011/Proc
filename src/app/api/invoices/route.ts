@@ -74,22 +74,65 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    console.log('Received invoice data:', JSON.stringify(body, null, 2));
+    
+    // Get vendor ID from PO if not provided
+    let vendorId = body.vendorId;
+    if (!vendorId && body.poId) {
+      const po = await prisma.purchaseOrder.findUnique({
+        where: { id: body.poId },
+        select: { vendorId: true }
+      });
+      if (po) {
+        vendorId = po.vendorId;
+      }
+    }
+    
+    if (!vendorId) {
+      return NextResponse.json(
+        { error: 'Vendor ID is required' },
+        { status: 400 }
+      );
+    }
+
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber: body.invoiceNumber,
-        vendorId: body.vendorId,
+        vendorId,
         poId: body.poId,
         invoiceDate: new Date(body.invoiceDate),
         dueDate: new Date(body.dueDate),
         totalAmount: body.totalAmount,
         taxAmount: body.taxAmount || 0,
-        status: 'PENDING',
-        threeWayMatched: false,
-        paymentStatus: 'UNPAID'
+        discountAmount: body.discountAmount || 0,
+        netAmount: body.totalAmount,
+        currency: body.currency || 'OMR',
+        status: body.status || 'DRAFT',
+        matchingStatus: body.matchingStatus || 'PENDING',
+        threeWayMatched: body.matchingStatus === 'MATCHED',
+        paymentStatus: 'UNPAID',
+        description: body.description,
+        paymentTerms: body.paymentTerms,
+        items: body.items ? {
+          create: body.items.map((item: any) => ({
+            poItemId: item.poItemId,
+            itemId: item.itemId || item.poItemId, // Use PO item's item ID if not provided
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            description: item.description
+          }))
+        } : undefined
       },
       include: {
         vendor: true,
-        po: true
+        po: true,
+        items: {
+          include: {
+            item: true,
+            poItem: true
+          }
+        }
       }
     });
 
