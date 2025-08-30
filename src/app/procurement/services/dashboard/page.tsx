@@ -28,25 +28,30 @@ interface ServiceMetrics {
 interface ServiceRequest {
   id: string;
   prNumber: string;
-  serviceType: string;
-  department: string;
-  estimatedValue: number;
+  itemType: string;
+  departmentId: string;
+  estimatedCost: number;
   status: string;
   priority: string;
   createdAt: string;
+  servicePR?: {
+    serviceScope: string;
+    items: any[];
+  };
 }
 
 interface Contract {
   id: string;
-  contractNumber: string;
+  poNumber: string;
   vendor: {
     nameEn: string;
   };
   serviceType: string;
-  contractValue: number;
+  totalAmount: number;
   startDate: string;
-  endDate: string;
+  expectedDeliveryDate: string;
   status: string;
+  createdAt: string;
 }
 
 export default function ServiceDashboard() {
@@ -86,8 +91,8 @@ export default function ServiceDashboard() {
     try {
       setLoading(true);
       
-      // Fetch service-related PRs (NON_STOCK and SERVICE types)
-      const serviceRequestsResponse = await fetch('/api/purchase-requisitions?itemType=NON_STOCK,SERVICE&limit=5');
+      // Fetch service requisitions using the dedicated service API
+      const serviceRequestsResponse = await fetch('/api/services/requisitions?limit=5');
       const serviceRequestsData = await serviceRequestsResponse.json();
       
       // Fetch contracts (using POs as contracts for now)
@@ -95,8 +100,8 @@ export default function ServiceDashboard() {
       const contractsData = await contractsResponse.json();
       
       // Calculate metrics from real data
-      const totalServiceRequests = serviceRequestsData.total || 0;
-      const pendingRequests = serviceRequestsData.purchaseRequisitions?.filter((pr: any) => 
+      const totalServiceRequests = serviceRequestsData.pagination?.total || 0;
+      const pendingRequests = serviceRequestsData.serviceRequisitions?.filter((pr: any) => 
         pr.status === 'SUBMITTED' || pr.status === 'DRAFT'
       ).length || 0;
       
@@ -127,7 +132,7 @@ export default function ServiceDashboard() {
         monthlyServiceSpend: totalContractValue * 0.1 // Estimated monthly spend
       });
 
-      setRecentRequests(serviceRequestsData.purchaseRequisitions?.slice(0, 5) || []);
+      setRecentRequests(serviceRequestsData.serviceRequisitions?.slice(0, 5) || []);
       setExpiringContracts(expiring.slice(0, 5));
       
     } catch (error) {
@@ -367,7 +372,7 @@ export default function ServiceDashboard() {
                     {request.departmentId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(request.totalEstimatedCost || 0)}
+                    {formatCurrency(request.estimatedCost || 0)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>

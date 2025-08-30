@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    
     const {
       departmentId,
       requesterId,
@@ -142,15 +143,15 @@ export async function POST(request: NextRequest) {
         data: {
           prId: pr.id,
           serviceScope,
-          technicalSpecifications,
+          technicalSpecifications: technicalSpecifications || null,
           duration: duration || 30,
           durationUnit: durationUnit || 'DAYS',
-          deliverables,
-          performanceMetrics,
-          slaRequirements,
+          deliverables: deliverables && deliverables.length > 0 ? deliverables : [],
+          performanceMetrics: performanceMetrics && performanceMetrics.length > 0 ? performanceMetrics : [],
+          slaRequirements: slaRequirements || null,
           insuranceRequired: insuranceRequired || false,
           certificationRequired: certificationRequired || false,
-          safetyRequirements,
+          safetyRequirements: safetyRequirements || null,
           paymentSchedule: paymentSchedule || 'MILESTONE',
           retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0
         }
@@ -158,10 +159,61 @@ export async function POST(request: NextRequest) {
 
       // Create service PR items
       for (const item of items) {
+        // Try to find existing service item by service code, or create a new one
+        let serviceItem;
+        
+        if (item.serviceItemId && item.serviceItemId !== 'IT-001') {
+          // If a specific service item ID is provided, try to find it
+          serviceItem = await tx.serviceItem.findUnique({
+            where: { id: item.serviceItemId }
+          });
+        }
+        
+        if (!serviceItem) {
+          // Create a new service item based on the form data
+          // First, find or create a service category
+          let serviceCategory = await tx.serviceCategory.findFirst({
+            where: { code: 'IT_SERV' } // Default to IT Services for now
+          });
+          
+          if (!serviceCategory) {
+            serviceCategory = await tx.serviceCategory.create({
+              data: {
+                code: 'CUSTOM',
+                nameEn: 'Custom Services',
+                nameAr: 'خدمات مخصصة',
+                description: 'Custom service items created during requisition',
+                requiresInsurance: false,
+                requiresCertification: false,
+                requiresPerformanceBond: false
+              }
+            });
+          }
+          
+          // Generate a unique service code
+          const serviceItemCount = await tx.serviceItem.count();
+          const serviceCode = `CUSTOM-${String(serviceItemCount + 1).padStart(6, '0')}`;
+          
+          serviceItem = await tx.serviceItem.create({
+            data: {
+              serviceCode,
+              nameEn: item.description || 'Custom Service',
+              nameAr: 'خدمة مخصصة',
+              description: item.description || 'Custom service item',
+              serviceCategoryId: serviceCategory.id,
+              unitOfMeasure: item.unit || 'Hours',
+              standardRate: parseFloat(item.estimatedRate) || 0,
+              currency: 'OMR',
+              slaRequired: false,
+              performanceMetrics: item.performanceMetrics || {}
+            }
+          });
+        }
+
         await tx.servicePRItem.create({
           data: {
             servicePRId: servicePR.id,
-            serviceItemId: item.serviceItemId,
+            serviceItemId: serviceItem.id,
             quantity: parseFloat(item.quantity),
             estimatedRate: parseFloat(item.estimatedRate),
             duration: item.duration || 1,
@@ -179,8 +231,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Error creating service requisition:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
     return NextResponse.json(
-      { error: 'Failed to create service requisition' },
+      { error: `Failed to create service requisition: ${errorMessage}` },
       { status: 500 }
     );
   }
