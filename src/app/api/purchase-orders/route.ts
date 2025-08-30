@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (status) where.status = status;
+    if (status) {
+      // Handle comma-separated status values
+      if (status.includes(',')) {
+        where.status = { in: status.split(',').map(s => s.trim()) };
+      } else {
+        where.status = status;
+      }
+    }
     if (vendorId) where.vendorId = vendorId;
 
     const [orders, total] = await Promise.all([

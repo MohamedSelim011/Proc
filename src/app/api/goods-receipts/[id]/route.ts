@@ -6,11 +6,12 @@ const prisma = new PrismaClient();
 // GET /api/goods-receipts/[id] - Get goods receipt by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const receipt = await prisma.goodsReceipt.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         po: {
           include: {
@@ -98,13 +99,14 @@ export async function GET(
 // PUT /api/goods-receipts/[id] - Update goods receipt
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     const existingGR = await prisma.goodsReceipt.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         items: true
       }
@@ -121,7 +123,7 @@ export async function PUT(
     const receipt = await prisma.$transaction(async (tx) => {
       // Update goods receipt
       const updatedGR = await tx.goodsReceipt.update({
-        where: { id: params.id },
+        where: { id: id },
         data: {
           receivedDate: body.receivedDate ? new Date(body.receivedDate) : existingGR.receivedDate,
           receivedBy: body.receivedBy || existingGR.receivedBy,
@@ -154,14 +156,14 @@ export async function PUT(
         const newStatus = allFullyReceived ? 'COMPLETED' : 'PARTIAL';
         
         await tx.goodsReceipt.update({
-          where: { id: params.id },
+          where: { id: id },
           data: { status: newStatus }
         });
       }
 
       // Return updated GR with relations
       return await tx.goodsReceipt.findUnique({
-        where: { id: params.id },
+        where: { id: id },
         include: {
           po: {
             include: {
@@ -190,11 +192,12 @@ export async function PUT(
 // DELETE /api/goods-receipts/[id] - Delete goods receipt (only if PENDING)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const receipt = await prisma.goodsReceipt.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         po: true
       }
@@ -219,12 +222,12 @@ export async function DELETE(
     await prisma.$transaction(async (tx) => {
       // Delete GR items first
       await tx.gRItem.deleteMany({
-        where: { grId: params.id }
+        where: { grId: id }
       });
 
       // Delete GR
       await tx.goodsReceipt.delete({
-        where: { id: params.id }
+        where: { id: id }
       });
 
       // Update PO status back to previous state if needed

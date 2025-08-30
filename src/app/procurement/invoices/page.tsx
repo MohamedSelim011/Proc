@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import InvoiceApprovalModal from '@/components/invoices/InvoiceApprovalModal';
 import { 
   Plus, 
   Search, 
@@ -15,7 +16,8 @@ import {
   XCircle,
   AlertTriangle,
   DollarSign,
-  CreditCard
+  CreditCard,
+  CheckSquare
 } from 'lucide-react';
 
 interface Invoice {
@@ -69,6 +71,12 @@ export default function InvoicesPage() {
     matchingStatus: '',
     vendorId: '',
     search: ''
+  });
+
+  // Approval modal state
+  const [approvalModal, setApprovalModal] = useState({
+    isOpen: false,
+    invoice: null as Invoice | null
   });
 
   useEffect(() => {
@@ -190,6 +198,52 @@ export default function InvoicesPage() {
     const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  // Approval functions
+  const openApprovalModal = (invoice: Invoice) => {
+    setApprovalModal({
+      isOpen: true,
+      invoice
+    });
+  };
+
+  const closeApprovalModal = () => {
+    setApprovalModal({
+      isOpen: false,
+      invoice: null
+    });
+  };
+
+  const handleApproval = async (status: string, comments: string) => {
+    if (!approvalModal.invoice) return;
+
+    try {
+      const response = await fetch(`/api/invoices/${approvalModal.invoice.id}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status,
+          comments,
+          approverId: 'current-user-id' // This should come from auth context
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh invoices to show updated status
+        await fetchInvoices();
+        closeApprovalModal();
+      } else {
+        const error = await response.json();
+        console.error('Error updating invoice status:', error);
+        alert('Failed to update invoice status: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      alert('Failed to update invoice status');
+    }
   };
 
   const calculateTotalsByStatus = () => {
@@ -523,6 +577,15 @@ export default function InvoicesPage() {
                               <Edit className="h-4 w-4" />
                             </Link>
                           )}
+                          {(invoice.status === 'DRAFT' || invoice.status === 'SUBMITTED') && (
+                            <button
+                              onClick={() => openApprovalModal(invoice)}
+                              className="text-green-600 hover:text-green-900"
+                              title="Approve/Reject Invoice"
+                            >
+                              <CheckSquare className="h-4 w-4" />
+                            </button>
+                          )}
                           {invoice.status === 'APPROVED' && invoice.paymentStatus !== 'PAID' && (
                             <Link
                               href={`/procurement/payments?invoiceId=${invoice.id}`}
@@ -612,6 +675,16 @@ export default function InvoicesPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Approval Modal */}
+        {approvalModal.invoice && (
+          <InvoiceApprovalModal
+            isOpen={approvalModal.isOpen}
+            onClose={closeApprovalModal}
+            invoice={approvalModal.invoice}
+            onApproval={handleApproval}
+          />
         )}
       </div>
     </div>

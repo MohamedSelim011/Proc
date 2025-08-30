@@ -473,7 +473,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.receivedDate ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedDate}
@@ -491,7 +491,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                       errors.receivedBy ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedBy}
@@ -508,7 +508,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.deliveryNote || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, deliveryNote: e.target.value }))}
                     placeholder="Delivery note reference"
@@ -521,7 +521,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.storageLocation || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, storageLocation: e.target.value }))}
                     placeholder="Warehouse location, bin number..."
@@ -536,7 +536,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.transportDetails || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, transportDetails: e.target.value }))}
                     placeholder="Vehicle details, driver info, condition on arrival..."
@@ -549,7 +549,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Any special handling requirements..."
@@ -622,7 +622,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={poItem.quantity}
-                              className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                                 errors[`item_${index}_received`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.receivedQuantity || 0}
@@ -637,7 +637,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={grItem?.receivedQuantity || 0}
-                              className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
                                 errors[`item_${index}_accepted`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.acceptedQuantity || 0}
@@ -653,7 +653,7 @@ function NewGoodsReceiptContent() {
                                 type="number"
                                 min="0"
                                 max={grItem?.receivedQuantity || 0}
-                                className={`block w-20 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                   errors[`item_${index}_rejected`] ? 'border-red-300' : ''
                                 }`}
                                 value={grItem?.rejectedQuantity || 0}
@@ -663,7 +663,7 @@ function NewGoodsReceiptContent() {
                                 <input
                                   type="text"
                                   placeholder="Reason"
-                                  className={`block w-32 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs ${
+                                  className={`block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                                     errors[`item_${index}_reason`] ? 'border-red-300' : ''
                                   }`}
                                   value={grItem?.rejectionReason || ''}
@@ -683,8 +683,8 @@ function NewGoodsReceiptContent() {
                           </td>
                           <td className="px-6 py-4">
                             <textarea
-                              rows={2}
-                              className="block w-40 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs"
+                              rows={1}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="Inspection notes..."
                               value={grItem?.inspectionNotes || ''}
                               onChange={(e) => updateItemField(index, 'inspectionNotes', e.target.value)}
@@ -756,7 +756,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <input
                         type="text"
-                        className={`mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
                           errors.qualityInspector ? 'border-red-300' : ''
                         }`}
                         value={formData.qualityInspector || ''}
@@ -774,7 +774,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <textarea
                         rows={3}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         value={formData.qualityComments || ''}
                         onChange={(e) => setFormData(prev => ({ ...prev, qualityComments: e.target.value }))}
                         placeholder="Quality inspection results, defects found, compliance notes..."
@@ -789,7 +789,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Special storage requirements, handling instructions..."

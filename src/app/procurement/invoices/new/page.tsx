@@ -30,6 +30,7 @@ interface PurchaseOrder {
     unitPrice: number;
     totalPrice: number;
     item: {
+      id: string;
       itemCode: string;
       nameEn: string;
     };
@@ -64,6 +65,7 @@ interface InvoiceFormData {
   // Step 3: Line Items & Matching
   items: Array<{
     poItemId: string;
+    itemId: string;
     invoiceQuantity: number;
     invoiceUnitPrice: number;
     invoiceTotal: number;
@@ -153,6 +155,7 @@ function NewInvoiceContent() {
     if (grId && availableGRs.length > 0) {
       const gr = availableGRs.find(g => g.id === grId);
       if (gr) {
+        console.log(gr, "gr")
         setSelectedGR(gr);
         setFormData(prev => ({ ...prev, grId }));
       }
@@ -179,7 +182,7 @@ function NewInvoiceContent() {
 
   const fetchAvailablePOs = async () => {
     try {
-      const response = await fetch('/api/purchase-orders?status=ACKNOWLEDGED,PARTIAL,COMPLETED');
+      const response = await fetch('/api/purchase-orders?status=APPROVED,SENT,ACKNOWLEDGED,PARTIAL,COMPLETED');
       const data = await response.json();
       if (response.ok) {
         setAvailablePOs(data.orders || []);
@@ -218,12 +221,14 @@ function NewInvoiceContent() {
     if (!selectedPO) return;
 
     const items = selectedPO.items.map(poItem => {
-      const grItem = selectedGR?.items.find(gr => gr.poItemId === poItem.id);
+      // Match by poItemId
+      const grItem = selectedGR?.items.find(gr => gr.item.id === poItem.item.id);
       const grQuantity = grItem?.acceptedQuantity || 0;
       
       return {
         poItemId: poItem.id,
-        invoiceQuantity: grQuantity, // Default to GR quantity
+        itemId: poItem.item.id,
+        invoiceQuantity: grQuantity,
         invoiceUnitPrice: Number(poItem.unitPrice),
         invoiceTotal: grQuantity * Number(poItem.unitPrice),
         poQuantity: poItem.quantity,
@@ -415,6 +420,7 @@ function NewInvoiceContent() {
         status: 'DRAFT',
         items: formData.items.map(item => ({
           poItemId: item.poItemId,
+          itemId: item.itemId,
           quantity: item.invoiceQuantity,
           unitPrice: item.invoiceUnitPrice,
           totalPrice: item.invoiceTotal
@@ -482,7 +488,7 @@ function NewInvoiceContent() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-8xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Create Invoice</h1>
@@ -493,42 +499,46 @@ function NewInvoiceContent() {
 
       {/* Progress Steps */}
       <div className="mb-8">
-        <nav aria-label="Progress">
-          <ol className="flex items-center">
+        <nav aria-label="Progress" className="bg-gray-50 rounded-lg p-6">
+          <ol className="flex items-center justify-between w-full">
             {[
               { id: 1, name: 'PO & GR Selection', description: 'Select purchase order and goods receipt' },
               { id: 2, name: 'Invoice Details', description: 'Enter invoice information' },
               { id: 3, name: 'Line Items', description: 'Configure invoice line items' },
               { id: 4, name: '3-Way Matching', description: 'Validate and review matching' }
             ].map((step, stepIdx) => (
-              <li key={step.id} className={`${stepIdx !== 3 ? 'pr-8 sm:pr-20' : ''} relative`}>
+              <li key={step.id} className="relative flex-1 pt-2">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                  {stepIdx < 3 && (
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                  )}
                 </div>
-                <div className={`relative flex h-8 w-8 items-center justify-center rounded-full ${
-                  step.id < currentStep 
-                    ? 'bg-blue-600' 
-                    : step.id === currentStep 
-                      ? 'border-2 border-blue-600 bg-white' 
-                      : 'border-2 border-gray-300 bg-white'
-                }`}>
-                  {step.id < currentStep ? (
-                    <CheckCircle className="h-5 w-5 text-white" />
-                  ) : (
+                <div className="relative flex flex-col items-center">
+                  <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                    step.id < currentStep 
+                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      : step.id === currentStep 
+                        ? 'border-blue-600 bg-white shadow-lg' 
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}>
+                    {step.id < currentStep ? (
+                      <CheckCircle className="h-5 w-5 text-white" />
+                    ) : (
+                      <span className={`text-sm font-medium ${
+                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      }`}>
+                        {step.id}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
                       step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
                     }`}>
-                      {step.id}
+                      {step.name}
                     </span>
-                  )}
-                </div>
-                <div className="mt-2">
-                  <span className={`text-sm font-medium ${
-                    step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
-                  }`}>
-                    {step.name}
-                  </span>
-                  <p className="text-xs text-gray-500">{step.description}</p>
+                    <p className="text-xs text-gray-500 mt-1 max-w-32 hidden sm:block">{step.description}</p>
+                  </div>
                 </div>
               </li>
             ))}
@@ -610,6 +620,7 @@ function NewInvoiceContent() {
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => {
+                          console.log(gr, "gr selected")
                           setSelectedGR(gr);
                           setFormData(prev => ({ ...prev, grId: gr.id }));
                         }}
@@ -643,7 +654,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="text"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.invoiceNumber ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceNumber}
@@ -660,7 +671,7 @@ function NewInvoiceContent() {
                     Currency
                   </label>
                   <select
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
@@ -676,7 +687,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.invoiceDate ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceDate}
@@ -694,7 +705,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.dueDate ? 'border-red-300' : ''
                     }`}
                     value={formData.dueDate}
@@ -712,7 +723,7 @@ function NewInvoiceContent() {
                   Payment Terms
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -730,7 +741,7 @@ function NewInvoiceContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.description || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Invoice description or notes..."
@@ -782,7 +793,8 @@ function NewInvoiceContent() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {selectedPO?.items.map((poItem, index) => {
                       const invoiceItem = formData.items[index];
-                      const grItem = selectedGR?.items.find(gr => gr.poItemId === poItem.id);
+                      // Fix: Match by itemId instead of poItemId
+                      const grItem = selectedGR?.items.find(gr => gr.itemId === poItem.item.id);
                       
                       return (
                         <tr key={poItem.id}>
@@ -809,7 +821,7 @@ function NewInvoiceContent() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                              className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                               value={invoiceItem?.invoiceQuantity || 0}
                               onChange={(e) => updateItemField(index, 'invoiceQuantity', parseFloat(e.target.value) || 0)}
                             />
@@ -823,7 +835,7 @@ function NewInvoiceContent() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                className="pl-12 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                 value={invoiceItem?.invoiceUnitPrice || 0}
                                 onChange={(e) => updateItemField(index, 'invoiceUnitPrice', parseFloat(e.target.value) || 0)}
                               />
@@ -858,7 +870,7 @@ function NewInvoiceContent() {
                       min="0"
                       max="100"
                       step="0.1"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={formData.taxRate}
                       onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
                     />
@@ -876,7 +888,7 @@ function NewInvoiceContent() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="pl-12 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={formData.discountAmount}
                         onChange={(e) => setFormData(prev => ({ ...prev, discountAmount: parseFloat(e.target.value) || 0 }))}
                       />

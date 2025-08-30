@@ -112,6 +112,7 @@ model Item {
   prItems        PRItem[]
   poItems        POItem[]
   grItems        GRItem[]
+  invoiceItems   InvoiceItem[]
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -238,6 +239,9 @@ model POItem {
   unitPrice    Decimal
   totalPrice   Decimal
   deliveryDate DateTime?
+  
+  // Relations
+  invoiceItems InvoiceItem[]
 }
 
 model POAmendment {
@@ -300,19 +304,50 @@ model Invoice {
   dueDate           DateTime
   totalAmount       Decimal
   taxAmount         Decimal
-  status            InvoiceStatus @default(PENDING)
+  discountAmount    Decimal @default(0)
+  netAmount         Decimal @default(0)
+  currency          String   @default("OMR")
+  
+  // Status
+  status            InvoiceStatus @default(DRAFT)
   
   // Three-way matching
   threeWayMatched   Boolean  @default(false)
   matchingComments  String?
+  matchingStatus    MatchingStatus @default(PENDING)
   
   // Payment
   paymentStatus     PaymentStatus @default(UNPAID)
   paymentDate       DateTime?
   paymentReference  String?
   
+  // Additional fields
+  description       String?
+  paymentTerms      String?
+  attachments       String[]
+  
+  // Line items
+  items             InvoiceItem[]
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id])
+  poItemId     String?
+  poItem       POItem?  @relation(fields: [poItemId], references: [id])
+  itemId       String
+  item         Item     @relation(fields: [itemId], references: [id])
+  quantity     Int
+  unitPrice    Decimal
+  totalPrice   Decimal
+  description  String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // Approval Workflow
@@ -397,11 +432,18 @@ enum GRStatus {
 }
 
 enum InvoiceStatus {
-  PENDING
-  VERIFIED
+  DRAFT
+  SUBMITTED
   APPROVED
   REJECTED
   PAID
+  OVERDUE
+}
+
+enum MatchingStatus {
+  PENDING
+  MATCHED
+  DISCREPANCY
 }
 
 enum PaymentStatus {

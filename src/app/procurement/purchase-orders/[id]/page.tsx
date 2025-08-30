@@ -741,43 +741,50 @@ export default function PurchaseOrderDetailPage() {
 
       {/* Status Update Confirmation Dialog */}
       {showStatusDialog && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div
+          className="fixed inset-0 bg-transparent bg-opacity-80 backdrop-blur-sm overflow-y-auto h-full w-full z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowStatusDialog(false);
+            }
+          }}
+        >
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Update Purchase Order Status
+          Update Purchase Order Status
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to change the status to <strong>{pendingStatus}</strong>?
+          Are you sure you want to change the status to <strong>{pendingStatus}</strong>?
               </p>
               
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Comments (Optional)
-                </label>
-                <textarea
-                  value={statusComments}
-                  onChange={(e) => setStatusComments(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Add any comments about this status change..."
-                />
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Comments (Optional)
+          </label>
+          <textarea
+            value={statusComments}
+            onChange={(e) => setStatusComments(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            rows={3}
+            placeholder="Add any comments about this status change..."
+          />
               </div>
 
               <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowStatusDialog(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmStatusUpdate}
-                  disabled={updatingStatus}
-                  className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {updatingStatus ? 'Updating...' : 'Confirm'}
-                </button>
+          <button
+            onClick={() => setShowStatusDialog(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmStatusUpdate}
+            disabled={updatingStatus}
+            className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {updatingStatus ? 'Updating...' : 'Confirm'}
+          </button>
               </div>
             </div>
           </div>

@@ -544,7 +544,7 @@ async function main() {
         dueDate: new Date('2024-04-15'),
         totalAmount: 14500.00,
         taxAmount: 725.00,
-        status: 'VERIFIED',
+        status: 'APPROVED',
         threeWayMatched: false,
         matchingComments: 'Partial delivery - awaiting full delivery',
         paymentStatus: 'UNPAID',
