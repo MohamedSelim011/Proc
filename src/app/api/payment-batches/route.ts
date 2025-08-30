@@ -16,10 +16,50 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (status) where.status = status;
 
-    // For now, return empty array since we don't have payment batches in our schema yet
+    // For now, create mock payment batches based on paid invoices
     // In a real implementation, you would have a PaymentBatch model
-    const batches: any[] = [];
-    const total = 0;
+    const paidInvoices = await prisma.invoice.findMany({
+      where: {
+        paymentStatus: 'PAID'
+      },
+      include: {
+        vendor: true
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      take: 10
+    });
+
+    // Group invoices into mock batches
+    const batchesMap = new Map();
+    
+    paidInvoices.forEach((invoice, index) => {
+      const batchKey = Math.floor(index / 3); // Group every 3 invoices into a batch
+      
+      if (!batchesMap.has(batchKey)) {
+        batchesMap.set(batchKey, {
+          id: `batch_${batchKey}_${Date.now()}`,
+          batchNumber: `PB-${new Date().getFullYear()}-${String(1000 + batchKey).slice(-3)}`,
+          batchDate: invoice.updatedAt,
+          status: 'COMPLETED',
+          totalAmount: 0,
+          currency: invoice.currency,
+          invoiceCount: 0,
+          paymentMethod: 'BANK_TRANSFER',
+          createdAt: invoice.updatedAt,
+          invoices: []
+        });
+      }
+      
+      const batch = batchesMap.get(batchKey);
+      batch.totalAmount += Number(invoice.totalAmount);
+      batch.invoiceCount += 1;
+      batch.invoices.push(invoice);
+    });
+
+    const batches = Array.from(batchesMap.values());
+    const total = batches.length;
 
     return NextResponse.json({
       batches,
@@ -80,7 +120,10 @@ export async function POST(request: NextRequest) {
         }
       },
       data: {
-        paymentStatus: 'PAID'
+        paymentStatus: 'PAID',
+        paymentDate: new Date(paymentDate),
+        paymentReference: reference,
+        updatedAt: new Date()
       }
     });
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Search, 
   Filter, 
@@ -65,9 +66,10 @@ function PaymentsPageContent() {
   const searchParams = useSearchParams();
   const invoiceId = searchParams.get('invoiceId');
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'batches'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'batches' | 'payments'>('pending');
   const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
   const [paymentBatches, setPaymentBatches] = useState<PaymentBatch[]>([]);
+  const [paymentRecords, setPaymentRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
@@ -94,6 +96,7 @@ function PaymentsPageContent() {
   useEffect(() => {
     fetchPendingInvoices();
     fetchPaymentBatches();
+    fetchPaymentRecords();
   }, []);
 
   useEffect(() => {
@@ -146,6 +149,19 @@ function PaymentsPageContent() {
       }
     } catch (error) {
       console.error('Error fetching payment batches:', error);
+    }
+  };
+
+  const fetchPaymentRecords = async () => {
+    try {
+      // For now, fetch paid invoices as payment records
+      const response = await fetch('/api/invoices?paymentStatus=PAID&limit=50');
+      const data = await response.json();
+      if (response.ok) {
+        setPaymentRecords(data.invoices || []);
+      }
+    } catch (error) {
+      console.error('Error fetching payment records:', error);
     }
   };
 
@@ -228,7 +244,8 @@ function PaymentsPageContent() {
         });
         fetchPendingInvoices();
         fetchPaymentBatches();
-        setActiveTab('batches');
+        fetchPaymentRecords();
+        setActiveTab('payments'); // Switch to payment records to show the result
       } else {
         setErrors({ submit: data.error || 'Failed to process payment' });
       }
@@ -410,6 +427,16 @@ function PaymentsPageContent() {
             }`}
           >
             Pending Invoices ({filteredInvoices.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'payments'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Payment Records ({paymentRecords.length})
           </button>
           <button
             onClick={() => setActiveTab('batches')}
@@ -666,6 +693,114 @@ function PaymentsPageContent() {
         </div>
       )}
 
+      {/* Payment Records Tab */}
+      {activeTab === 'payments' && (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">
+              Payment Records ({paymentRecords.length})
+            </h3>
+          </div>
+
+          <div className="overflow-x-auto">
+            {paymentRecords.length === 0 ? (
+              <div className="text-center py-12">
+                <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No payment records found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Payment records will appear here once payments are processed.
+                </p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Invoice Details
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vendor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reference
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paymentRecords.map((payment) => (
+                  <tr key={payment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <FileText className="h-4 w-4 text-gray-400 mr-2" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {payment.invoiceNumber}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDate(payment.invoiceDate)}
+                          </div>
+                          {payment.po && (
+                            <div className="text-xs text-blue-600">
+                              PO: {payment.po.poNumber}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{payment.vendor.nameEn}</div>
+                      <div className="text-sm text-gray-500">{payment.vendor.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(Number(payment.totalAmount), payment.currency)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        {payment.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {payment.paymentDate ? formatDate(payment.paymentDate) : 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {payment.paymentReference || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Link
+                        href={`/procurement/payments/${payment.id}`}
+                        className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Payment Batches Tab */}
       {activeTab === 'batches' && (
         <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -744,9 +879,13 @@ function PaymentsPageContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <Link
+                        href={`/procurement/payments/batch/${batch.id}`}
+                        className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -759,12 +898,18 @@ function PaymentsPageContent() {
       {/* Payment Form Modal */}
       {showPaymentForm && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => {
+                setShowPaymentForm(false);
+                setErrors({});
+              }}
+            ></div>
 
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            {/* Modal Content */}
+            <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all w-full max-w-lg z-10">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">

@@ -57,7 +57,10 @@ export async function POST(request: NextRequest) {
         }
       },
       data: {
-        paymentStatus: 'PAID'
+        paymentStatus: 'PAID',
+        paymentDate: new Date(paymentDate),
+        paymentReference: reference,
+        updatedAt: new Date()
       }
     });
 
