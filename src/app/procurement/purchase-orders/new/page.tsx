@@ -502,6 +502,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
                     <option value="OMR">Omani Rial (OMR)</option>
