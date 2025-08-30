@@ -32,6 +32,7 @@ interface PurchaseRequisition {
   prNumber: string;
   requesterId: string;
   departmentId: string;
+  itemType: string;
   estimatedCost: number;
   items: Array<{
     id: string;
@@ -44,6 +45,21 @@ interface PurchaseRequisition {
       unitOfMeasure: string;
     };
   }>;
+  servicePR?: {
+    items: Array<{
+      id: string;
+      quantity: string;
+      estimatedRate: string;
+      duration: number;
+      durationUnit: string;
+      serviceItem: {
+        id: string;
+        serviceCode: string;
+        nameEn: string;
+        unitOfMeasure: string;
+      };
+    }>;
+  };
 }
 
 interface POFormData {
@@ -144,19 +160,42 @@ function NewPurchaseOrderContent() {
 
   const fetchPRDetails = async (id: string) => {
     try {
-      const response = await fetch(`/api/purchase-requisitions/${id}`);
-      const data = await response.json();
+      // First try to fetch as a service requisition
+      let response = await fetch(`/api/services/requisitions/${id}`);
+      let data = await response.json();
+      
+      if (!response.ok) {
+        // If not found, try as a regular purchase requisition
+        response = await fetch(`/api/purchase-requisitions/${id}`);
+        data = await response.json();
+      }
+      
       if (response.ok) {
         setSelectedPR(data);
-        setFormData(prev => ({
-          ...prev,
-          prId: id,
-          items: data.items.map((item: any) => ({
+        
+        let items = [];
+        if (data.itemType === 'SERVICE' && data.servicePR?.items) {
+          // Handle service items
+          items = data.servicePR.items.map((item: any) => ({
+            itemId: item.serviceItem.id,
+            quantity: parseFloat(item.quantity),
+            unitPrice: parseFloat(item.estimatedRate),
+            totalPrice: parseFloat(item.quantity) * parseFloat(item.estimatedRate) * (item.duration || 1)
+          }));
+        } else {
+          // Handle goods items
+          items = data.items.map((item: any) => ({
             itemId: item.item.id,
             quantity: item.quantity,
             unitPrice: Number(item.estimatedPrice),
             totalPrice: item.quantity * Number(item.estimatedPrice)
-          }))
+          }));
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          prId: id,
+          items: items
         }));
       }
     } catch (error) {
@@ -174,9 +213,14 @@ function NewPurchaseOrderContent() {
 
     if (step === 2) {
       if (!formData.deliveryDate) newErrors.deliveryDate = 'Delivery date is required';
-      if (!formData.deliveryAddress.building) newErrors.building = 'Building is required';
-      if (!formData.deliveryAddress.street) newErrors.street = 'Street is required';
-      if (!formData.deliveryAddress.postalCode) newErrors.postalCode = 'Postal code is required';
+      
+      // Only validate delivery address for goods, not services
+      if (selectedPR?.itemType !== 'SERVICE') {
+        if (!formData.deliveryAddress.building) newErrors.building = 'Building is required';
+        if (!formData.deliveryAddress.street) newErrors.street = 'Street is required';
+        if (!formData.deliveryAddress.postalCode) newErrors.postalCode = 'Postal code is required';
+      }
+      
       if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
     }
 
@@ -212,15 +256,33 @@ function NewPurchaseOrderContent() {
 
   const handlePRSelection = (pr: PurchaseRequisition) => {
     setSelectedPR(pr);
-    setFormData(prev => ({
-      ...prev,
-      prId: pr.id,
-      items: pr.items.map(item => ({
+    console.log('Selected PR:', pr);
+    
+    let items = [];
+    if (pr.itemType === 'SERVICE' && pr.servicePR?.items) {
+      // Handle service items
+      items = pr.servicePR.items.map(item => ({
+        itemId: item.serviceItem.id,
+        quantity: parseFloat(item.quantity),
+        unitPrice: parseFloat(item.estimatedRate),
+        totalPrice: parseFloat(item.quantity) * parseFloat(item.estimatedRate) * (item.duration || 1)
+      }));
+      console.log('Service items mapped:', items);
+    } else {
+      // Handle goods items
+      items = pr.items.map(item => ({
         itemId: item.item.id,
         quantity: item.quantity,
         unitPrice: Number(item.estimatedPrice),
         totalPrice: item.quantity * Number(item.estimatedPrice)
-      }))
+      }));
+      console.log('Goods items mapped:', items);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      prId: pr.id,
+      items: items
     }));
   };
 
@@ -246,6 +308,12 @@ function NewPurchaseOrderContent() {
   const handleSubmit = async () => {
     try {
       setLoading(true);
+
+      // For service requisitions, redirect to service contract creation
+      if (selectedPR?.itemType === 'SERVICE') {
+        router.push(`/procurement/services/contracts/new?prId=${formData.prId}`);
+        return;
+      }
 
       const submitData = {
         prId: formData.prId,
@@ -310,7 +378,11 @@ function NewPurchaseOrderContent() {
           <ol className="flex items-center justify-between w-full max-w-6xl mx-auto">
             {[
               { id: 1, name: 'PR & Vendor', description: 'Select requisition and vendor' },
-              { id: 2, name: 'Delivery Details', description: 'Delivery and payment terms' },
+              { 
+                id: 2, 
+                name: selectedPR?.itemType === 'SERVICE' ? 'Service Details' : 'Delivery Details', 
+                description: selectedPR?.itemType === 'SERVICE' ? 'Service and payment terms' : 'Delivery and payment terms' 
+              },
               { id: 3, name: 'Items & Pricing', description: 'Confirm items and prices' },
               { id: 4, name: 'Terms & Review', description: 'Final terms and review' }
             ].map((step, stepIdx) => (
@@ -376,7 +448,7 @@ function NewPurchaseOrderContent() {
                             {selectedPR.requesterId} • {selectedPR.departmentId}
                           </p>
                           <p className="text-sm text-blue-700">
-                            {selectedPR.items.length} items • {formatCurrency(Number(selectedPR.estimatedCost))}
+                            {selectedPR?.items?.length} items • {formatCurrency(Number(selectedPR?.estimatedCost))}
                           </p>
                         </div>
                         <CheckCircle className="h-5 w-5 text-blue-600" />
@@ -475,12 +547,14 @@ function NewPurchaseOrderContent() {
           {/* Step 2: Delivery Details */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Delivery & Payment Details</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                {selectedPR?.itemType === 'SERVICE' ? 'Service & Payment Details' : 'Delivery & Payment Details'}
+              </h3>
               
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Delivery Date *
+                    {selectedPR?.itemType === 'SERVICE' ? 'Service Date *' : 'Delivery Date *'}
                   </label>
                   <input
                     type="date"
@@ -512,8 +586,9 @@ function NewPurchaseOrderContent() {
                 </div>
               </div>
 
-              {/* Delivery Address */}
-              <div>
+              {/* Delivery Address - Only for Goods */}
+              {selectedPR?.itemType !== 'SERVICE' && (
+                <div>
                 <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
                   <MapPin className="h-4 w-4 mr-2" />
                   Delivery Address
@@ -639,6 +714,47 @@ function NewPurchaseOrderContent() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {/* Service-Specific Information - Only for Services */}
+              {selectedPR?.itemType === 'SERVICE' && (
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+                    <User className="h-4 w-4 mr-2" />
+                    Service Details
+                  </h4>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Service Location
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder="Where service will be performed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Service Start Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Service End Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Payment Terms */}
               <div>
@@ -705,26 +821,35 @@ function NewPurchaseOrderContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {selectedPR?.items.map((prItem, index) => {
-                      const poItem = formData.items[index];
+                    {formData.items.map((poItem, index) => {
                       return (
-                        <tr key={prItem.id}>
+                        <tr key={index}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {prItem.item.itemCode}
+                                {selectedPR?.itemType === 'SERVICE' 
+                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.serviceCode 
+                                  : selectedPR?.items[index]?.item?.itemCode}
                               </div>
-                              <div className="text-sm text-gray-500">{prItem.item.nameEn}</div>
+                              <div className="text-sm text-gray-500">
+                                {selectedPR?.itemType === 'SERVICE' 
+                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.nameEn 
+                                  : selectedPR?.items[index]?.item?.nameEn}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {prItem.quantity} {prItem.item.unitOfMeasure}
+                              {poItem.quantity} {
+                                selectedPR?.itemType === 'SERVICE' 
+                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.unitOfMeasure 
+                                  : selectedPR?.items[index]?.item?.unitOfMeasure
+                              }
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-500">
-                              {formatCurrency(Number(prItem.estimatedPrice))}
+                              {formatCurrency(poItem.unitPrice)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -819,7 +944,9 @@ function NewPurchaseOrderContent() {
 
               {/* PO Summary */}
               <div className="bg-gray-50 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Purchase Order Summary</h4>
+                <h4 className="text-lg font-medium text-gray-900 mb-4">
+                  {selectedPR?.itemType === 'SERVICE' ? 'Service Contract Summary' : 'Purchase Order Summary'}
+                </h4>
                 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   <div>
@@ -833,7 +960,9 @@ function NewPurchaseOrderContent() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Delivery Date</dt>
+                    <dt className="text-sm font-medium text-gray-500">
+                      {selectedPR?.itemType === 'SERVICE' ? 'Service Date' : 'Delivery Date'}
+                    </dt>
                     <dd className="mt-1 text-sm text-gray-900">
                       {new Date(formData.deliveryDate).toLocaleDateString()}
                     </dd>
@@ -888,7 +1017,7 @@ function NewPurchaseOrderContent() {
             {loading ? (
               'Creating...'
             ) : currentStep === 4 ? (
-              'Create Purchase Order'
+              selectedPR?.itemType === 'SERVICE' ? 'Create Service Contract' : 'Create Purchase Order'
             ) : (
               <>
                 Next

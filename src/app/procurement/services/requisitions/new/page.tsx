@@ -281,11 +281,11 @@ export default function NewServiceRequisition() {
         paymentSchedule: formData.paymentSchedule,
         retentionPercentage: 10,
         items: formData.items.map(item => ({
-          serviceItemId: 'IT-001', // In real app, this would be selected from service items
           quantity: item.quantity,
           estimatedRate: item.estimatedRate,
           duration: item.duration,
           durationUnit: item.durationUnit,
+          unit: item.unit,
           specifications: item.specifications,
           deliverables: item.deliverables,
           performanceMetrics: item.performanceMetrics
@@ -322,7 +322,7 @@ export default function NewServiceRequisition() {
   }, [formData.items]);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-8xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Create Service Requisition</h1>
@@ -333,17 +333,22 @@ export default function NewServiceRequisition() {
 
       {/* Progress Steps */}
       <div className="mb-8">
-        <nav aria-label="Progress">
-          <ol className="flex items-center">
+        <nav aria-label="Progress" className="bg-gray-50 rounded-lg p-6">
+          <ol className="flex items-center justify-between w-full">
             {steps.map((step, stepIdx) => (
-              <li key={step.id} className={`relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}`}>
-                <div className="flex items-center">
-                  <div className={`relative flex h-8 w-8 items-center justify-center rounded-full ${
+              <li key={step.id} className="relative flex-1 pt-2">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  {stepIdx < steps.length  && (
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                  )}
+                </div>
+                <div className="relative flex flex-col items-center">
+                  <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600' 
+                      ? 'bg-blue-600 border-blue-600 scale-110' 
                       : step.id === currentStep 
-                        ? 'border-2 border-blue-600 bg-white' 
-                        : 'border-2 border-gray-300 bg-white'
+                        ? 'border-blue-600 bg-white shadow-lg' 
+                        : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
@@ -355,14 +360,14 @@ export default function NewServiceRequisition() {
                       </span>
                     )}
                   </div>
-                </div>
-                <div className="mt-2">
-                  <span className={`text-sm font-medium ${
-                    step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
-                  }`}>
-                    {step.name}
-                  </span>
-                  <p className="text-xs text-gray-500">{step.description}</p>
+                  <div className="mt-3 text-center">
+                    <span className={`text-sm font-medium ${
+                      step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                    }`}>
+                      {step.name}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1 max-w-32 hidden sm:block">{step.description}</p>
+                  </div>
                 </div>
               </li>
             ))}
@@ -371,9 +376,10 @@ export default function NewServiceRequisition() {
       </div>
 
       {/* Form Content */}
-      <div className="bg-white shadow rounded-lg p-6">
-        {/* Step 1: Service Details */}
-        {currentStep === 1 && (
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-8">
+          {/* Step 1: Service Details */}
+          {currentStep === 1 && (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">Service Details</h3>
             
@@ -383,7 +389,7 @@ export default function NewServiceRequisition() {
                   Service Category *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -406,7 +412,7 @@ export default function NewServiceRequisition() {
                   Service Type *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value }))}
                   disabled={!formData.serviceCategory}
@@ -427,7 +433,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.departmentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
                   placeholder="Enter department ID"
@@ -443,7 +449,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.projectId || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                   placeholder="Optional project reference"
@@ -455,7 +461,7 @@ export default function NewServiceRequisition() {
                   Priority *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                 >
@@ -472,7 +478,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.requestor}
                   onChange={(e) => setFormData(prev => ({ ...prev, requestor: e.target.value }))}
                   placeholder="Enter requestor name"
@@ -496,7 +502,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.detailedScope}
                 onChange={(e) => setFormData(prev => ({ ...prev, detailedScope: e.target.value }))}
                 placeholder="Describe the detailed scope of work, requirements, and expectations..."
@@ -512,7 +518,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.technicalSpecifications || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, technicalSpecifications: e.target.value }))}
                 placeholder="Technical requirements, standards, compliance requirements..."
@@ -551,7 +557,7 @@ export default function NewServiceRequisition() {
                       </label>
                       <textarea
                         rows={2}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         value={item.description}
                         onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
                         placeholder="Describe the specific service or work to be performed..."
@@ -562,16 +568,16 @@ export default function NewServiceRequisition() {
                       <label className="block text-sm font-medium text-gray-700">
                         Quantity *
                       </label>
-                      <div className="mt-1 flex rounded-md shadow-sm">
+                      <div className="flex rounded-lg shadow-sm">
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           value={item.unit}
                           onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
                         >
@@ -588,16 +594,16 @@ export default function NewServiceRequisition() {
                       <label className="block text-sm font-medium text-gray-700">
                         Duration *
                       </label>
-                      <div className="mt-1 flex rounded-md shadow-sm">
+                      <div className="flex rounded-lg shadow-sm">
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           value={item.duration}
                           onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           value={item.durationUnit}
                           onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
                         >
@@ -612,13 +618,13 @@ export default function NewServiceRequisition() {
                       <label className="block text-sm font-medium text-gray-700">
                         Estimated Rate *
                       </label>
-                      <div className="mt-1 relative">
+                      <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">OMR</span>
                         <input
                           type="number"
                           step="0.001"
                           min="0"
-                          className="pl-12 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           value={item.estimatedRate}
                           onChange={(e) => updateServiceItem(index, 'estimatedRate', parseFloat(e.target.value) || 0)}
                           placeholder="0.000"
@@ -684,13 +690,13 @@ export default function NewServiceRequisition() {
                 <label className="block text-sm font-medium text-gray-700">
                   Estimated Cost *
                 </label>
-                <div className="mt-1 relative">
+                <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">OMR</span>
                   <input
                     type="number"
                     step="0.001"
                     min="0"
-                    className="pl-12 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     value={formData.estimatedCost}
                     onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.000"
@@ -706,7 +712,7 @@ export default function NewServiceRequisition() {
                   Payment Terms *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -727,7 +733,7 @@ export default function NewServiceRequisition() {
                   Payment Schedule *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentSchedule: e.target.value as any }))}
                 >
@@ -744,7 +750,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   placeholder="Enter vendor names (comma-separated)"
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -768,7 +774,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.budgetCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
                   placeholder="Enter budget code"
@@ -784,7 +790,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.costCenter || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
                   placeholder="Optional cost center"
@@ -797,7 +803,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="date"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   value={formData.requiredByDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, requiredByDate: e.target.value }))}
                 />
@@ -825,7 +831,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.safetyRequirements || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
                 placeholder="Specify any safety requirements, certifications, or compliance needs..."
@@ -838,7 +844,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.qualityStandards || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                 placeholder="Quality standards, certifications, or performance requirements..."
@@ -851,7 +857,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.justification}
                 onChange={(e) => setFormData(prev => ({ ...prev, justification: e.target.value }))}
                 placeholder="Provide business justification for this service requirement..."
@@ -924,12 +930,12 @@ export default function NewServiceRequisition() {
           </div>
         )}
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+        {/* Navigation */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -938,7 +944,7 @@ export default function NewServiceRequisition() {
           {currentStep < 5 ? (
             <button
               onClick={handleNext}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600"
             >
               Next
               <ChevronRight className="h-4 w-4 ml-2" />
@@ -947,13 +953,10 @@ export default function NewServiceRequisition() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
+                'Creating...'
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -962,6 +965,7 @@ export default function NewServiceRequisition() {
               )}
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>
