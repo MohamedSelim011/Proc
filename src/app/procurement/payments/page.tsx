@@ -144,7 +144,6 @@ function PaymentsPageContent() {
     try {
       const response = await fetch('/api/payment-batches');
       const data = await response.json();
-      console.log('Payment batches response:', data); // Debug log
       if (response.ok) {
         setPaymentBatches(data.batches || []);
       }
