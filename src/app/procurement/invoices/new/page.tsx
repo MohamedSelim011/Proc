@@ -51,10 +51,33 @@ interface GoodsReceipt {
   }>;
 }
 
+interface ServiceReceipt {
+  id: string;
+  srnNumber: string;
+  serviceDescription: string;
+  qualityRating: number;
+  completionPercentage: number;
+  contract: {
+    contractNumber: string;
+    vendor: {
+      id: string;
+      nameEn: string;
+      email: string;
+    };
+  };
+  milestone?: {
+    name: string;
+    amount: string;
+  };
+}
+
 interface InvoiceFormData {
   // Step 1: PO & GR Selection
-  poId: string;
+  poId?: string;
   grId?: string;
+  serviceReceiptId?: string;
+  invoiceType: 'GOODS' | 'SERVICE';
+  vendorId?: string;
   
   // Step 2: Invoice Details
   invoiceNumber: string;
@@ -116,13 +139,18 @@ function NewInvoiceContent() {
   const [loading, setLoading] = useState(false);
   const [availablePOs, setAvailablePOs] = useState<PurchaseOrder[]>([]);
   const [availableGRs, setAvailableGRs] = useState<GoodsReceipt[]>([]);
+  const [serviceReceipts, setServiceReceipts] = useState<ServiceReceipt[]>([]);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [selectedGR, setSelectedGR] = useState<GoodsReceipt | null>(null);
+  const [selectedServiceReceipt, setSelectedServiceReceipt] = useState<ServiceReceipt | null>(null);
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(null);
 
   const [formData, setFormData] = useState<InvoiceFormData>({
     poId: poId || '',
     grId: grId || '',
+    serviceReceiptId: '',
+    invoiceType: 'GOODS',
+    vendorId: '',
     invoiceNumber: '',
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: '',
@@ -140,6 +168,7 @@ function NewInvoiceContent() {
 
   useEffect(() => {
     fetchAvailablePOs();
+    fetchServiceReceipts();
     if (poId) {
       fetchPODetails(poId);
     }
@@ -217,32 +246,64 @@ function NewInvoiceContent() {
     }
   };
 
-  const initializeInvoiceItems = () => {
-    if (!selectedPO) return;
+  const fetchServiceReceipts = async () => {
+    try {
+      const response = await fetch('/api/service-receipts?status=ACCEPTED');
+      const data = await response.json();
+      if (response.ok) {
+        setServiceReceipts(data.receipts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching service receipts:', error);
+    }
+  };
 
-    const items = selectedPO.items.map(poItem => {
-      // Match by poItemId
-      const grItem = selectedGR?.items.find(gr => gr.item.id === poItem.item.id);
-      const grQuantity = grItem?.acceptedQuantity || 0;
-      
-      return {
-        poItemId: poItem.id,
-        itemId: poItem.item.id,
-        invoiceQuantity: grQuantity,
-        invoiceUnitPrice: Number(poItem.unitPrice),
-        invoiceTotal: grQuantity * Number(poItem.unitPrice),
-        poQuantity: poItem.quantity,
-        poUnitPrice: Number(poItem.unitPrice),
-        grQuantity,
+  const initializeInvoiceItems = () => {
+    if (formData.invoiceType === 'GOODS' && selectedPO) {
+      // Handle goods/PO items
+      const items = selectedPO.items.map(poItem => {
+        // Match by poItemId
+        const grItem = selectedGR?.items.find(gr => gr.item.id === poItem.item.id);
+        const grQuantity = grItem?.acceptedQuantity || 0;
+        
+        return {
+          poItemId: poItem.id,
+          itemId: poItem.item.id,
+          invoiceQuantity: grQuantity,
+          invoiceUnitPrice: Number(poItem.unitPrice),
+          invoiceTotal: grQuantity * Number(poItem.unitPrice),
+          poQuantity: poItem.quantity,
+          poUnitPrice: Number(poItem.unitPrice),
+          grQuantity,
+          quantityVariance: 0,
+          priceVariance: 0,
+          totalVariance: 0,
+          variancePercentage: 0,
+          matchingStatus: 'MATCHED' as const
+        };
+      });
+
+      setFormData(prev => ({ ...prev, items }));
+    } else if (formData.invoiceType === 'SERVICE' && selectedServiceReceipt) {
+      // Handle service receipt items
+      const items = [{
+        poItemId: selectedServiceReceipt.id,
+        itemId: selectedServiceReceipt.id,
+        invoiceQuantity: 1, // Service is typically 1 unit
+        invoiceUnitPrice: parseFloat(selectedServiceReceipt.milestone?.amount || '0'),
+        invoiceTotal: parseFloat(selectedServiceReceipt.milestone?.amount || '0'),
+        poQuantity: 1,
+        poUnitPrice: parseFloat(selectedServiceReceipt.milestone?.amount || '0'),
+        grQuantity: 1,
         quantityVariance: 0,
         priceVariance: 0,
         totalVariance: 0,
         variancePercentage: 0,
         matchingStatus: 'MATCHED' as const
-      };
-    });
+      }];
 
-    setFormData(prev => ({ ...prev, items }));
+      setFormData(prev => ({ ...prev, items }));
+    }
   };
 
   const performThreeWayMatching = () => {
@@ -360,7 +421,13 @@ function NewInvoiceContent() {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.poId) newErrors.poId = 'Purchase order is required';
+      if (formData.invoiceType === 'GOODS') {
+        if (!formData.poId) newErrors.poId = 'Purchase order is required';
+        if (!formData.vendorId) newErrors.vendorId = 'Vendor is required';
+      } else if (formData.invoiceType === 'SERVICE') {
+        if (!formData.serviceReceiptId) newErrors.serviceReceiptId = 'Service receipt is required';
+        if (!formData.vendorId) newErrors.vendorId = 'Vendor is required';
+      }
     }
 
     if (step === 2) {
@@ -406,6 +473,9 @@ function NewInvoiceContent() {
       const submitData = {
         poId: formData.poId,
         grId: formData.grId,
+        serviceReceiptId: formData.serviceReceiptId,
+        invoiceType: formData.invoiceType,
+        vendorId: formData.vendorId,
         invoiceNumber: formData.invoiceNumber,
         invoiceDate: formData.invoiceDate,
         dueDate: formData.dueDate,
@@ -423,7 +493,8 @@ function NewInvoiceContent() {
           itemId: item.itemId,
           quantity: item.invoiceQuantity,
           unitPrice: item.invoiceUnitPrice,
-          totalPrice: item.invoiceTotal
+          totalPrice: item.invoiceTotal,
+          description: item.itemId === item.poItemId ? 'Service Item' : 'Goods Item'
         }))
       };
 
@@ -502,7 +573,7 @@ function NewInvoiceContent() {
         <nav aria-label="Progress" className="bg-gray-50 rounded-lg p-6">
           <ol className="flex items-center justify-between w-full">
             {[
-              { id: 1, name: 'PO & GR Selection', description: 'Select purchase order and goods receipt' },
+              { id: 1, name: 'PO/Service Selection', description: 'Select purchase order and goods receipt OR service receipt' },
               { id: 2, name: 'Invoice Details', description: 'Enter invoice information' },
               { id: 3, name: 'Line Items', description: 'Configure invoice line items' },
               { id: 4, name: '3-Way Matching', description: 'Validate and review matching' }
@@ -552,13 +623,53 @@ function NewInvoiceContent() {
           {/* Step 1: PO & GR Selection */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Select Purchase Order & Goods Receipt</h3>
+              <h3 className="text-lg font-medium text-gray-900">Select Purchase Order & Goods Receipt OR Service Receipt</h3>
               
-              {/* PO Selection */}
-              <div>
+              {/* Invoice Type Selection */}
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Purchase Order *
+                  Invoice Type *
                 </label>
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, invoiceType: 'GOODS' }));
+                      setSelectedPO(null);
+                      setSelectedServiceReceipt(null);
+                    }}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      formData.invoiceType === 'GOODS'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    Goods & Materials
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, invoiceType: 'SERVICE' }));
+                      setSelectedPO(null);
+                      setSelectedServiceReceipt(null);
+                    }}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      formData.invoiceType === 'SERVICE'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    Services
+                  </button>
+                </div>
+              </div>
+              
+              {/* PO Selection - Only show for goods */}
+              {formData.invoiceType === 'GOODS' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Purchase Order *
+                  </label>
                 {selectedPO ? (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
@@ -582,7 +693,7 @@ function NewInvoiceContent() {
                         }`}
                         onClick={() => {
                           setSelectedPO(po);
-                          setFormData(prev => ({ ...prev, poId: po.id }));
+                          setFormData(prev => ({ ...prev, poId: po.id, vendorId: po.vendor.id }));
                         }}
                       >
                         <div className="flex items-center justify-between">
@@ -603,6 +714,7 @@ function NewInvoiceContent() {
                   <p className="mt-1 text-sm text-red-600">{errors.poId}</p>
                 )}
               </div>
+              )}
 
               {/* GR Selection */}
               {availableGRs.length > 0 && (
@@ -637,6 +749,84 @@ function NewInvoiceContent() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Service Receipt Selection - Only show for services */}
+              {formData.invoiceType === 'SERVICE' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Service Receipt *
+                  </label>
+                  {selectedServiceReceipt ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-900">{selectedServiceReceipt.srnNumber}</h4>
+                          <p className="text-sm text-blue-700">{selectedServiceReceipt.contract.vendor.nameEn}</p>
+                          <p className="text-sm text-blue-700">{selectedServiceReceipt.serviceDescription}</p>
+                        </div>
+                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {serviceReceipts.map((receipt) => (
+                        <div
+                          key={receipt.id}
+                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                            formData.serviceReceiptId === receipt.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => {
+                            setSelectedServiceReceipt(receipt);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              serviceReceiptId: receipt.id,
+                              vendorId: receipt.contract.vendor.id 
+                            }));
+                            // Auto-initialize items for service receipt
+                            setTimeout(() => {
+                              const items = [{
+                                poItemId: receipt.id,
+                                itemId: receipt.id,
+                                invoiceQuantity: 1,
+                                invoiceUnitPrice: parseFloat(receipt.milestone?.amount || '0'),
+                                invoiceTotal: parseFloat(receipt.milestone?.amount || '0'),
+                                poQuantity: 1,
+                                poUnitPrice: parseFloat(receipt.milestone?.amount || '0'),
+                                grQuantity: 1,
+                                quantityVariance: 0,
+                                priceVariance: 0,
+                                totalVariance: 0,
+                                variancePercentage: 0,
+                                matchingStatus: 'MATCHED' as const
+                              }];
+                              setFormData(prev => ({ ...prev, items }));
+                            }, 100);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900">{receipt.srnNumber}</h4>
+                              <p className="text-sm text-gray-500">{receipt.contract.vendor.nameEn}</p>
+                              <p className="text-sm text-gray-500">{receipt.serviceDescription}</p>
+                              {receipt.milestone && (
+                                <p className="text-sm text-gray-500">Milestone: {receipt.milestone.name}</p>
+                              )}
+                            </div>
+                            {formData.serviceReceiptId === receipt.id && (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {errors.serviceReceiptId && (
+                    <p className="mt-1 text-sm text-red-600">{errors.serviceReceiptId}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -791,7 +981,7 @@ function NewInvoiceContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {selectedPO?.items.map((poItem, index) => {
+                    {formData.invoiceType === 'GOODS' && selectedPO?.items.map((poItem, index) => {
                       const invoiceItem = formData.items[index];
                       // Fix: Match by itemId instead of poItemId
                       const grItem = selectedGR?.items.find(gr => gr.itemId === poItem.item.id);
@@ -849,6 +1039,58 @@ function NewInvoiceContent() {
                         </tr>
                       );
                     })}
+                    {formData.invoiceType === 'SERVICE' && formData.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {selectedServiceReceipt?.srnNumber}
+                            </div>
+                            <div className="text-sm text-gray-500">{selectedServiceReceipt?.serviceDescription}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            1 × {formatCurrency(item.poUnitPrice)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            1
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            value={item.invoiceQuantity || 0}
+                            onChange={(e) => updateItemField(index, 'invoiceQuantity', parseFloat(e.target.value) || 0)}
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
+                              {formData.currency}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              value={item.invoiceUnitPrice || 0}
+                              onChange={(e) => updateItemField(index, 'invoiceUnitPrice', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatCurrency(item.invoiceTotal || 0)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1068,7 +1310,11 @@ function NewInvoiceContent() {
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Vendor</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{selectedPO?.vendor.nameEn}</dd>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {formData.invoiceType === 'GOODS' 
+                        ? selectedPO?.vendor.nameEn 
+                        : selectedServiceReceipt?.contract.vendor.nameEn}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Invoice Date</dt>

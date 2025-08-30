@@ -11,7 +11,8 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -20,21 +21,31 @@ interface ServiceRequisition {
   prNumber: string;
   itemType: string;
   departmentId: string;
-  projectId?: string;
+  requesterId: string;
   priority: string;
-  requiredByDate: string;
-  justification: string;
-  budgetCode: string;
   status: string;
-  totalEstimatedCost: number;
+  estimatedCost: string;
+  budgetCode: string;
+  justification: string;
   createdAt: string;
-  createdBy: string;
-  items: Array<{
+  updatedAt: string;
+  servicePR: {
     id: string;
-    quantity: number;
-    estimatedPrice: number;
-    specifications?: string;
-  }>;
+    serviceScope: string;
+    technicalSpecifications?: string;
+    duration: number;
+    durationUnit: string;
+    items: Array<{
+      id: string;
+      quantity: string;
+      estimatedRate: string;
+      duration: number;
+      durationUnit: string;
+      specifications?: string;
+      deliverables: string[];
+      performanceMetrics: string[];
+    }>;
+  };
 }
 
 interface Filters {
@@ -77,17 +88,17 @@ export default function ServiceRequisitions() {
 
   useEffect(() => {
     fetchRequisitions();
-  }, [currentPage, filters]);
+  }, [currentPage]);
 
   const fetchRequisitions = async () => {
     try {
       setLoading(true);
+      console.log('Fetching service requisitions...');
       
-      // Build query parameters for service-related PRs
+      // Build query parameters for service requisitions
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: '10',
-        itemType: 'NON_STOCK,SERVICE' // Filter for service types
+        limit: '10'
       });
 
       // Add filters
@@ -96,24 +107,50 @@ export default function ServiceRequisitions() {
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.department) params.append('departmentId', filters.department);
 
-      const response = await fetch(`/api/purchase-requisitions?${params}`);
-      const data = await response.json();
+      const url = `/api/services/requisitions?${params}`;
+      console.log('Fetching from URL:', url);
 
-      if (response.ok) {
-        setRequisitions(data.purchaseRequisitions || []);
-        setTotal(data.total || 0);
-        setTotalPages(Math.ceil((data.total || 0) / 10));
+      const response = await fetch(url);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Service requisitions API response:', data);
+
+      if (data.serviceRequisitions) {
+        setRequisitions(data.serviceRequisitions);
+        setTotal(data.pagination?.total || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
+        
+        console.log('Set requisitions:', data.serviceRequisitions.length);
+        console.log('Set total:', data.pagination?.total);
+        console.log('Set totalPages:', data.pagination?.totalPages);
+      } else {
+        console.error('No serviceRequisitions in response:', data);
+        setRequisitions([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching service requisitions:', error);
+      setRequisitions([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
+      console.log('Fetch completed, loading set to false');
     }
   };
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1); // Reset to first page when filtering
+    // Trigger fetch after filter change
+    setTimeout(() => fetchRequisitions(), 100);
   };
 
   const getStatusColor = (status: string) => {
@@ -160,13 +197,22 @@ export default function ServiceRequisitions() {
             Manage service and non-stock item purchase requisitions
           </p>
         </div>
-        <Link
-          href="/procurement/services/requisitions/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Service Request
-        </Link>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={fetchRequisitions}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
+          <Link
+            href="/procurement/services/requisitions/new"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Service Request
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -268,6 +314,7 @@ export default function ServiceRequisitions() {
             </span>
           </div>
         </div>
+      
       </div>
 
       {/* Requisitions Table */}
@@ -329,17 +376,15 @@ export default function ServiceRequisitions() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {requisition.itemType === 'NON_STOCK' ? 'Non-Stock Items' : 'Services'}
+                      {requisition.itemType === 'SERVICE' ? 'Services' : 'Non-Stock Items'}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {requisition.items?.length || 0} item(s)
+                      {requisition.servicePR?.items?.length || 0} item(s)
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{requisition.departmentId}</div>
-                    {requisition.projectId && (
-                      <div className="text-sm text-gray-500">Project: {requisition.projectId}</div>
-                    )}
+                    <div className="text-sm text-gray-500">Requester: {requisition.requesterId}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(requisition.priority)}`}>
@@ -347,12 +392,12 @@ export default function ServiceRequisitions() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(requisition.totalEstimatedCost)}
+                    {formatCurrency(parseFloat(requisition.estimatedCost))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                      {formatDate(requisition.requiredByDate)}
+                      {formatDate(requisition.createdAt)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -73,6 +73,7 @@ const navigation = [
       { name: 'Requisitions', href: '/procurement/services/requisitions' },
       { name: 'Vendors', href: '/procurement/services/vendors' },
       { name: 'Contracts', href: '/procurement/services/contracts' },
+      { name: 'Receipts', href: '/procurement/services/receipts' },
       { name: 'Delivery', href: '/procurement/services/delivery' },
       { name: 'Performance', href: '/procurement/services/performance' },
       { name: 'Invoices', href: '/procurement/services/invoices' },

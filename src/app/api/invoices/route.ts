@@ -76,15 +76,25 @@ export async function POST(request: NextRequest) {
     
     console.log('Received invoice data:', JSON.stringify(body, null, 2));
     
-    // Get vendor ID from PO if not provided
+    // Get vendor ID from PO or service receipt if not provided
     let vendorId = body.vendorId;
-    if (!vendorId && body.poId) {
-      const po = await prisma.purchaseOrder.findUnique({
-        where: { id: body.poId },
-        select: { vendorId: true }
-      });
-      if (po) {
-        vendorId = po.vendorId;
+    if (!vendorId) {
+      if (body.poId) {
+        const po = await prisma.purchaseOrder.findUnique({
+          where: { id: body.poId },
+          select: { vendorId: true }
+        });
+        if (po) {
+          vendorId = po.vendorId;
+        }
+      } else if (body.serviceReceiptId) {
+        const serviceReceipt = await prisma.serviceReceipt.findUnique({
+          where: { id: body.serviceReceiptId },
+          include: { contract: { include: { vendor: true } } }
+        });
+        if (serviceReceipt?.contract?.vendor?.id) {
+          vendorId = serviceReceipt.contract.vendor.id;
+        }
       }
     }
     
@@ -95,11 +105,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // For service receipts, we need to create a dummy item since they don't have traditional items
+    let itemsData = undefined;
+    if (body.items && body.items.length > 0) {
+      if (body.serviceReceiptId) {
+        // For service receipts, try to find an existing service item or create a simple one
+        let serviceItem;
+        try {
+          // Try to find an existing service item
+          serviceItem = await prisma.item.findFirst({
+            where: {
+              nameEn: { contains: 'Service' }
+            }
+          });
+          
+          if (!serviceItem) {
+            // Create a simple service item if none exists
+            serviceItem = await prisma.item.create({
+              data: {
+                itemCode: `SRV-${Date.now()}`,
+                nameEn: 'Service Item',
+                nameAr: 'خدمة',
+                description: 'Service item for invoice',
+                categoryId: 'default-category-id',
+                unitOfMeasure: 'EA'
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error creating/finding service item:', error);
+          // If we can't create an item, skip items for now
+          itemsData = undefined;
+        }
+        
+        if (serviceItem) {
+          itemsData = {
+            create: body.items.map((item: any) => ({
+              poItemId: null, // No PO item for service receipts
+              itemId: serviceItem.id, // Use the service item ID
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              description: item.description || 'Service Item'
+            }))
+          };
+        }
+      } else {
+        // For regular POs, use the existing logic
+        itemsData = {
+          create: body.items.map((item: any) => ({
+            poItemId: item.poItemId,
+            itemId: item.itemId || item.poItemId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            description: item.description
+          }))
+        };
+      }
+    }
+
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber: body.invoiceNumber,
         vendorId,
-        poId: body.poId,
+        poId: body.poId || null, // Use null instead of empty string for service receipts
         invoiceDate: new Date(body.invoiceDate),
         dueDate: new Date(body.dueDate),
         totalAmount: body.totalAmount,
@@ -113,16 +183,7 @@ export async function POST(request: NextRequest) {
         paymentStatus: 'UNPAID',
         description: body.description,
         paymentTerms: body.paymentTerms,
-        items: body.items ? {
-          create: body.items.map((item: any) => ({
-            poItemId: item.poItemId,
-            itemId: item.itemId || item.poItemId, // Use PO item's item ID if not provided
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            description: item.description
-          }))
-        } : undefined
+        items: itemsData
       },
       include: {
         vendor: true,

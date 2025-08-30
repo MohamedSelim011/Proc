@@ -83,7 +83,6 @@ export default function ServiceContracts() {
     try {
       setLoading(true);
       
-      // Use POs as contracts for now - in real implementation, you'd have a separate contracts table
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '10'
@@ -92,32 +91,32 @@ export default function ServiceContracts() {
       // Add filters
       if (filters.search) params.append('search', filters.search);
       if (filters.status) params.append('status', filters.status);
+      if (filters.contractType) params.append('contractType', filters.contractType);
+      if (filters.vendor) params.append('vendor', filters.vendor);
 
-      const response = await fetch(`/api/purchase-orders?${params}`);
+      const response = await fetch(`/api/service-contracts?${params}`);
       const data = await response.json();
 
       if (response.ok) {
-        // Transform POs to contract format with additional service contract fields
-        const contractsWithMetrics = (data.purchaseOrders || []).map((po: any) => {
-          const startDate = new Date(po.createdAt);
-          const endDate = new Date(po.expectedDeliveryDate || po.createdAt);
-          endDate.setFullYear(endDate.getFullYear() + 1); // Assume 1-year contracts
+        const contractsWithMetrics = (data.contracts || []).map((contract: any) => {
+          const startDate = new Date(contract.startDate);
+          const endDate = new Date(contract.endDate);
           
           const today = new Date();
           const daysUntilExpiry = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
           return {
-            id: po.id,
-            contractNumber: po.poNumber,
-            contractType: 'Service Agreement',
-            vendor: po.vendor,
-            serviceType: 'Professional Services',
-            contractValue: po.totalAmount,
+            id: contract.id,
+            contractNumber: contract.contractNumber,
+            contractType: contract.contractType,
+            vendor: contract.vendor,
+            serviceType: contract.contractType,
+            contractValue: parseFloat(contract.totalValue),
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
-            status: po.status === 'APPROVED' ? 'ACTIVE' : po.status === 'DELIVERED' ? 'COMPLETED' : 'DRAFT',
-            autoRenewal: Math.random() > 0.5, // Random for demo
-            createdAt: po.createdAt,
+            status: contract.status,
+            autoRenewal: false, // Default for now
+            createdAt: contract.createdAt,
             daysUntilExpiry
           };
         });
@@ -130,8 +129,8 @@ export default function ServiceContracts() {
           : contractsWithMetrics;
 
         setContracts(filteredContracts);
-        setTotal(filteredContracts.length);
-        setTotalPages(Math.ceil(filteredContracts.length / 10));
+        setTotal(data.pagination?.total || filteredContracts.length);
+        setTotalPages(data.pagination?.totalPages || Math.ceil(filteredContracts.length / 10));
       }
     } catch (error) {
       console.error('Error fetching contracts:', error);

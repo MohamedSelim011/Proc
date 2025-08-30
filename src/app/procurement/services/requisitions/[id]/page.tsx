@@ -23,35 +23,43 @@ interface ServiceRequisition {
   prNumber: string;
   itemType: string;
   departmentId: string;
-  projectId?: string;
+  requesterId: string;
   priority: string;
-  requiredByDate: string;
-  justification: string;
-  budgetCode: string;
-  costCenter?: string;
   status: string;
-  totalEstimatedCost: number;
+  estimatedCost: string;
+  budgetCode: string;
+  justification: string;
   createdAt: string;
   updatedAt: string;
-  createdBy: string;
-  items: Array<{
+  servicePR: {
     id: string;
-    itemId: string;
-    quantity: number;
-    estimatedPrice: number;
-    specifications?: string;
-    requiredDate?: string;
-    item: {
+    serviceScope: string;
+    technicalSpecifications?: string;
+    duration: number;
+    durationUnit: string;
+    items: Array<{
       id: string;
-      itemCode: string;
-      nameEn: string;
-      nameAr: string;
-      unitOfMeasure: string;
-      category: {
+      quantity: string;
+      estimatedRate: string;
+      duration: number;
+      durationUnit: string;
+      specifications?: string;
+      deliverables: string[];
+      performanceMetrics: string[];
+      serviceItem: {
+        id: string;
+        serviceCode: string;
         nameEn: string;
+        nameAr: string;
+        unitOfMeasure: string;
+        serviceCategory: {
+          id: string;
+          nameEn: string;
+          nameAr: string;
+        };
       };
-    };
-  }>;
+    }>;
+  };
 }
 
 const statusColors = {
@@ -92,23 +100,57 @@ export default function ServiceRequisitionDetail() {
     });
   };
 
+  const handleSubmitRequisition = async () => {
+    if (!sr) return;
+    
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${sr.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstApproverId: 'manager001' // Default approver ID
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh the data to show updated status
+        fetchServiceRequisition();
+        alert('Requisition submitted successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to submit: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting requisition:', error);
+      alert('Failed to submit requisition');
+    }
+  };
+
   useEffect(() => {
     fetchServiceRequisition();
   }, [params.id]);
 
+  // Debug logging
+  useEffect(() => {
+    if (sr) {
+      console.log('ServiceRequisition Data:', sr);
+      console.log('ServicePR Items:', sr.servicePR?.items);
+      console.log('Items Length:', sr.servicePR?.items?.length);
+    }
+  }, [sr]);
+
   const fetchServiceRequisition = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/purchase-requisitions/${params.id}`);
+      // Use the dedicated service requisitions API
+      const response = await fetch(`/api/services/requisitions/${params.id}`);
       const data = await response.json();
       
       if (response.ok) {
-        // Only show if it's a service-related PR
-        if (data.itemType === 'SERVICE' || data.itemType === 'NON_STOCK') {
-          setSr(data);
-        } else {
-          setError('This is not a service requisition');
-        }
+        console.log('Fetched service requisition data:', data);
+        setSr(data);
       } else {
         setError(data.error || 'Failed to fetch service requisition');
       }
@@ -201,6 +243,33 @@ export default function ServiceRequisitionDetail() {
           </div>
         </div>
 
+        {/* Workflow Status */}
+        <div className=" w-full px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Approval Workflow</h3>
+          <div className="flex items-center space-x-4">
+            <div className={`flex items-center ${sr.status === 'DRAFT' ? 'text-blue-600' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'DRAFT' ? 'bg-blue-100' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <span className="text-sm font-medium">1</span>
+              </div>
+              <span className="ml-2 text-sm font-medium">Draft</span>
+            </div>
+            <div className={`w-8 h-1 ${sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'bg-green-200' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center ${sr.status === 'SUBMITTED' ? 'text-blue-600' : sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'SUBMITTED' ? 'bg-blue-100' : sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <span className="text-sm font-medium">2</span>
+              </div>
+              <span className="ml-2 text-sm font-medium">Submitted</span>
+            </div>
+            <div className={`w-8 h-1 ${sr.status === 'APPROVED' ? 'bg-green-200' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center ${sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <span className="text-sm font-medium">3</span>
+              </div>
+              <span className="ml-2 text-sm font-medium">Approved</span>
+            </div>
+          </div>
+        </div>
+
         <div className="px-6 py-4">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
             <div>
@@ -211,22 +280,14 @@ export default function ServiceRequisitionDetail() {
               <dd className="mt-1 text-sm text-gray-900">{sr.departmentId}</dd>
             </div>
             
-            {sr.projectId && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Project ID
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900">{sr.projectId}</dd>
-              </div>
-            )}
-
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <Calendar className="h-4 w-4 mr-2" />
-                Required By
+                Duration
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">{formatDate(sr.requiredByDate)}</dd>
+              <dd className="mt-1 text-sm text-gray-900">
+                {sr.servicePR?.duration || 0} {sr.servicePR?.durationUnit || 'days'}
+              </dd>
             </div>
 
             <div>
@@ -247,19 +308,12 @@ export default function ServiceRequisitionDetail() {
               <dd className="mt-1 text-sm text-gray-900">{sr.budgetCode}</dd>
             </div>
 
-            {sr.costCenter && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Cost Center</dt>
-                <dd className="mt-1 text-sm text-gray-900">{sr.costCenter}</dd>
-              </div>
-            )}
-
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <User className="h-4 w-4 mr-2" />
-                Created By
+                Requester
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">{sr.createdBy}</dd>
+              <dd className="mt-1 text-sm text-gray-900">{sr.requesterId}</dd>
             </div>
 
             <div>
@@ -286,7 +340,7 @@ export default function ServiceRequisitionDetail() {
           <h3 className="text-lg font-medium text-gray-900">
             {sr.itemType === 'SERVICE' ? 'Service Requirements' : 'Non-Stock Items'}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">{sr.items?.length || 0} item(s) requested</p>
+          <p className="mt-1 text-sm text-gray-500">{sr.servicePR?.items?.length || 0} item(s) requested</p>
         </div>
 
         <div className="overflow-hidden">
@@ -311,40 +365,38 @@ export default function ServiceRequisitionDetail() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sr.items && sr.items.length > 0 ? (
-                sr.items.map((item, index) => (
+              {sr.servicePR?.items && sr.servicePR.items.length > 0 ? (
+                sr.servicePR.items.map((item, index) => (
                   <tr key={item.id || index}>
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {item.item?.itemCode || 'N/A'}
+                          {item.serviceItem?.serviceCode || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {item.item?.nameEn || 'N/A'}
+                          {item.serviceItem?.nameEn || 'N/A'}
                         </div>
                         {item.specifications && (
                           <div className="text-xs text-gray-400 mt-1 max-w-md">
                             <div className="bg-gray-50 p-2 rounded text-xs">
                               <strong>Specifications:</strong><br />
-                              {item.specifications.split('\n').map((line, idx) => (
-                                <div key={idx}>{line}</div>
-                              ))}
+                              {item.specifications}
                             </div>
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.item?.category?.nameEn || 'N/A'}
+                      {item.serviceItem?.serviceCategory?.nameEn || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.quantity || 0} {item.item?.unitOfMeasure || 'units'}
+                      {item.quantity || 0} {item.serviceItem?.unitOfMeasure || 'units'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(item.estimatedPrice)}
+                      {formatCurrency(parseFloat(item.estimatedRate || 0))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency((item.quantity || 0) * (item.estimatedPrice || 0))}
+                      {formatCurrency((parseFloat(item.quantity || 0) * parseFloat(item.estimatedRate || 0) * (item.duration || 1)))}
                     </td>
                   </tr>
                 ))
@@ -362,7 +414,7 @@ export default function ServiceRequisitionDetail() {
                   Total Estimated Cost:
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                  {formatCurrency(sr.totalEstimatedCost)}
+                  {formatCurrency(parseFloat(sr.estimatedCost))}
                 </td>
               </tr>
             </tfoot>
@@ -392,6 +444,25 @@ export default function ServiceRequisitionDetail() {
       )}
 
       {/* Action Buttons */}
+      {sr.status === 'DRAFT' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleSubmitRequisition}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Submit for Approval
+            </button>
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Requisition
+            </button>
+          </div>
+        </div>
+      )}
+
       {sr.status === 'SUBMITTED' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
