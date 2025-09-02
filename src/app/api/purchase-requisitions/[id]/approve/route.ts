@@ -107,33 +107,20 @@ export async function POST(
       });
     }
 
-    // Check if more approvals needed
-    const nextLevel = (level || 1) + 1;
-    const needsMoreApproval = Number(pr.estimatedCost) > 50000 && nextLevel <= 2; // Example business rule
-
-    if (needsMoreApproval) {
-      // Create next level approval
-      await prisma.approval.create({
-        data: {
-          documentType: 'PURCHASE_REQUISITION',
-          documentId: id,
-          prId: id,
-          approverId: body.nextApproverId || 'director001',
-          status: 'PENDING',
-          level: nextLevel
-        }
-      });
-
-      // Keep PR status as SUBMITTED but add a note that it's pending further approval
-      // The status will only change to APPROVED when all levels are completed
-
+    // Check if there are more pending approvals
+    const remainingPendingApprovals = pr.approvals.filter(a => a.status === 'PENDING' && a.level !== currentLevel);
+    
+    if (remainingPendingApprovals.length > 0) {
+      // More approvals needed
+      const nextLevel = Math.min(...remainingPendingApprovals.map(a => a.level));
       return NextResponse.json({ 
-        message: 'Approved at current level, escalated to next level',
-        nextLevel 
+        message: `Approved at level ${currentLevel}. Pending approval at level ${nextLevel}`,
+        nextLevel,
+        status: 'SUBMITTED'
       });
     }
 
-    // Final approval - update PR status
+    // All approvals completed - update PR status to APPROVED
     await prisma.purchaseRequisition.update({
       where: { id },
       data: { status: 'APPROVED' }

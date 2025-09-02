@@ -114,6 +114,10 @@ export default function PRApprovalPage() {
       setSubmitting(true);
       setError('');
 
+      // Find the next pending approval level
+      const pendingApproval = pr.approvals?.find(a => a.status === 'PENDING');
+      const currentLevel = pendingApproval?.level || 1;
+
       const response = await fetch(`/api/purchase-requisitions/${prId}/approve`, {
         method: 'POST',
         headers: {
@@ -123,7 +127,7 @@ export default function PRApprovalPage() {
           action,
           approverId: 'manager001', // This should come from auth context
           comments,
-          level: 1 // Current approval level
+          level: currentLevel // Use the actual pending approval level
         }),
       });
 

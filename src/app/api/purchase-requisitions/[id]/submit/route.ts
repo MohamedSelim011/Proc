@@ -36,11 +36,8 @@ export async function POST(
     }
 
     // Submit the PR for approval
-    const updatedPR = await prisma.$transaction([
-      prisma.purchaseRequisition.update({
-        where: { id },
-        data: { status: 'SUBMITTED' }
-      }),
+    const approvals = [
+      // Level 1 approval (always required)
       prisma.approval.create({
         data: {
           documentType: 'PURCHASE_REQUISITION',
@@ -51,6 +48,30 @@ export async function POST(
           level: 1
         }
       })
+    ];
+
+    // Level 2 approval (required for high-value PRs)
+    if (Number(pr.estimatedCost) > 50000) {
+      approvals.push(
+        prisma.approval.create({
+          data: {
+            documentType: 'PURCHASE_REQUISITION',
+            documentId: id,
+            prId: id,
+            approverId: 'director001',
+            status: 'PENDING',
+            level: 2
+          }
+        })
+      );
+    }
+
+    const updatedPR = await prisma.$transaction([
+      prisma.purchaseRequisition.update({
+        where: { id },
+        data: { status: 'SUBMITTED' }
+      }),
+      ...approvals
     ]);
 
     return NextResponse.json({
