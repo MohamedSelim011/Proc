@@ -319,35 +319,36 @@ export default function ServiceRequisitions() {
 
       {/* Requisitions Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Requisition
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Service Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Department
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Priority
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estimated Value
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Required By
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Requisition
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Service Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Department
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Priority
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Estimated Value
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Required By
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Actions
+                </th>
+              </tr>
+            </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
@@ -361,7 +362,7 @@ export default function ServiceRequisitions() {
             ) : requisitions.length > 0 ? (
               requisitions.map((requisition) => (
                 <tr key={requisition.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
                     <div className="flex items-center">
                       {getStatusIcon(requisition.status)}
                       <div className="ml-3">
@@ -374,7 +375,7 @@ export default function ServiceRequisitions() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[150px]">
                     <div className="text-sm text-gray-900">
                       {requisition.itemType === 'SERVICE' ? 'Services' : 'Non-Stock Items'}
                     </div>
@@ -382,34 +383,34 @@ export default function ServiceRequisitions() {
                       {requisition.servicePR?.items?.length || 0} item(s)
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[180px]">
                     <div className="text-sm text-gray-900">{requisition.departmentId}</div>
                     <div className="text-sm text-gray-500">Requester: {requisition.requesterId}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[100px]">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(requisition.priority)}`}>
                       {requisition.priority}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 min-w-[130px]">
                     {formatCurrency(parseFloat(requisition.estimatedCost))}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[140px]">
                     <div className="flex items-center text-sm text-gray-900">
                       <Calendar className="h-4 w-4 mr-1 text-gray-400" />
                       {formatDate(requisition.createdAt)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[120px]">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(requisition.status)}`}>
                       {requisition.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium min-w-[120px]">
+                    <div className="flex items-center space-x-3">
                       <Link
                         href={`/procurement/services/requisitions/${requisition.id}`}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-700 transition-colors duration-200"
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
@@ -417,7 +418,7 @@ export default function ServiceRequisitions() {
                       {requisition.status === 'DRAFT' && (
                         <Link
                           href={`/procurement/services/requisitions/${requisition.id}/edit`}
-                          className="text-green-600 hover:text-green-900"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-700 transition-colors duration-200"
                           title="Edit"
                         >
                           <Edit className="h-4 w-4" />
@@ -426,7 +427,7 @@ export default function ServiceRequisitions() {
                       {requisition.status === 'SUBMITTED' && (
                         <Link
                           href={`/procurement/services/requisitions/${requisition.id}/approve`}
-                          className="text-purple-600 hover:text-purple-900"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 hover:text-purple-700 transition-colors duration-200"
                           title="Review & Approve"
                         >
                           <CheckCircle className="h-4 w-4" />
@@ -451,6 +452,7 @@ export default function ServiceRequisitions() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

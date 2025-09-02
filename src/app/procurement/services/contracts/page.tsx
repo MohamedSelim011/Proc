@@ -379,32 +379,33 @@ export default function ServiceContracts() {
 
       {/* Contracts Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contract
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Vendor
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Service Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Value
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Duration
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Contract
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Vendor
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Service Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Value
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Duration
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Actions
+                </th>
+              </tr>
+            </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
@@ -422,7 +423,7 @@ export default function ServiceContracts() {
                 
                 return (
                   <tr key={contract.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-blue-100 rounded">
                           {getContractTypeIcon(contract.contractType)}
@@ -437,7 +438,7 @@ export default function ServiceContracts() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap min-w-[180px]">
                       <div className="text-sm text-gray-900">
                         {contract.vendor?.nameEn || 'N/A'}
                       </div>
@@ -445,13 +446,13 @@ export default function ServiceContracts() {
                         {contract.vendor?.email || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 min-w-[120px]">
                       {contract.serviceType}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 min-w-[120px]">
                       {formatCurrency(contract.contractValue)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap min-w-[220px]">
                       <div className="text-sm text-gray-900">
                         {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
                       </div>
@@ -463,7 +464,7 @@ export default function ServiceContracts() {
                         }
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap min-w-[140px]">
                       <div className="flex flex-col space-y-1">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
                           {contract.status}
@@ -476,10 +477,10 @@ export default function ServiceContracts() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-3 min-w-[120px]">
                         <Link
                           href={`/procurement/services/contracts/${contract.id}`}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-700 transition-colors duration-200"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
@@ -487,7 +488,7 @@ export default function ServiceContracts() {
                         {contract.status === 'DRAFT' && (
                           <Link
                             href={`/procurement/services/contracts/${contract.id}/edit`}
-                            className="text-green-600 hover:text-green-900"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-700 transition-colors duration-200"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
@@ -496,7 +497,7 @@ export default function ServiceContracts() {
                         {contract.daysUntilExpiry <= 90 && contract.daysUntilExpiry > 0 && (
                           <Link
                             href={`/procurement/services/contracts/${contract.id}/renew`}
-                            className="text-purple-600 hover:text-purple-900"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 hover:text-purple-700 transition-colors duration-200"
                             title="Renew Contract"
                           >
                             <Calendar className="h-4 w-4" />
@@ -522,6 +523,7 @@ export default function ServiceContracts() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
