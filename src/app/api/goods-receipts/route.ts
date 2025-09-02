@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
       item.receivedQuantity === item.orderedQuantity
     );
 
+    // Check if all items are accepted (no rejections)
+    const allItemsAccepted = body.items.every((item: any) => 
+      (item.rejectedQuantity || 0) === 0
+    );
+
     // Get PO items to map poItemId to itemId
     const poItems = await prisma.pOItem.findMany({
       where: { poId: body.poId }
@@ -91,7 +96,7 @@ export async function POST(request: NextRequest) {
         poId: body.poId,
         receivedBy: body.receivedBy,
         status: allFullyReceived ? 'COMPLETED' : 'PARTIAL',
-        qualityChecked: body.qualityChecked || false,
+        qualityChecked: body.qualityChecked || allItemsAccepted,
         qualityComments: body.qualityComments,
         items: {
           create: body.items.map((item: any) => {

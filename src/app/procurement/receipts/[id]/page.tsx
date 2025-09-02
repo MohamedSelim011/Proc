@@ -132,6 +132,266 @@ export default function GoodsReceiptView() {
     });
   };
 
+  const generateProfessionalDocument = () => {
+    if (!receipt) return '';
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Goods Receipt Note - ${receipt.grNumber}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              color: #000;
+              background: white;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #000;
+              padding-bottom: 20px;
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              margin-bottom: 5px; 
+            }
+            .document-title { 
+              font-size: 20px; 
+              margin-bottom: 10px; 
+            }
+            .info-section { 
+              margin-bottom: 25px; 
+            }
+            .info-title { 
+              font-size: 16px; 
+              font-weight: bold; 
+              margin-bottom: 10px; 
+              background: #f5f5f5; 
+              padding: 8px; 
+            }
+            .info-grid { 
+              display: grid; 
+              grid-template-columns: 1fr 1fr; 
+              gap: 15px; 
+              margin-bottom: 15px; 
+            }
+            .info-item { 
+              display: flex; 
+              justify-content: space-between; 
+              padding: 5px 0; 
+              border-bottom: 1px dotted #ccc; 
+            }
+            .info-label { 
+              font-weight: bold; 
+              width: 40%; 
+            }
+            .info-value { 
+              width: 60%; 
+              text-align: right; 
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 20px; 
+            }
+            th, td { 
+              border: 1px solid #000; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            th { 
+              background-color: #f5f5f5; 
+              font-weight: bold; 
+            }
+            .status-completed { 
+              color: #10b981; 
+              font-weight: bold; 
+            }
+            .status-partial { 
+              color: #f59e0b; 
+              font-weight: bold; 
+            }
+            .footer { 
+              margin-top: 40px; 
+              text-align: center; 
+              font-size: 12px; 
+              color: #666; 
+            }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">WUJHA PROCUREMENT</div>
+            <div class="document-title">Goods Receipt Note</div>
+            <div>GR Number: ${receipt.grNumber}</div>
+            <div>Generated: ${new Date().toLocaleDateString()}</div>
+          </div>
+
+          <div class="info-section">
+            <div class="info-title">Receipt Information</div>
+            <div class="info-grid">
+              <div>
+                <div class="info-item">
+                  <span class="info-label">GR Number:</span>
+                  <span class="info-value">${receipt.grNumber}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status:</span>
+                  <span class="info-value status-${receipt.status.toLowerCase()}">${receipt.status}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Received Date:</span>
+                  <span class="info-value">${formatDate(receipt.receivedDate)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Received By:</span>
+                  <span class="info-value">${receipt.receivedBy}</span>
+                </div>
+              </div>
+              <div>
+                <div class="info-item">
+                  <span class="info-label">PO Number:</span>
+                  <span class="info-value">${receipt.purchaseOrder?.poNumber || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Vendor:</span>
+                  <span class="info-value">${receipt.purchaseOrder?.vendor?.nameEn || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Quality Check:</span>
+                  <span class="info-value">${receipt.qualityChecked ? 'Checked' : 'Pending'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Storage Location:</span>
+                  <span class="info-value">${receipt.storageLocation || 'Not specified'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <div class="info-title">Received Items</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Item Name</th>
+                  <th>Ordered</th>
+                  <th>Received</th>
+                  <th>Accepted</th>
+                  <th>Rejected</th>
+                  <th>Unit</th>
+                  <th>Rejection Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${receipt.items.map(item => `
+                  <tr>
+                    <td>${item.item.itemCode}</td>
+                    <td>${item.item.nameEn}</td>
+                    <td>${item.orderedQuantity}</td>
+                    <td>${item.receivedQuantity}</td>
+                    <td>${item.acceptedQuantity}</td>
+                    <td>${item.rejectedQuantity}</td>
+                    <td>${item.item.unitOfMeasure}</td>
+                    <td>${item.rejectionReason || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="info-section">
+            <div class="info-title">Summary</div>
+            <div class="info-grid">
+              <div>
+                <div class="info-item">
+                  <span class="info-label">Total Items:</span>
+                  <span class="info-value">${receipt.items.length}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Total Received:</span>
+                  <span class="info-value">${receipt.items.reduce((sum, item) => sum + item.receivedQuantity, 0)}</span>
+                </div>
+              </div>
+              <div>
+                <div class="info-item">
+                  <span class="info-label">Total Accepted:</span>
+                  <span class="info-value">${receipt.items.reduce((sum, item) => sum + item.acceptedQuantity, 0)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Total Rejected:</span>
+                  <span class="info-value">${receipt.items.reduce((sum, item) => sum + item.rejectedQuantity, 0)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>This document was generated electronically and is valid without signature.</p>
+            <p>Generated on ${formatDateTime(new Date().toISOString())} by Wujha Procurement System</p>
+          </div>
+
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrint = () => {
+    // Create a new window for print preview
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = generateProfessionalDocument();
+    const htmlWithPrintScript = htmlContent.replace(
+      '</body>',
+      `
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>`
+    );
+
+    printWindow.document.write(htmlWithPrintScript);
+    printWindow.document.close();
+  };
+
+  const handleExport = () => {
+    // Create a new window for PDF export (download)
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = generateProfessionalDocument();
+    const htmlWithDownloadScript = htmlContent.replace(
+      '</body>',
+      `
+        <script>
+          window.onload = function() {
+            // Trigger print dialog which allows saving as PDF
+            window.print();
+            // Auto-close after a delay to improve UX
+            setTimeout(function() {
+              window.close();
+            }, 1000);
+          };
+        </script>
+      </body>`
+    );
+
+    printWindow.document.write(htmlWithDownloadScript);
+    printWindow.document.close();
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -188,7 +448,9 @@ export default function GoodsReceiptView() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow">
         <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -197,7 +459,7 @@ export default function GoodsReceiptView() {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => router.push('/procurement/receipts')}
-                  className="p-2 text-gray-400 hover:text-gray-600"
+                  className="p-2 text-gray-400 hover:text-gray-600 no-print"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
@@ -210,12 +472,18 @@ export default function GoodsReceiptView() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <button className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
+              <div className="flex items-center space-x-3 no-print">
+                <button 
+                  onClick={handlePrint}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   <Printer className="h-4 w-4 inline mr-1" />
                   Print
                 </button>
-                <button className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
+                <button 
+                  onClick={handleExport}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   <Download className="h-4 w-4 inline mr-1" />
                   Export
                 </button>
@@ -477,5 +745,6 @@ export default function GoodsReceiptView() {
         </div>
       </div>
     </div>
+    </>
   );
 } 
