@@ -569,10 +569,11 @@ export default function InvoicesPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
-                          {(invoice.status === 'DRAFT' || invoice.status === 'SUBMITTED') && (
+                          {invoice.status === 'DRAFT' && (
                             <Link
                               href={`/procurement/invoices/${invoice.id}/edit`}
                               className="text-gray-600 hover:text-gray-900"
+                              title="Edit Invoice"
                             >
                               <Edit className="h-4 w-4" />
                             </Link>

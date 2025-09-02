@@ -43,6 +43,11 @@ export async function GET(
               }
             }
           }
+        },
+        items: {
+          include: {
+            item: true
+          }
         }
       }
     });
@@ -118,9 +123,11 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    
+
+    // Check if invoice exists and is in DRAFT status
     const existingInvoice = await prisma.invoice.findUnique({
-      where: { id }
+      where: { id },
+      include: { items: true }
     });
 
     if (!existingInvoice) {
@@ -130,39 +137,71 @@ export async function PUT(
       );
     }
 
-    // Check if invoice can be edited
-    if (!['DRAFT', 'SUBMITTED', 'REJECTED'].includes(existingInvoice.status)) {
+    if (existingInvoice.status !== 'DRAFT') {
       return NextResponse.json(
-        { error: 'Cannot edit invoice in current status' },
+        { error: 'Only draft invoices can be edited' },
         { status: 400 }
       );
     }
 
-    const invoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        invoiceNumber: body.invoiceNumber || existingInvoice.invoiceNumber,
-        invoiceDate: body.invoiceDate ? new Date(body.invoiceDate) : existingInvoice.invoiceDate,
-        dueDate: body.dueDate ? new Date(body.dueDate) : existingInvoice.dueDate,
-        totalAmount: body.totalAmount !== undefined ? body.totalAmount : existingInvoice.totalAmount,
-        taxAmount: body.taxAmount !== undefined ? body.taxAmount : existingInvoice.taxAmount,
-        updatedAt: new Date()
-      },
-      include: {
-        vendor: true,
-        po: {
-          include: {
-            items: {
-              include: {
-                item: true
+    // Update invoice and items in a transaction
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      // Update invoice details
+      const invoice = await tx.invoice.update({
+        where: { id },
+        data: {
+          invoiceNumber: body.invoiceNumber || existingInvoice.invoiceNumber,
+          invoiceDate: body.invoiceDate ? new Date(body.invoiceDate) : existingInvoice.invoiceDate,
+          dueDate: body.dueDate ? new Date(body.dueDate) : existingInvoice.dueDate,
+          currency: body.currency || existingInvoice.currency,
+          paymentTerms: body.paymentTerms || existingInvoice.paymentTerms,
+          description: body.description !== undefined ? body.description : existingInvoice.description,
+          totalAmount: body.totalAmount !== undefined ? body.totalAmount : existingInvoice.totalAmount,
+          taxAmount: body.taxAmount !== undefined ? body.taxAmount : existingInvoice.taxAmount,
+          discountAmount: body.discountAmount !== undefined ? body.discountAmount : existingInvoice.discountAmount,
+          netAmount: body.totalAmount !== undefined 
+            ? body.totalAmount - (body.discountAmount || 0)
+            : existingInvoice.netAmount,
+          updatedAt: new Date()
+        },
+        include: {
+          vendor: true,
+          po: {
+            include: {
+              items: {
+                include: {
+                  item: true
+                }
               }
+            }
+          },
+          items: {
+            include: {
+              item: true
             }
           }
         }
+      });
+
+      // Update invoice items if provided
+      if (body.items && body.items.length > 0) {
+        for (const item of body.items) {
+          await tx.invoiceItem.update({
+            where: { id: item.id },
+            data: {
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              description: item.description
+            }
+          });
+        }
       }
+
+      return invoice;
     });
 
-    return NextResponse.json(invoice);
+    return NextResponse.json(updatedInvoice);
   } catch (error) {
     console.error('Error updating invoice:', error);
     return NextResponse.json(
@@ -172,7 +211,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/invoices/[id] - Delete invoice (only if PENDING)
+// DELETE /api/invoices/[id] - Delete invoice (only if DRAFT)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
