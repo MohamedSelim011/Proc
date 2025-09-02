@@ -13,7 +13,8 @@ import {
   AlertCircle,
   DollarSign,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -76,8 +77,15 @@ export default function ServiceRequisitionApproval() {
   const [sr, setSr] = useState<ServiceRequisition | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [toast, setToast] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    message: ''
+  });
 
   const [approvalForm, setApprovalForm] = useState<ApprovalForm>({
     action: 'APPROVE',
@@ -100,6 +108,18 @@ export default function ServiceRequisitionApproval() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ show: true, type, message });
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 5000);
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, show: false }));
   };
 
   useEffect(() => {
@@ -159,16 +179,16 @@ export default function ServiceRequisitionApproval() {
       const result = await response.json();
 
       if (response.ok) {
-        setSuccess(result.message || 'Action completed successfully');
+        showToast('success', result.message || 'Action completed successfully');
         // Refresh the data
         setTimeout(() => {
           fetchServiceRequisition();
         }, 1000);
       } else {
-        setError(result.error || 'Failed to process action');
+        showToast('error', result.error || 'Failed to process action');
       }
     } catch (error) {
-      setError('Error processing request');
+      showToast('error', 'Error processing request');
     } finally {
       setSubmitting(false);
     }
@@ -237,24 +257,53 @@ export default function ServiceRequisitionApproval() {
         </div>
       </div>
 
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="rounded-md bg-green-50 p-4">
-          <div className="flex">
-            <CheckCircle className="h-5 w-5 text-green-400" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-green-800">{success}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">{error}</p>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className={`rounded-xl shadow-2xl border max-w-sm w-full ${
+            toast.type === 'success' 
+              ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200' 
+              : 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
+          }`}>
+            <div className="p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  {toast.type === 'success' ? (
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-orange-100">
+                      <CheckCircle className="h-5 w-5 text-orange-600" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-100">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    </div>
+                  )}
+                </div>
+                <div className="ml-3 w-0 flex-1">
+                  <p className={`text-sm font-medium ${
+                    toast.type === 'success' ? 'text-orange-800' : 'text-red-800'
+                  }`}>
+                    {toast.type === 'success' ? 'Success!' : 'Error!'}
+                  </p>
+                  <p className={`mt-1 text-sm ${
+                    toast.type === 'success' ? 'text-orange-700' : 'text-red-700'
+                  }`}>
+                    {toast.message}
+                  </p>
+                </div>
+                <div className="ml-4 flex-shrink-0 flex">
+                  <button
+                    className={`rounded-md inline-flex ${
+                      toast.type === 'success' 
+                        ? 'text-orange-400 hover:text-orange-600 focus:ring-orange-600' 
+                        : 'text-red-400 hover:text-red-600 focus:ring-red-600'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                    onClick={hideToast}
+                  >
+                    <span className="sr-only">Close</span>
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

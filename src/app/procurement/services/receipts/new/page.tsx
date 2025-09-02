@@ -235,23 +235,32 @@ function NewServiceReceiptContent() {
 
         {/* Contract Summary */}
         {contract && (
-          <div className="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Contract Summary</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-600">Contract:</span>
-                <span className="ml-2 font-medium">{contract.contractNumber}</span>
+          <div className="bg-white shadow-sm rounded-xl border border-gray-100 p-8 mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <FileText className="h-6 w-6 text-orange-500 mr-3" />
+              Contract Summary
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Clock className="h-5 w-5 text-orange-500 mr-2" />
+                  <span className="text-sm font-medium text-gray-600">Contract</span>
+                </div>
+                <span className="text-lg font-semibold text-gray-900">{contract.contractNumber}</span>
               </div>
-              <div className="flex items-center">
-                <DollarSign className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-600">Total Value:</span>
-                <span className="ml-2 font-medium">OMR {parseFloat(contract.totalValue).toFixed(3)}</span>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <DollarSign className="h-5 w-5 text-orange-500 mr-2" />
+                  <span className="text-sm font-medium text-gray-600">Total Value</span>
+                </div>
+                <span className="text-lg font-semibold text-gray-900">OMR {parseFloat(contract.totalValue).toFixed(3)}</span>
               </div>
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-600">Vendor:</span>
-                <span className="ml-2 font-medium">{contract.vendor.nameEn}</span>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Calendar className="h-5 w-5 text-orange-500 mr-2" />
+                  <span className="text-sm font-medium text-gray-600">Vendor</span>
+                </div>
+                <span className="text-lg font-semibold text-gray-900">{contract.vendor.nameEn}</span>
               </div>
             </div>
           </div>
@@ -280,21 +289,27 @@ function NewServiceReceiptContent() {
         )}
 
         {/* Receipt Form */}
-        <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Service Receipt Details</h3>
+        <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-xl border border-gray-100">
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+              <CheckCircle className="h-6 w-6 text-orange-500 mr-3" />
+              Service Receipt Details
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Complete the form below to document the completed work and deliverables
+            </p>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-8 space-y-8">
             {/* Milestone Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700">
                 Select Milestone *
               </label>
               <select
                 value={selectedMilestone}
                 onChange={(e) => handleMilestoneChange(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm"
                 required
               >
                 <option value="">Choose a milestone...</option>
@@ -305,165 +320,193 @@ function NewServiceReceiptContent() {
                 ))}
               </select>
               {milestones.length === 0 && (
-                <p className="mt-2 text-sm text-yellow-600">
-                  No milestones found. Please create milestones first.
-                </p>
+                <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+                  <p className="text-sm text-yellow-800">
+                    No milestones found. Please create milestones first.
+                  </p>
+                </div>
               )}
             </div>
 
             {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700">
                 Description of Work Completed *
               </label>
               <textarea
                 value={receipt.description}
                 onChange={(e) => updateReceipt('description', e.target.value)}
                 rows={4}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm resize-none"
                 placeholder="Describe the work that was completed, services delivered, and outcomes achieved..."
                 required
               />
             </div>
 
             {/* Completion Date and Amount */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">
                   Completion Date *
                 </label>
-                <input
-                  type="date"
-                  value={receipt.completionDate}
-                  onChange={(e) => updateReceipt('completionDate', e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={receipt.completionDate}
+                    onChange={(e) => updateReceipt('completionDate', e.target.value)}
+                    className="block w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm"
+                    required
+                  />
+                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">
                   Amount (OMR) *
                 </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={receipt.amount}
-                  onChange={(e) => updateReceipt('amount', parseFloat(e.target.value) || 0)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="0.000"
-                  required
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                    OMR
+                  </span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={receipt.amount}
+                    onChange={(e) => updateReceipt('amount', parseFloat(e.target.value) || 0)}
+                    className="block w-full pl-14 pr-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm"
+                    placeholder="0.000"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
             {/* Deliverables */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700">
                 Deliverables *
               </label>
               <textarea
                 value={receipt.deliverables}
                 onChange={(e) => updateReceipt('deliverables', e.target.value)}
                 rows={3}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm resize-none"
                 placeholder="List all deliverables, documents, or outputs that were provided..."
                 required
               />
             </div>
 
             {/* Quality Score */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold text-gray-700">
                 Quality Score (1-10)
               </label>
-              <div className="flex items-center space-x-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={receipt.qualityScore}
-                  onChange={(e) => updateReceipt('qualityScore', parseInt(e.target.value))}
-                  className="flex-1"
-                />
-                <span className="text-lg font-medium text-gray-900 w-12 text-center">
-                  {receipt.qualityScore}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Poor</span>
-                <span>Excellent</span>
+              <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                <div className="flex items-center space-x-6">
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={receipt.qualityScore}
+                    onChange={(e) => updateReceipt('qualityScore', parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    style={{
+                      background: `linear-gradient(to right, #f97316 0%, #f97316 ${(receipt.qualityScore - 1) * 11.11}%, #e5e7eb ${(receipt.qualityScore - 1) * 11.11}%, #e5e7eb 100%)`
+                    }}
+                  />
+                  <div className="flex items-center justify-center w-16 h-12 bg-orange-100 rounded-lg border border-orange-200">
+                    <span className="text-xl font-bold text-orange-600">
+                      {receipt.qualityScore}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-3 px-1">
+                  <span className="font-medium">Poor</span>
+                  <span className="font-medium">Excellent</span>
+                </div>
               </div>
             </div>
 
             {/* Attachments */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-gray-700">
                   Attachments
                 </label>
                 <button
                   type="button"
                   onClick={addAttachment}
-                  className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100"
+                  className="inline-flex items-center px-4 py-2 border border-orange-200 text-sm font-medium rounded-lg text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add File
                 </button>
               </div>
               
-              {receipt.attachments.map((attachment, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-2">
-                  <input
-                    type="text"
-                    value={attachment}
-                    onChange={(e) => updateAttachment(index, e.target.value)}
-                    placeholder="File name or URL"
-                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(index)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+              <div className="space-y-3">
+                {receipt.attachments.map((attachment, index) => (
+                  <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <Upload className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={attachment}
+                      onChange={(e) => updateAttachment(index, e.target.value)}
+                      placeholder="File name or URL"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
               
               {receipt.attachments.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  No attachments added. You can add file names, URLs, or document references.
-                </p>
+                <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">
+                    No attachments added. You can add file names, URLs, or document references.
+                  </p>
+                </div>
               )}
             </div>
           </div>
 
           {/* Form Actions */}
-          <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
-            <Link
-              href={`/procurement/services/contracts/${contractId}`}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading || milestones.length === 0}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Create Receipt
-                </>
-              )}
-            </button>
+          <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 rounded-b-xl flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Required fields</span> are marked with *
+            </div>
+            <div className="flex space-x-4">
+              <Link
+                href={`/procurement/services/contracts/${contractId}`}
+                className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={loading || milestones.length === 0}
+                className="inline-flex items-center px-8 py-3 border border-transparent shadow-sm text-sm font-medium rounded-xl text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Create Receipt
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
