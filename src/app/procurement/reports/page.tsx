@@ -10,7 +10,8 @@ import {
   FileText,
   DollarSign,
   Package,
-  Users
+  Users,
+  Database
 } from 'lucide-react';
 
 export default function ReportsPage() {
@@ -30,11 +31,18 @@ export default function ReportsPage() {
             Procurement performance metrics and detailed reports
           </p>
         </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-2">
           <button className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
             <Download className="h-4 w-4 mr-2" />
             Export Reports
           </button>
+          <a
+            href="/procurement/reports/advanced"
+            className="inline-flex items-center justify-center rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
+          >
+            <Database className="h-4 w-4 mr-2" />
+            Advanced Reports
+          </a>
         </div>
       </div>
 
