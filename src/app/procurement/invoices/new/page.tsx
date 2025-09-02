@@ -239,6 +239,7 @@ function NewInvoiceContent() {
       const response = await fetch(`/api/goods-receipts?poId=${poId}&status=COMPLETED,PARTIAL`);
       const data = await response.json();
       if (response.ok) {
+        console.log('Fetched GRs for PO:', data.receipts);
         setAvailableGRs(data.receipts || []);
       }
     } catch (error) {
@@ -260,11 +261,17 @@ function NewInvoiceContent() {
 
   const initializeInvoiceItems = () => {
     if (formData.invoiceType === 'GOODS' && selectedPO) {
+      // Debug: Log the structures to understand the matching
+      console.log('PO Items:', selectedPO.items.map(item => ({ id: item.id, itemId: item.item.id, itemCode: item.item.itemCode })));
+      console.log('GR Items:', selectedGR?.items.map(item => ({ id: item.id, itemId: item.itemId, acceptedQuantity: item.acceptedQuantity })));
+      
       // Handle goods/PO items
       const items = selectedPO.items.map(poItem => {
-        // Match by poItemId
-        const grItem = selectedGR?.items.find(gr => gr.item.id === poItem.item.id);
+        // Match GR items by itemId (both PO and GR reference the same item)
+        const grItem = selectedGR?.items.find(gr => gr.itemId === poItem.item.id);
         const grQuantity = grItem?.acceptedQuantity || 0;
+        
+        console.log(`Matching PO item ${poItem.item.itemCode} (itemId: ${poItem.item.id}) with GR quantity: ${grQuantity}`);
         
         return {
           poItemId: poItem.id,
@@ -983,7 +990,7 @@ function NewInvoiceContent() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {formData.invoiceType === 'GOODS' && selectedPO?.items.map((poItem, index) => {
                       const invoiceItem = formData.items[index];
-                      // Fix: Match by itemId instead of poItemId
+                      // Match GR items by itemId (both PO and GR reference the same item)
                       const grItem = selectedGR?.items.find(gr => gr.itemId === poItem.item.id);
                       
                       return (
