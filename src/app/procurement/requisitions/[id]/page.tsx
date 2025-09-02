@@ -78,11 +78,13 @@ export default function PurchaseRequisitionDetail() {
   const [error, setError] = useState('');
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined, or invalid numbers
+    const validAmount = Number(amount) || 0;
     return new Intl.NumberFormat('en-OM', {
       style: 'currency',
       currency: 'OMR',
       minimumFractionDigits: 3
-    }).format(amount);
+    }).format(validAmount);
   };
 
   const formatDate = (dateString: string) => {
@@ -91,6 +93,15 @@ export default function PurchaseRequisitionDetail() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const calculateTotalCost = () => {
+    if (!pr || !pr.items) return 0;
+    return pr.items.reduce((total, item) => {
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.estimatedPrice) || 0;
+      return total + (quantity * price);
+    }, 0);
   };
 
   useEffect(() => {
@@ -329,7 +340,7 @@ export default function PurchaseRequisitionDetail() {
                     {formatCurrency(item.estimatedPrice)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(item.quantity * item.estimatedPrice)}
+                    {formatCurrency((Number(item.quantity) || 0) * (Number(item.estimatedPrice) || 0))}
                   </td>
                 </tr>
               ))}
@@ -340,7 +351,7 @@ export default function PurchaseRequisitionDetail() {
                   Total Estimated Cost:
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                  {formatCurrency(pr.totalEstimatedCost)}
+                  {formatCurrency(calculateTotalCost())}
                 </td>
               </tr>
             </tfoot>

@@ -380,7 +380,7 @@ export default function PRApprovalPage() {
               </div>
               <div>
                 <span className="text-xs text-blue-700">Estimated Cost</span>
-                <p className="text-sm font-medium text-blue-900">{formatCurrency(pr.estimatedCost)}</p>
+                <p className="text-sm font-medium text-blue-900">{formatCurrency(calculateTotalCost())}</p>
               </div>
               <div>
                 <span className="text-xs text-blue-700">Status</span>
