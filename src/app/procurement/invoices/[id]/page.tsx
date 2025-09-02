@@ -219,6 +219,275 @@ export default function InvoiceDetailPage() {
     return diffDays;
   };
 
+  const handleDownloadPDF = () => {
+    if (!invoice) return;
+    
+    // Create a new window for PDF generation
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Generate HTML content for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice ${invoice.invoiceNumber}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              color: #000;
+              background: white;
+              font-size: 12px;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #000;
+              padding-bottom: 20px;
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              margin-bottom: 5px; 
+            }
+            .document-title { 
+              font-size: 20px; 
+              margin-bottom: 10px; 
+            }
+            .invoice-info {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            .info-section { 
+              margin-bottom: 20px; 
+            }
+            .info-title { 
+              font-size: 14px; 
+              font-weight: bold; 
+              margin-bottom: 8px; 
+              background: #f5f5f5; 
+              padding: 8px; 
+              border: 1px solid #ddd;
+            }
+            .info-item { 
+              display: flex; 
+              justify-content: space-between; 
+              padding: 4px 0; 
+              border-bottom: 1px dotted #ccc; 
+            }
+            .info-label { 
+              font-weight: bold; 
+              width: 40%; 
+            }
+            .info-value { 
+              width: 60%; 
+              text-align: right; 
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 20px 0; 
+            }
+            th, td { 
+              border: 1px solid #000; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            th { 
+              background-color: #f5f5f5; 
+              font-weight: bold; 
+            }
+            .text-right { 
+              text-align: right; 
+            }
+            .totals-section {
+              margin-top: 30px;
+              float: right;
+              width: 300px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 5px 0;
+              border-bottom: 1px solid #ddd;
+            }
+            .total-row.final {
+              border-top: 2px solid #000;
+              border-bottom: 2px solid #000;
+              font-weight: bold;
+              font-size: 14px;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .status-draft { background: #f3f4f6; color: #374151; }
+            .status-submitted { background: #fef3c7; color: #92400e; }
+            .status-approved { background: #dbeafe; color: #1e40af; }
+            .status-paid { background: #d1fae5; color: #065f46; }
+            .status-overdue { background: #fee2e2; color: #991b1b; }
+            .footer { 
+              margin-top: 40px; 
+              text-align: center; 
+              font-size: 10px; 
+              color: #666; 
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">WUJHA PROCUREMENT</div>
+            <div class="document-title">INVOICE</div>
+            <div>Invoice Number: ${invoice.invoiceNumber}</div>
+            <div>Generated: ${new Date().toLocaleDateString()}</div>
+          </div>
+
+          <div class="invoice-info">
+            <div>
+              <div class="info-section">
+                <div class="info-title">Invoice Details</div>
+                <div class="info-item">
+                  <span class="info-label">Invoice Number:</span>
+                  <span class="info-value">${invoice.invoiceNumber}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Invoice Date:</span>
+                  <span class="info-value">${formatDate(invoice.invoiceDate)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Due Date:</span>
+                  <span class="info-value">${formatDate(invoice.dueDate)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status:</span>
+                  <span class="info-value">
+                    <span class="status-badge status-${invoice.status.toLowerCase()}">${invoice.status}</span>
+                  </span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Payment Terms:</span>
+                  <span class="info-value">${invoice.paymentTerms || 'Net 30 days'}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <div class="info-section">
+                <div class="info-title">Vendor Information</div>
+                <div class="info-item">
+                  <span class="info-label">Vendor:</span>
+                  <span class="info-value">${invoice.vendor.nameEn}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value">${invoice.vendor.email}</span>
+                </div>
+                ${invoice.po ? `
+                <div class="info-item">
+                  <span class="info-label">PO Number:</span>
+                  <span class="info-value">${invoice.po.poNumber}</span>
+                </div>
+                ` : ''}
+                <div class="info-item">
+                  <span class="info-label">Currency:</span>
+                  <span class="info-value">${invoice.currency}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${invoice.description ? `
+          <div class="info-section">
+            <div class="info-title">Description</div>
+            <p style="padding: 8px; background: #f9f9f9; border: 1px solid #ddd;">${invoice.description}</p>
+          </div>
+          ` : ''}
+
+          <div class="info-section">
+            <div class="info-title">Invoice Items</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Description</th>
+                  <th class="text-right">Quantity</th>
+                  <th class="text-right">Unit Price</th>
+                  <th class="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.items.map(item => `
+                  <tr>
+                    <td>${item.item?.itemCode || 'N/A'}</td>
+                    <td>${item.item?.nameEn || item.description || 'Service Item'}</td>
+                    <td class="text-right">${item.quantity}</td>
+                    <td class="text-right">${formatCurrency(item.unitPrice, invoice.currency)}</td>
+                    <td class="text-right">${formatCurrency(item.totalPrice, invoice.currency)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="totals-section">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(invoice.totalAmount - invoice.taxAmount + (invoice.discountAmount || 0), invoice.currency)}</span>
+            </div>
+            ${invoice.discountAmount && invoice.discountAmount > 0 ? `
+            <div class="total-row">
+              <span>Discount:</span>
+              <span>-${formatCurrency(invoice.discountAmount, invoice.currency)}</span>
+            </div>
+            ` : ''}
+            <div class="total-row">
+              <span>Tax:</span>
+              <span>${formatCurrency(invoice.taxAmount, invoice.currency)}</span>
+            </div>
+            <div class="total-row final">
+              <span>Total Amount:</span>
+              <span>${formatCurrency(invoice.totalAmount, invoice.currency)}</span>
+            </div>
+          </div>
+
+          <div style="clear: both;"></div>
+
+          <div class="footer">
+            <p>This invoice was generated electronically and is valid without signature.</p>
+            <p>Generated on ${new Date().toLocaleString()} by Wujha Procurement System</p>
+            <p>For any queries, please contact our accounts department.</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() {
+                window.close();
+              }, 1000);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -287,7 +556,11 @@ export default function InvoiceDetailPage() {
               </Link>
             )}
             
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <button 
+              onClick={handleDownloadPDF}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              title="Download Invoice PDF"
+            >
               <Download className="h-4 w-4 mr-2" />
               Download
             </button>
