@@ -71,12 +71,20 @@ export async function POST(request: NextRequest) {
     // Create RFQ with additional fields
     const rfqData: any = {
       rfqNumber,
-      prId: body.prId,
       title: body.title,
       description: body.description,
       closingDate: new Date(body.closingDate),
       status: body.status || 'DRAFT'
     };
+
+    // Add PR relation if prId is provided
+    if (body.prId) {
+      rfqData.pr = {
+        connect: {
+          id: body.prId
+        }
+      };
+    }
 
     // Add custom fields if they exist
     if (body.evaluationCriteria) {

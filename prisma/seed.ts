@@ -402,7 +402,11 @@ async function main() {
     prisma.rFQ.create({
       data: {
         rfqNumber: 'RFQ-2024-001',
-        prId: purchaseRequisitions[0].id,
+        pr: {
+          connect: {
+            id: purchaseRequisitions[0].id
+          }
+        },
         title: 'Construction Materials Supply - Sohar Project',
         description: 'Request for quotation for cement and steel bars for Sohar construction project',
         closingDate: new Date('2024-03-10'),
