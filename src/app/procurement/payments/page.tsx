@@ -899,9 +899,9 @@ function PaymentsPageContent() {
       {showPaymentForm && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
-            {/* Backdrop */}
+            {/* Backdrop with Blur */}
             <div 
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300"
               onClick={() => {
                 setShowPaymentForm(false);
                 setErrors({});
@@ -909,161 +909,176 @@ function PaymentsPageContent() {
             ></div>
 
             {/* Modal Content */}
-            <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all w-full max-w-lg z-10">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <CreditCard className="h-6 w-6 text-blue-600" />
+            <div className="relative inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all w-full max-w-md z-10 border border-gray-100">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 px-4 py-3">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 backdrop-blur-sm">
+                    <CreditCard className="h-4 w-4 text-white" />
                   </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  <div className="ml-3">
+                    <h3 className="text-base font-semibold text-white">
                       Process Payment
                     </h3>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Payment Method *
-                        </label>
-                        <select
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          value={paymentForm.paymentMethod}
-                          onChange={(e) => setPaymentForm(prev => ({ 
-                            ...prev, 
-                            paymentMethod: e.target.value as PaymentFormData['paymentMethod']
-                          }))}
-                        >
-                          <option value="BANK_TRANSFER">Bank Transfer</option>
-                          <option value="CHECK">Check</option>
-                          <option value="WIRE">Wire Transfer</option>
-                          <option value="CASH">Cash</option>
-                        </select>
-                      </div>
+                  </div>
+                </div>
+              </div>
 
+              {/* Content */}
+              <div className="bg-white px-4 py-4">
+                <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Payment Method *
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 appearance-none bg-white text-sm"
+                        value={paymentForm.paymentMethod}
+                        onChange={(e) => setPaymentForm(prev => ({ 
+                          ...prev, 
+                          paymentMethod: e.target.value as PaymentFormData['paymentMethod']
+                        }))}
+                      >
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CHECK">Check</option>
+                        <option value="WIRE">Wire Transfer</option>
+                        <option value="CASH">Cash</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
                           Payment Date *
                         </label>
                         <input
                           type="date"
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                            errors.paymentDate ? 'border-red-300' : ''
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                            errors.paymentDate ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                           }`}
                           value={paymentForm.paymentDate}
                           onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentDate: e.target.value }))}
                         />
                         {errors.paymentDate && (
-                          <p className="mt-1 text-sm text-red-600">{errors.paymentDate}</p>
+                          <p className="mt-1 text-xs text-red-600">{errors.paymentDate}</p>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
                           Payment Reference *
                         </label>
                         <input
                           type="text"
-                          className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                            errors.reference ? 'border-red-300' : ''
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                            errors.reference ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                           }`}
                           value={paymentForm.reference}
                           onChange={(e) => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
-                          placeholder="Payment reference number"
+                          placeholder="Reference number"
                         />
                         {errors.reference && (
-                          <p className="mt-1 text-sm text-red-600">{errors.reference}</p>
+                          <p className="mt-1 text-xs text-red-600">{errors.reference}</p>
                         )}
                       </div>
-
-                      {paymentForm.paymentMethod === 'BANK_TRANSFER' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Bank Account *
-                          </label>
-                          <input
-                            type="text"
-                            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                              errors.bankAccount ? 'border-red-300' : ''
-                            }`}
-                            value={paymentForm.bankAccount || ''}
-                            onChange={(e) => setPaymentForm(prev => ({ ...prev, bankAccount: e.target.value }))}
-                            placeholder="Bank account number"
-                          />
-                          {errors.bankAccount && (
-                            <p className="mt-1 text-sm text-red-600">{errors.bankAccount}</p>
-                          )}
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Description
-                        </label>
-                        <textarea
-                          rows={2}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          value={paymentForm.description || ''}
-                          onChange={(e) => setPaymentForm(prev => ({ ...prev, description: e.target.value }))}
-                          placeholder="Payment description or notes"
-                        />
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">
-                            Total Amount:
-                          </span>
-                          <span className="text-lg font-bold text-gray-900">
-                            {formatCurrency(paymentForm.totalAmount)}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {paymentForm.selectedInvoices.length} invoice(s) selected
-                        </div>
-                      </div>
-
-                      {errors.submit && (
-                        <div className="rounded-md bg-red-50 p-4">
-                          <div className="flex">
-                            <AlertTriangle className="h-5 w-5 text-red-400" />
-                            <div className="ml-3">
-                              <p className="text-sm text-red-800">{errors.submit}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {errors.invoices && (
-                        <div className="rounded-md bg-red-50 p-4">
-                          <div className="flex">
-                            <AlertTriangle className="h-5 w-5 text-red-400" />
-                            <div className="ml-3">
-                              <p className="text-sm text-red-800">{errors.invoices}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
+                    {paymentForm.paymentMethod === 'BANK_TRANSFER' && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Bank Account *
+                        </label>
+                        <input
+                          type="text"
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                            errors.bankAccount ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
+                          }`}
+                          value={paymentForm.bankAccount || ''}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, bankAccount: e.target.value }))}
+                          placeholder="Bank account number"
+                        />
+                        {errors.bankAccount && (
+                          <p className="mt-1 text-xs text-red-600">{errors.bankAccount}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 resize-none text-sm"
+                        value={paymentForm.description || ''}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Payment notes..."
+                      />
+                    </div>
+
+                    {/* Payment Summary Card */}
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-3 border border-orange-100">
+                      <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                        <span>Selected Invoices:</span>
+                        <span>{paymentForm.selectedInvoices.length} invoice(s)</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                        <span className="text-lg font-bold text-orange-600">
+                          {formatCurrency(paymentForm.totalAmount)}
+                        </span>
+                      </div>
+                    </div>
                 </div>
+
+                {/* Error Messages */}
+                {(errors.submit || errors.invoices) && (
+                  <div className="mt-3 space-y-2">
+                    {errors.submit && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 p-2">
+                        <p className="text-xs text-red-800">{errors.submit}</p>
+                      </div>
+                    )}
+
+                    {errors.invoices && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 p-2">
+                        <p className="text-xs text-red-800">{errors.invoices}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={handleProcessPayment}
-                  disabled={processing}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {processing ? 'Processing...' : 'Process Payment'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPaymentForm(false);
-                    setErrors({});
-                  }}
-                  disabled={processing}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-4 py-3 border-t border-gray-100">
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => {
+                      setShowPaymentForm(false);
+                      setErrors({});
+                    }}
+                    disabled={processing}
+                    className="px-4 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleProcessPayment}
+                    disabled={processing}
+                    className="px-5 py-2 border border-transparent shadow-sm text-xs font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {processing ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      'Process Payment'
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
