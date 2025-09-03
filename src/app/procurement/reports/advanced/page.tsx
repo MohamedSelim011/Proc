@@ -17,7 +17,9 @@ import {
   CheckSquare,
   Square,
   Link,
-  Search
+  Search,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { reportingEngineService, type TableInfo, type ColumnInfo, type ReportFilter } from '@/services/reportingEngine';
 
@@ -46,6 +48,15 @@ export default function AdvancedReportsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [toast, setToast] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    message: ''
+  });
 
   useEffect(() => {
     loadTables();
@@ -57,6 +68,18 @@ export default function AdvancedReportsPage() {
       loadRelatedTables(selectedTable);
     }
   }, [selectedTable]);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ show: true, type, message });
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 5000);
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, show: false }));
+  };
 
   const loadTables = async () => {
     try {
@@ -223,9 +246,11 @@ export default function AdvancedReportsPage() {
         ? ` with ${selectedColumns.length} selected columns: ${selectedColumns.join(', ')}`
         : ' with all columns';
       
-      alert(`Report generation for ${format.toUpperCase()} format has been initiated${columnInfo}.`);
+      showToast('success', `Report generation for ${format.toUpperCase()} format has been initiated${columnInfo}.`);
     } catch (err) {
-      setError(`Failed to generate ${format.toUpperCase()} report`);
+      const errorMessage = `Failed to generate ${format.toUpperCase()} report`;
+      setError(errorMessage);
+      showToast('error', errorMessage);
       console.error(err);
     } finally {
       setLoading(false);
@@ -506,6 +531,57 @@ export default function AdvancedReportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className={`rounded-xl shadow-2xl border min-w-80 max-w-md ${
+            toast.type === 'success' 
+              ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200' 
+              : 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
+          }`}>
+            <div className="p-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  {toast.type === 'success' ? (
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-orange-100">
+                      <CheckCircle className="h-5 w-5 text-orange-600" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-100">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium leading-5 ${
+                    toast.type === 'success' ? 'text-orange-800' : 'text-red-800'
+                  }`}>
+                    {toast.type === 'success' ? 'Success!' : 'Error!'}
+                  </p>
+                  <p className={`mt-1 text-sm leading-5 break-words ${
+                    toast.type === 'success' ? 'text-orange-700' : 'text-red-700'
+                  }`}>
+                    {toast.message}
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <button
+                    className={`rounded-md p-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                      toast.type === 'success'
+                        ? 'text-orange-500 hover:text-orange-600 focus:ring-orange-500 hover:bg-orange-100'
+                        : 'text-red-500 hover:text-red-600 focus:ring-red-500 hover:bg-red-100'
+                    }`}
+                    onClick={hideToast}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
