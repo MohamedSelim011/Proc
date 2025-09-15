@@ -27,6 +27,12 @@ const navigation = [
     description: 'Overview and analytics'
   },
   {
+    name: 'Dynamic Dashboard',
+    href: '/procurement/dynamic-dashboard',
+    icon: BarChart3,
+    description: 'Interactive analytics with Metabase'
+  },
+  {
     name: 'Requisitions',
     href: '/procurement/requisitions',
     icon: FileText,
