@@ -134,10 +134,10 @@ export default function ServiceRequisitionApproval() {
         const data = await response.json();
         setSr(data);
       } else {
-        setError('Failed to fetch service requisition');
+        showToast('error', 'Failed to fetch service requisition');
       }
     } catch (error) {
-      setError('Error fetching service requisition');
+      showToast('error', 'Error fetching service requisition');
     } finally {
       setLoading(false);
     }
@@ -146,8 +146,6 @@ export default function ServiceRequisitionApproval() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setError('');
-    setSuccess('');
 
     try {
       let endpoint = '';
