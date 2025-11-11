@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 
-const prisma = new PrismaClient();
 
 // PUT /api/purchase-orders/[id]/status - Update PO status
 export async function PUT(

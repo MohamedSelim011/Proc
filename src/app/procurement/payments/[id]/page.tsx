@@ -576,7 +576,7 @@ export default function PaymentDetailsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <Link
-                              href={`/invoices/${invoice.id}`}
+                              href={`/procurement/invoices/${invoice.id}`}
                               className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                             >
                               <Eye className="h-4 w-4 mr-1" />

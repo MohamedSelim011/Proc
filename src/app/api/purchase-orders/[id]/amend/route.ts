@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 
-const prisma = new PrismaClient();
 
 // POST /api/purchase-orders/[id]/amend - Create PO amendment
 export async function POST(

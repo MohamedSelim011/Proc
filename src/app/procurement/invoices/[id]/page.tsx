@@ -221,40 +221,75 @@ export default function InvoiceDetailPage() {
 
   const handleDownloadPDF = () => {
     if (!invoice) return;
-    
-    // Create a new window for PDF generation
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
 
-    // Generate HTML content for PDF
+    // Create a new window for PDF download (not print)
+    const downloadWindow = window.open('', '_blank');
+    if (!downloadWindow) return;
+
+    // Generate HTML content for PDF download
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
           <title>Invoice ${invoice.invoiceNumber}</title>
           <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 20px; 
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
               color: #000;
               background: white;
               font-size: 12px;
             }
-            .header { 
-              text-align: center; 
-              margin-bottom: 30px; 
+            .download-buttons {
+              position: fixed;
+              top: 10px;
+              right: 10px;
+              display: flex;
+              gap: 10px;
+              z-index: 1000;
+              background: white;
+              padding: 10px;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            }
+            .download-btn {
+              padding: 8px 16px;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+              transition: all 0.2s;
+            }
+            .download-btn.primary {
+              background: #3B82F6;
+              color: white;
+            }
+            .download-btn.primary:hover {
+              background: #2563EB;
+            }
+            .download-btn.secondary {
+              background: #E5E7EB;
+              color: #374151;
+            }
+            .download-btn.secondary:hover {
+              background: #D1D5DB;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
               border-bottom: 2px solid #000;
               padding-bottom: 20px;
             }
-            .company-name { 
-              font-size: 24px; 
-              font-weight: bold; 
-              margin-bottom: 5px; 
+            .company-name {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 5px;
             }
-            .document-title { 
-              font-size: 20px; 
-              margin-bottom: 10px; 
+            .document-title {
+              font-size: 20px;
+              margin-bottom: 10px;
             }
             .invoice-info {
               display: grid;
@@ -262,47 +297,47 @@ export default function InvoiceDetailPage() {
               gap: 30px;
               margin-bottom: 30px;
             }
-            .info-section { 
-              margin-bottom: 20px; 
+            .info-section {
+              margin-bottom: 20px;
             }
-            .info-title { 
-              font-size: 14px; 
-              font-weight: bold; 
-              margin-bottom: 8px; 
-              background: #f5f5f5; 
-              padding: 8px; 
+            .info-title {
+              font-size: 14px;
+              font-weight: bold;
+              margin-bottom: 8px;
+              background: #f5f5f5;
+              padding: 8px;
               border: 1px solid #ddd;
             }
-            .info-item { 
-              display: flex; 
-              justify-content: space-between; 
-              padding: 4px 0; 
-              border-bottom: 1px dotted #ccc; 
+            .info-item {
+              display: flex;
+              justify-content: space-between;
+              padding: 4px 0;
+              border-bottom: 1px dotted #ccc;
             }
-            .info-label { 
-              font-weight: bold; 
-              width: 40%; 
+            .info-label {
+              font-weight: bold;
+              width: 40%;
             }
-            .info-value { 
-              width: 60%; 
-              text-align: right; 
+            .info-value {
+              width: 60%;
+              text-align: right;
             }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin: 20px 0; 
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 20px 0;
             }
-            th, td { 
-              border: 1px solid #000; 
-              padding: 8px; 
-              text-align: left; 
+            th, td {
+              border: 1px solid #000;
+              padding: 8px;
+              text-align: left;
             }
-            th { 
-              background-color: #f5f5f5; 
-              font-weight: bold; 
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
             }
-            .text-right { 
-              text-align: right; 
+            .text-right {
+              text-align: right;
             }
             .totals-section {
               margin-top: 30px;
@@ -334,21 +369,27 @@ export default function InvoiceDetailPage() {
             .status-approved { background: #dbeafe; color: #1e40af; }
             .status-paid { background: #d1fae5; color: #065f46; }
             .status-overdue { background: #fee2e2; color: #991b1b; }
-            .footer { 
-              margin-top: 40px; 
-              text-align: center; 
-              font-size: 10px; 
-              color: #666; 
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 10px;
+              color: #666;
               border-top: 1px solid #ddd;
               padding-top: 20px;
             }
             @media print {
               body { margin: 0; }
-              .no-print { display: none; }
+              .no-print, .download-buttons { display: none; }
             }
           </style>
         </head>
         <body>
+          <div class="download-buttons no-print">
+            <button class="download-btn primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="download-btn secondary" onclick="downloadAsHTML()">💾 Download HTML</button>
+            <button class="download-btn secondary" onclick="window.close()">✕ Close</button>
+          </div>
+
           <div class="header">
             <div class="company-name">WUJHA PROCUREMENT</div>
             <div class="document-title">INVOICE</div>
@@ -384,7 +425,7 @@ export default function InvoiceDetailPage() {
                 </div>
               </div>
             </div>
-            
+
             <div>
               <div class="info-section">
                 <div class="info-title">Vendor Information</div>
@@ -473,19 +514,25 @@ export default function InvoiceDetailPage() {
           </div>
 
           <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() {
-                window.close();
-              }, 1000);
-            };
+            function downloadAsHTML() {
+              const htmlContent = document.documentElement.outerHTML;
+              const blob = new Blob([htmlContent], { type: 'text/html' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'Invoice_${invoice.invoiceNumber}_${new Date().toISOString().split('T')[0]}.html';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
           </script>
         </body>
       </html>
     `;
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    downloadWindow.document.write(htmlContent);
+    downloadWindow.document.close();
   };
 
   if (loading) {
@@ -1029,11 +1076,19 @@ export default function InvoiceDetailPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Document Actions</h4>
                 <div className="flex space-x-3">
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    title="Download invoice as HTML or save as PDF"
+                  >
                     <FileDown className="h-4 w-4 mr-2" />
                     Download Invoice
                   </button>
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    title="Export invoice as PDF"
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Export PDF
                   </button>

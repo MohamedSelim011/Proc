@@ -167,7 +167,7 @@ export default function ServiceVendors() {
             Issue RFP/RFQ
           </Link>
           <Link
-            href="/procurement/vendors/new"
+            href="/procurement/services/vendors/new"
             className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 mr-2" />

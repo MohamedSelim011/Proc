@@ -461,7 +461,7 @@ function PaymentsPageContent() {
                 <input
                   type="text"
                   placeholder="Search invoices..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400"
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                 />
@@ -469,7 +469,7 @@ function PaymentsPageContent() {
 
               <div>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                   value={filters.currency}
                   onChange={(e) => setFilters(prev => ({ ...prev, currency: e.target.value }))}
                 >
@@ -484,7 +484,7 @@ function PaymentsPageContent() {
                 <input
                   type="text"
                   placeholder="Vendor ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400"
                   value={filters.vendorId}
                   onChange={(e) => setFilters(prev => ({ ...prev, vendorId: e.target.value }))}
                 />
@@ -495,7 +495,7 @@ function PaymentsPageContent() {
                   onClick={() => {
                     setFilters({ vendorId: '', currency: '', dueDate: '', search: '' });
                   }}
-                  className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md shadow-sm hover:bg-gray-200 transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -785,7 +785,7 @@ function PaymentsPageContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Link
-                        href={`/procurement/payments/${payment.id}`}
+                        href={`/procurement/invoices/${payment.id}`}
                         className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                       >
                         <Eye className="h-4 w-4 mr-1" />
