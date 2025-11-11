@@ -97,7 +97,72 @@ export async function GET(request: NextRequest) {
       totalUnpaid: Number(invoiceStats.find(s => s.paymentStatus === 'UNPAID')?._sum.totalAmount || 0)
     };
 
+    // Calculate additional metrics for dashboard
+    const activePOs = await prisma.purchaseOrder.count({
+      where: {
+        status: {
+          in: ['APPROVED', 'SENT', 'ACKNOWLEDGED', 'PARTIAL']
+        }
+      }
+    });
+
+    const pendingDeliveries = await prisma.purchaseOrder.count({
+      where: {
+        status: {
+          in: ['SENT', 'ACKNOWLEDGED', 'PARTIAL']
+        }
+      }
+    });
+
+    // Calculate total spend (YTD from paid invoices)
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const totalSpendResult = await prisma.invoice.aggregate({
+      where: {
+        paymentStatus: 'PAID',
+        paymentDate: {
+          gte: yearStart
+        }
+      },
+      _sum: {
+        totalAmount: true
+      }
+    });
+
+    // Calculate average lead time (from PO creation to delivery)
+    const completedPOs = await prisma.purchaseOrder.findMany({
+      where: {
+        status: 'COMPLETED'
+      },
+      select: {
+        createdAt: true,
+        deliveryDate: true
+      }
+    });
+
+    const totalLeadTime = completedPOs.reduce((sum, po) => {
+      const leadTime = Math.floor(
+        (new Date(po.deliveryDate!).getTime() - new Date(po.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return sum + leadTime;
+    }, 0);
+
+    const avgLeadTime = completedPOs.length > 0
+      ? Math.round((totalLeadTime / completedPOs.length) * 10) / 10
+      : 0;
+
     return NextResponse.json({
+      // Dashboard-specific metrics (for backward compatibility)
+      totalPRs: prSummary.total,
+      pendingApprovals,
+      activePOs,
+      pendingDeliveries,
+      totalSpend: Number(totalSpendResult._sum.totalAmount || 0),
+      budgetUtilization: 0, // Requires budget data
+      onTimeDelivery: 0, // Requires expectedDeliveryDate field in schema
+      costSavings: 0, // Requires historical pricing data
+      avgLeadTime,
+
+      // Detailed breakdowns
       overview: {
         activeVendors: vendorStats._count,
         averageVendorScore: vendorStats._avg.performanceScore || 0,

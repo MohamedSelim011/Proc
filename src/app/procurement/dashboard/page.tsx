@@ -26,6 +26,7 @@ interface DashboardStats {
   budgetUtilization: number;
   onTimeDelivery: number;
   costSavings: number;
+  avgLeadTime: number;
 }
 
 interface RecentActivity {
@@ -61,33 +62,34 @@ export default function ProcurementDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch dashboard statistics
       const dashboardResponse = await fetch('/api/dashboard');
       const dashboardData = await dashboardResponse.json();
-      
+
       // Fetch recent purchase requisitions
       const prResponse = await fetch('/api/purchase-requisitions?limit=5');
       const prData = await prResponse.json();
-      
+
       // Fetch recent purchase orders
       const poResponse = await fetch('/api/purchase-orders?limit=5');
       const poData = await poResponse.json();
-      
+
       // Fetch pending approvals (PRs in submitted status)
       const pendingPRResponse = await fetch('/api/purchase-requisitions?status=SUBMITTED');
       const pendingPRData = await pendingPRResponse.json();
 
-      // Process dashboard stats
+      // Process dashboard stats - use real data from dashboard API
       setStats({
         totalPRs: dashboardData.totalPRs || 0,
-        pendingApprovals: pendingPRData.requisitions?.length || 0,
+        pendingApprovals: dashboardData.pendingApprovals || 0,
         activePOs: dashboardData.activePOs || 0,
         pendingDeliveries: dashboardData.pendingDeliveries || 0,
         totalSpend: dashboardData.totalSpend || 0,
         budgetUtilization: dashboardData.budgetUtilization || 0,
         onTimeDelivery: dashboardData.onTimeDelivery || 0,
-        costSavings: dashboardData.costSavings || 0
+        costSavings: dashboardData.costSavings || 0,
+        avgLeadTime: dashboardData.avgLeadTime || 0
       });
 
       // Process recent activity
@@ -470,7 +472,7 @@ export default function ProcurementDashboard() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-medium text-gray-900">
-                    12.5
+                    {stats?.avgLeadTime || 0}
                   </div>
                 </div>
               </div>

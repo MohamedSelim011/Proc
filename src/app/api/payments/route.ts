@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
       description,
       bankAccount,
       totalAmount,
-      currency
+      currency,
+      isPartialPayment = false
     } = body;
 
     // Validate required fields
@@ -27,6 +28,13 @@ export async function POST(request: NextRequest) {
     if (!paymentMethod || !paymentDate || !reference) {
       return NextResponse.json(
         { error: 'Payment method, date, and reference are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!totalAmount || totalAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Payment amount must be greater than 0' },
         { status: 400 }
       );
     }
@@ -48,20 +56,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update all selected invoices to PAID status
-    const updatedInvoices = await prisma.invoice.updateMany({
-      where: {
-        id: {
-          in: invoiceIds
-        }
-      },
-      data: {
-        paymentStatus: 'PAID',
-        paymentDate: new Date(paymentDate),
-        paymentReference: reference,
-        updatedAt: new Date()
+    // Process each invoice payment
+    const updatedInvoices = [];
+    for (const invoice of invoices) {
+      const currentAmountPaid = Number(invoice.amountPaid) || 0;
+      const newAmountPaid = currentAmountPaid + totalAmount;
+      const invoiceTotal = Number(invoice.totalAmount) || 0;
+
+      // Determine payment status
+      let newPaymentStatus = 'UNPAID';
+      if (newAmountPaid >= invoiceTotal) {
+        newPaymentStatus = 'PAID';
+      } else if (newAmountPaid > 0) {
+        newPaymentStatus = 'PARTIAL';
       }
-    });
+
+      // Update invoice
+      const updated = await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          amountPaid: newAmountPaid,
+          paymentStatus: newPaymentStatus,
+          paymentDate: newPaymentStatus === 'PAID' ? new Date(paymentDate) : invoice.paymentDate,
+          paymentReference: reference,
+          updatedAt: new Date()
+        }
+      });
+
+      updatedInvoices.push(updated);
+    }
 
     // Create a payment batch record (mock for now)
     const paymentBatch = {
@@ -76,7 +99,7 @@ export async function POST(request: NextRequest) {
       reference,
       description,
       bankAccount,
-      processedInvoices: updatedInvoices.count,
+      processedInvoices: updatedInvoices.length,
       createdAt: new Date().toISOString()
     };
 

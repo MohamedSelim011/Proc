@@ -161,37 +161,66 @@ export default function ServicePaymentsPage() {
   };
 
   const generateMilestones = (invoice: any) => {
-    const totalAmount = invoice.totalAmount;
+    const totalAmount = Number(invoice.totalAmount) || 0;
+    const amountPaid = Number(invoice.amountPaid) || 0;
     const baseDate = new Date(invoice.createdAt);
-    
-    return [
-      {
-        id: `milestone-1-${invoice.id}`,
-        name: 'Project Initiation',
-        amount: totalAmount * 0.3,
-        targetDate: new Date(baseDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        completionDate: new Date(baseDate.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'COMPLETED' as const,
-        paymentDue: true
-      },
-      {
-        id: `milestone-2-${invoice.id}`,
-        name: 'Implementation Phase',
-        amount: totalAmount * 0.5,
-        targetDate: new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        completionDate: Math.random() > 0.5 ? new Date(baseDate.getTime() + 28 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-        status: Math.random() > 0.5 ? 'COMPLETED' : 'IN_PROGRESS' as const,
-        paymentDue: Math.random() > 0.5
-      },
-      {
-        id: `milestone-3-${invoice.id}`,
-        name: 'Project Completion',
-        amount: totalAmount * 0.2,
-        targetDate: new Date(baseDate.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'PENDING' as const,
-        paymentDue: false
-      }
+
+    // Define milestone percentages
+    const milestonePercentages = [
+      { name: 'Project Initiation', percentage: 0.3, days: 7 },
+      { name: 'Implementation Phase', percentage: 0.5, days: 30 },
+      { name: 'Project Completion', percentage: 0.2, days: 60 }
     ];
+
+    // Build milestones sequentially to track previous status
+    const milestones = [];
+    let cumulativeAmount = 0;
+
+    for (let index = 0; index < milestonePercentages.length; index++) {
+      const ms = milestonePercentages[index];
+      const milestoneAmount = totalAmount * ms.percentage;
+      cumulativeAmount += milestoneAmount;
+
+      // Determine if this milestone is paid (based on amountPaid)
+      const isPaid = amountPaid >= cumulativeAmount;
+
+      // Status logic
+      let status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'PAID' = 'PENDING';
+      let paymentDue = false;
+      let completionDate = undefined;
+
+      if (isPaid) {
+        status = 'PAID';
+        completionDate = new Date(baseDate.getTime() + (ms.days - 2) * 24 * 60 * 60 * 1000).toISOString();
+      } else if (index === 0) {
+        // First milestone - always completed and ready to pay if not paid
+        status = 'COMPLETED';
+        completionDate = new Date(baseDate.getTime() + (ms.days - 2) * 24 * 60 * 60 * 1000).toISOString();
+        paymentDue = true;
+      } else if (milestones[index - 1]?.status === 'PAID') {
+        // Previous milestone is paid - this one is completed and ready
+        status = 'COMPLETED';
+        completionDate = new Date(baseDate.getTime() + (ms.days - 2) * 24 * 60 * 60 * 1000).toISOString();
+        paymentDue = true;
+      } else if (index === 1) {
+        // Second milestone - might be in progress
+        status = Math.random() > 0.3 ? 'COMPLETED' : 'IN_PROGRESS';
+        completionDate = status === 'COMPLETED' ? new Date(baseDate.getTime() + (ms.days - 2) * 24 * 60 * 60 * 1000).toISOString() : undefined;
+        paymentDue = status === 'COMPLETED';
+      }
+
+      milestones.push({
+        id: `milestone-${index + 1}-${invoice.id}`,
+        name: ms.name,
+        amount: milestoneAmount,
+        targetDate: new Date(baseDate.getTime() + ms.days * 24 * 60 * 60 * 1000).toISOString(),
+        completionDate,
+        status,
+        paymentDue
+      });
+    }
+
+    return milestones;
   };
 
   const getApprovalStatus = (paymentStatus: string, completion: number) => {
@@ -227,9 +256,9 @@ export default function ServicePaymentsPage() {
 
   const getMilestoneStatusColor = (status: string) => {
     switch (status) {
+      case 'PAID': return 'bg-purple-100 text-purple-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
       case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
-      case 'PAID': return 'bg-purple-100 text-purple-800';
       case 'PENDING': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -292,20 +321,25 @@ export default function ServicePaymentsPage() {
       if (!payment) return;
 
       let paymentAmount = payment.pendingAmount;
-      
+      let description = `Service Payment - ${payment.invoiceNumber}`;
+
       // If milestone-based payment, use milestone amount
       if (milestoneId) {
         const milestone = payment.milestones.find(m => m.id === milestoneId);
         paymentAmount = milestone?.amount || payment.pendingAmount;
+        description = `Service Payment - ${payment.invoiceNumber} - Milestone: ${milestone?.name || 'Unknown'}`;
       }
 
       const paymentData = {
-        invoiceId: payment.invoiceId,
-        amount: paymentAmount,
-        paymentDate: new Date().toISOString(),
+        invoiceIds: [payment.invoiceId],
         paymentMethod: 'BANK_TRANSFER',
-        reference: `Service Payment - ${payment.invoiceNumber}`,
-        milestoneId
+        paymentDate: new Date().toISOString(),
+        reference: `SP-${Date.now()}`,
+        description: description,
+        bankAccount: payment.vendor.bankAccount || 'N/A',
+        totalAmount: paymentAmount,
+        currency: payment.currency,
+        isPartialPayment: !!milestoneId
       };
 
       const response = await fetch('/api/payments', {
@@ -317,10 +351,15 @@ export default function ServicePaymentsPage() {
       });
 
       if (response.ok) {
+        alert('Payment processed successfully!');
         fetchServicePayments();
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.error || 'Failed to process payment'}`);
       }
     } catch (error) {
       console.error('Error processing individual payment:', error);
+      alert('Error processing payment');
     }
   };
 
@@ -652,7 +691,10 @@ export default function ServicePaymentsPage() {
                           </p>
                         )}
                       </div>
-                      {milestone.paymentDue && milestone.status === 'COMPLETED' && (
+                      {milestone.status === 'COMPLETED' &&
+                       milestone.paymentDue &&
+                       payment.pendingAmount > 0 &&
+                       milestone.amount > 0 && (
                         <button
                           onClick={() => processIndividualPayment(payment.id, milestone.id)}
                           className="mt-2 w-full px-3 py-1 text-xs font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded hover:from-green-600 hover:to-green-700"
@@ -689,11 +731,17 @@ export default function ServicePaymentsPage() {
                         Pay Now
                       </button>
                     )}
-                    <button className="px-4 py-2 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100">
+                    <Link
+                      href={`/procurement/services/invoices/${payment.invoiceId}`}
+                      className="px-4 py-2 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 inline-flex items-center"
+                    >
                       <Eye className="h-4 w-4 inline mr-1" />
                       View Details
-                    </button>
-                    <button className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
+                    </Link>
+                    <button
+                      onClick={() => window.open(`/procurement/services/invoices/${payment.invoiceId}`, '_blank')}
+                      className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100"
+                    >
                       <Download className="h-4 w-4 inline mr-1" />
                       Download
                     </button>

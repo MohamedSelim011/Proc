@@ -320,6 +320,7 @@ model Invoice {
   paymentStatus     PaymentStatus @default(UNPAID)
   paymentDate       DateTime?
   paymentReference  String?
+  amountPaid        Decimal @default(0)
   
   // Additional fields
   description       String?
