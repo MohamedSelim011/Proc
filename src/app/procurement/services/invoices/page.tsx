@@ -183,6 +183,273 @@ export default function ServiceInvoicesPage() {
     return undefined;
   };
 
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      // Fetch full invoice data
+      const response = await fetch(`/api/invoices/${invoiceId}`);
+      if (!response.ok) {
+        alert('Failed to fetch invoice');
+        return;
+      }
+
+      const invoice = await response.json();
+
+      // Generate and open PDF
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Please allow popups to download the invoice');
+        return;
+      }
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice - ${invoice.invoiceNumber}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              max-width: 900px;
+              margin: 0 auto;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 3px solid #f97316;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .invoice-title {
+              font-size: 32px;
+              font-weight: bold;
+              color: #1f2937;
+            }
+            .invoice-number {
+              font-size: 20px;
+              color: #6b7280;
+              margin-top: 10px;
+            }
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            .section {
+              border: 1px solid #e5e7eb;
+              padding: 20px;
+              border-radius: 8px;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              color: #374151;
+              margin-bottom: 15px;
+              border-bottom: 2px solid #f97316;
+              padding-bottom: 5px;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #6b7280;
+            }
+            .info-value {
+              color: #1f2937;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            th, td {
+              padding: 12px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            th {
+              background-color: #f9fafb;
+              font-weight: bold;
+              color: #374151;
+            }
+            .amount-section {
+              margin-top: 30px;
+              text-align: right;
+            }
+            .amount-row {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 10px;
+            }
+            .amount-label {
+              width: 200px;
+              font-weight: bold;
+              color: #6b7280;
+            }
+            .amount-value {
+              width: 150px;
+              text-align: right;
+              color: #1f2937;
+            }
+            .total-row {
+              border-top: 2px solid #f97316;
+              padding-top: 10px;
+              margin-top: 10px;
+              font-size: 18px;
+              font-weight: bold;
+            }
+            @media print {
+              .no-print { display: none; }
+              body { padding: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="invoice-title">SERVICE INVOICE</div>
+            <div class="invoice-number">${invoice.invoiceNumber}</div>
+          </div>
+
+          <div class="grid">
+            <div class="section">
+              <div class="section-title">Vendor Information</div>
+              <div class="info-row">
+                <span class="info-label">Vendor Code:</span>
+                <span class="info-value">${invoice.vendor?.vendorCode || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Name (EN):</span>
+                <span class="info-value">${invoice.vendor?.nameEn || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Name (AR):</span>
+                <span class="info-value">${invoice.vendor?.nameAr || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Email:</span>
+                <span class="info-value">${invoice.vendor?.email || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Mobile:</span>
+                <span class="info-value">${invoice.vendor?.mobile || 'N/A'}</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Invoice Details</div>
+              <div class="info-row">
+                <span class="info-label">Invoice Date:</span>
+                <span class="info-value">${new Date(invoice.invoiceDate).toLocaleDateString()}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Due Date:</span>
+                <span class="info-value">${new Date(invoice.dueDate).toLocaleDateString()}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">${invoice.status}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Payment Status:</span>
+                <span class="info-value">${invoice.paymentStatus}</span>
+              </div>
+              ${invoice.po ? `
+              <div class="info-row">
+                <span class="info-label">PO Number:</span>
+                <span class="info-value">${invoice.po.poNumber}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          ${invoice.description ? `
+          <div class="section" style="margin-bottom: 20px;">
+            <div class="section-title">Description</div>
+            <p>${invoice.description}</p>
+          </div>
+          ` : ''}
+
+          ${invoice.items && invoice.items.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Items</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Description</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.items.map(item => `
+                  <tr>
+                    <td>${item.item.itemCode}</td>
+                    <td>${item.item.nameEn}</td>
+                    <td>${item.quantity}</td>
+                    <td>${(Number(item.unitPrice) || 0).toFixed(2)} ${invoice.currency}</td>
+                    <td>${(Number(item.totalPrice) || 0).toFixed(2)} ${invoice.currency}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          <div class="amount-section">
+            <div class="amount-row">
+              <span class="amount-label">Subtotal:</span>
+              <span class="amount-value">${((Number(invoice.totalAmount) || 0) - (Number(invoice.taxAmount) || 0) + (Number(invoice.discountAmount) || 0)).toFixed(2)} ${invoice.currency}</span>
+            </div>
+            ${(Number(invoice.discountAmount) || 0) > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label">Discount:</span>
+              <span class="amount-value">-${(Number(invoice.discountAmount) || 0).toFixed(2)} ${invoice.currency}</span>
+            </div>
+            ` : ''}
+            ${(Number(invoice.taxAmount) || 0) > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label">Tax:</span>
+              <span class="amount-value">${(Number(invoice.taxAmount) || 0).toFixed(2)} ${invoice.currency}</span>
+            </div>
+            ` : ''}
+            <div class="amount-row total-row">
+              <span class="amount-label">Total Amount:</span>
+              <span class="amount-value">${(Number(invoice.totalAmount) || 0).toFixed(2)} ${invoice.currency}</span>
+            </div>
+          </div>
+
+          ${invoice.paymentTerms ? `
+          <div class="section" style="margin-top: 30px;">
+            <div class="section-title">Payment Terms</div>
+            <p>${invoice.paymentTerms}</p>
+          </div>
+          ` : ''}
+
+          <div class="no-print" style="margin-top: 40px; text-align: center;">
+            <button onclick="window.print()" style="padding: 10px 30px; background-color: #f97316; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-right: 10px;">
+              Print Invoice
+            </button>
+            <button onclick="window.close()" style="padding: 10px 30px; background-color: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+              Close
+            </button>
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
@@ -333,14 +600,14 @@ export default function ServiceInvoicesPage() {
             <input
               type="text"
               placeholder="Search invoices..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
             >
@@ -355,7 +622,7 @@ export default function ServiceInvoicesPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.paymentStatus}
               onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
             >
@@ -368,7 +635,7 @@ export default function ServiceInvoicesPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.matchingStatus}
               onChange={(e) => setFilters(prev => ({ ...prev, matchingStatus: e.target.value }))}
             >
@@ -381,7 +648,7 @@ export default function ServiceInvoicesPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.serviceType}
               onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
             >
@@ -510,24 +777,32 @@ export default function ServiceInvoicesPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Link
-                      href={`/procurement/services/invoices/${invoice.id}`}
-                      className="text-orange-600 hover:text-orange-900"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Link>
-                    {invoice.status === 'DRAFT' && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center gap-3">
                       <Link
-                        href={`/procurement/services/invoices/${invoice.id}/edit`}
-                        className="text-blue-600 hover:text-blue-900"
+                        href={`/procurement/services/invoices/${invoice.id}`}
+                        className="text-orange-600 hover:text-orange-900 inline-block"
+                        title="View Invoice"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Link>
-                    )}
-                    <button className="text-gray-600 hover:text-gray-900">
-                      <Download className="h-4 w-4" />
-                    </button>
+                      {invoice.status === 'DRAFT' && (
+                        <Link
+                          href={`/procurement/services/invoices/${invoice.id}/edit`}
+                          className="text-blue-600 hover:text-blue-900 inline-block"
+                          title="Edit Invoice"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => handleDownloadInvoice(invoice.id)}
+                        className="text-gray-600 hover:text-gray-900 inline-block"
+                        title="Download Invoice"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

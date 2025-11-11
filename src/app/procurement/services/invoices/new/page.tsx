@@ -132,21 +132,21 @@ export default function NewServiceInvoicePage() {
 
   const fetchContracts = async () => {
     try {
-      // Fetch service contracts (POs with SERVICE item type)
-      const response = await fetch('/api/purchase-orders?itemType=SERVICE&status=APPROVED');
+      // Fetch service contracts - use ACTIVE status for contracts ready for invoicing
+      const response = await fetch('/api/services/contracts?status=ACTIVE&limit=100');
       const data = await response.json();
-      
+
       if (response.ok) {
-        const contractData: Contract[] = data.purchaseOrders?.map((po: any) => ({
-          id: po.id,
-          contractNumber: po.poNumber,
-          vendor: po.vendor,
-          serviceType: po.items?.[0]?.item?.nameEn || 'Service Contract',
-          totalAmount: po.totalAmount,
-          currency: po.currency || 'OMR',
-          milestones: generateMilestones(po.id, po.totalAmount)
+        const contractData: Contract[] = data.contracts?.map((contract: any) => ({
+          id: contract.id,
+          contractNumber: contract.contractNumber,
+          vendor: contract.vendor,
+          serviceType: contract.contractType || 'Service Contract',
+          totalAmount: contract.totalValue,
+          currency: contract.currency || 'OMR',
+          milestones: contract.milestones || []
         })) || [];
-        
+
         setContracts(contractData);
       }
     } catch (error) {
@@ -542,7 +542,7 @@ export default function NewServiceInvoicePage() {
                 <option value="">Select a service contract...</option>
                 {contracts.map((contract) => (
                   <option key={contract.id} value={contract.id}>
-                    {contract.contractNumber} - {contract.vendor.nameEn} - {contract.totalAmount.toLocaleString()} {contract.currency}
+                    {contract.contractNumber} - {contract.vendor.nameEn} - {(Number(contract.totalAmount) || 0).toLocaleString()} {contract.currency}
                   </option>
                 ))}
               </select>
@@ -565,7 +565,7 @@ export default function NewServiceInvoicePage() {
                   </div>
                   <div>
                     <span className="text-blue-700">Contract Value:</span>
-                    <span className="ml-2 text-blue-900">{selectedContract.totalAmount.toLocaleString()} {selectedContract.currency}</span>
+                    <span className="ml-2 text-blue-900">{(Number(selectedContract.totalAmount) || 0).toLocaleString()} {selectedContract.currency}</span>
                   </div>
                   <div>
                     <span className="text-blue-700">Milestones:</span>

@@ -1,5 +1,5 @@
 Bug ID,Title / Summary,Steps to Reproduce,Expected Result,Actual Result,Severity,Priority,Attatchments,Status,comments,
-1,"after creating a Purchase Request (PR) from the Dashboard and filling in all required data, the final page displays three buttons Ñ Delete, Edit, and Export PDF Ñ that are not functioning when clicked","1- open the system
+1,"after creating a Purchase Request (PR) from the Dashboard and filling in all required data, the final page displays three buttons ï¿½ Delete, Edit, and Export PDF ï¿½ that are not functioning when clicked","1- open the system
 2- go to dashboard
 3- from quick actions click on Create PR
 4- Fill all required data
@@ -22,59 +22,59 @@ Export PDF: Should trigger a PDF download containing the PR details.","Buttons a
 3- edit Requisition
 4- save changes",The system should successfully update the Requisition,The system shows alert message Failed to update purchase requisition ,Medium,Medium,,,,
 6,Export button not working on Purchase Requisitions page/ also export to pdf from pr details,"1-Go to Requisitions
-2- try to export requisitions","Clicking Export should trigger a file download ( Excel, CSV, or PDF) containing the list of Purchase Requisitions.","Nothing happens Ñ no download starts, and no feedback message is displayed",Low,Medium,,,This button didn't work in other pages (Purchase Orders/Goods Receipts/Invoices/Payment Workbench/Reports/KPIs),
+2- try to export requisitions","Clicking Export should trigger a file download ( Excel, CSV, or PDF) containing the list of Purchase Requisitions.","Nothing happens ï¿½ no download starts, and no feedback message is displayed",Low,Medium,,,This button didn't work in other pages (Purchase Orders/Goods Receipts/Invoices/Payment Workbench/Reports/KPIs),
 7,"""View All Responses"" in RFQ Actions returns 404 Not Found","1- Go to RFQ page 
 2- select RFQ
 3- click on View All Responses",The system should open a page displaying all supplier responses linked to the selected RFQ,The system redirects to a 404 page,Medium,Low,,,,
-8,ExportÓ button opens Print page instead of exporting in Goods Receipt__,"1- go to good Receipts
+8,Exportï¿½ button opens Print page instead of exporting in Goods Receipt__,"1- go to good Receipts
 2- select one good Receipts
 3- click on export and print ","Export should trigger a file download ( PDF, Excel, or CSV) containing the Goods Receipt data.",The Export button opens the Print page/view instead of downloading a file,Medium,Medium,,,,
-9,Quick ActionsÓ (View PO Details / Generate Report) not working on Goods Receipt page,"1- go to good Receipts
+9,Quick Actionsï¿½ (View PO Details / Generate Report) not working on Goods Receipt page,"1- go to good Receipts
 2- select one good Receipts
 3- click on one of quick actions","View PO Details: should navigate to the related Purchase Order details page
 
 Generate Report: should generate and download a report (PDF/Excel) for the selected Goods Receipt",Nothing happens when clicking either option,Medium,Medium,,,,
-10,ÒDownloadÓ button opens Print page instead of exporting in Invoice Details,"1- go to invoices
+10,ï¿½Downloadï¿½ button opens Print page instead of exporting in Invoice Details,"1- go to invoices
 2- select invoice
 3- click on download button","Clicking Download should export or download the invoice file (e.g., PDF, Excel).","The system opens the Print preview page, as if the user clicked Print",Medium,High,,,,
-11,ÒSend EmailÓ and ÒExportÓ buttons not working on Payments page,"1- go to payment page
+11,ï¿½Send Emailï¿½ and ï¿½Exportï¿½ buttons not working on Payments page,"1- go to payment page
 2- select one of payment records
 3- click on view
 4- click on send email or export","Send Email: should trigger an email to the vendor or recipient with payment details
 Export: should generate and download a payment report file (PDF/Excel/CSV)",No response occurs when clicking either button.,Medium,Medium,,,,
-12,ÒView InvoiceÓ in Payment Details leads to 404 Not Found,"1- go to payment page
+12,ï¿½View Invoiceï¿½ in Payment Details leads to 404 Not Found,"1- go to payment page
 2- select one of payment records
 3- click on view
 4- click on invoices
 5- click on view ",The View button should navigate to the correct Invoice Details page corresponding to the selected invoice.,The system redirects to a 404 Not Found page.,Medium,High,,,,
-13,ÒEdit RequisitionÓ button not working in New Service Request page,"1-Go to Services
+13,ï¿½Edit Requisitionï¿½ button not working in New Service Request page,"1-Go to Services
 2- Dashboard.
 3- Click New Service Request and fill in all required details.
 4-Reach the final step 
 5-Click Edit Requisition",Clicking Edit Requisition should open the editable service requisition form with the previously entered data.,Nothing happens when clicking Edit Requisition.,High,High,,,,
-14,ÒRequest ChangesÓ button not working on Service Request Approval page,"1-Go to Services
+14,ï¿½Request Changesï¿½ button not working on Service Request Approval page,"1-Go to Services
 2- Dashboard.
 3- Create a new Service Request and click Submit for Approval
-4-On the Approval page, two options appear Ñ Review & Approve and Request Changes
+4-On the Approval page, two options appear ï¿½ Review & Approve and Request Changes
 5-Click Request Changes",Clicking Request Changes should open a modal or trigger an action allowing the approver to add comments and send the request back for revision.,The button does nothing when clicked,High,High,,,,
 15,Misaligned / incorrect success message after approving Service Request,"1-Go to Services
 2- Dashboard.
 3- Create a new Service Request and click Submit for Approval
-4-On the Approval page, two options appear Ñ Review & Approve and Request Changes
-5-Complete the approval process","The system should display a properly formatted success toast/message (e.g., green background, _ icon, clear success text like ÒService Request approved successfullyÓ).",A message appears at the top of the page but looks misaligned,Low,Low,,,,
-16,ÒAdd VendorÓ from vendors page returns 404 Not Found,"1-Go to Services
+4-On the Approval page, two options appear ï¿½ Review & Approve and Request Changes
+5-Complete the approval process","The system should display a properly formatted success toast/message (e.g., green background, _ icon, clear success text like ï¿½Service Request approved successfullyï¿½).",A message appears at the top of the page but looks misaligned,Low,Low,,,,
+16,ï¿½Add Vendorï¿½ from vendors page returns 404 Not Found,"1-Go to Services
 2- click on vendors
 3- click on add vendor",The system should open the Add Vendor page or form allowing the user to create a new vendor successfully.,The system should open the Add Vendor page or form allowing the user to create a new vendor successfully.,High,High,,,,
-17,ÒView VendorÓ redirects to 404 Not Found in Vendors page,"1-Go to Services
+17,ï¿½View Vendorï¿½ redirects to 404 Not Found in Vendors page,"1-Go to Services
 2- click on vendors
-3- click on view icon for any vendor",Clicking View should navigate to the correct Vendor Details page displaying the vendorÕs information,The system navigates to a 404 Not Found page,High,High,,,,
-18,ÒEdit VendorÓ redirects to 404 Not Found in Vendors page,"1-Go to Services
+3- click on view icon for any vendor",Clicking View should navigate to the correct Vendor Details page displaying the vendorï¿½s information,The system navigates to a 404 Not Found page,High,High,,,,
+18,ï¿½Edit Vendorï¿½ redirects to 404 Not Found in Vendors page,"1-Go to Services
 2- click on vendors
 3- click on edit icon for any vendor","Clicking Edit should navigate to the vendor edit page, displaying the existing data for that vendor in editable fields.",The system navigates to a 404 Not Found page,High,High,,,,
 19,"New Contract, the system keeps loading indefinitely without opening the contract creation form.","1-Go to Services
 2- click on contracts
 3- click on new contract",The New Contract  should displaying all the input fields required to create a new contract.,The system shows a continuous loading state,High,High,,,,
-20,ÒNew Performance ReportÓ redirects to 404 Not Found,"1-Go to Services
+20,ï¿½New Performance Reportï¿½ redirects to 404 Not Found,"1-Go to Services
 2- click on performance
 3- click on new performance report",Clicking New Performance Report should open the performance report creation form where the user can add details and submit.,The system redirects to a 404 Not Found page.,High,High,,,,
 21,Numbers in the Invoices summary section are displayed outside their correct positio,"1-Go to Services
@@ -88,40 +88,40 @@ Export: should generate and download a payment report file (PDF/Excel/CSV)",No r
 3-  click on download icon for any invoice",Clicking Download should trigger the file download (PDF or other supported format) for the selected invoice.,No response or action occurs after clicking the Download button,Low,Medium,,,,
 24,View and Edit actions redirect to 404 Not Found in invoice page,"1-Go to Services
 2- click on invoices
-3-  click on edit or view icons for any invoice","View should open the selected invoiceÕs details page
-Edit should open the invoiceÕs edit form with existing data loaded.",Both actions redirect to a 404 Not Found page,High,High,,,,
-25,ÒSelect Service ContractÓ dropdown not loading data in New Service Invoice pag_,"1-Go to Services
+3-  click on edit or view icons for any invoice","View should open the selected invoiceï¿½s details page
+Edit should open the invoiceï¿½s edit form with existing data loaded.",Both actions redirect to a 404 Not Found page,High,High,,,,
+25,ï¿½Select Service Contractï¿½ dropdown not loading data in New Service Invoice pag_,"1-Go to Services
 2- click on invoices
 3-  click on New Service Invoice
 4- click on droplist Select Service Contract",The dropdown should load and display all available Service Contracts to choose from,The dropdown does not show any data,High,High,,,No data display/ make sure from busines that we must make precondition to display options !,
 26,Summary numbers displayed outside their correct position in Payment Workbench pag_,"1-Go to Services
 2- click on payment
 3- look at numbers ",ll summary numbers should be neatly aligned and displayed inside their respective boxes.,The numeric values are displayed outside their designated boxes,Low,Medium,,,,
-27,ÒProcess PaymentÓ button returns 404 error,"1-Go to Services
+27,ï¿½Process Paymentï¿½ button returns 404 error,"1-Go to Services
 2- click on payment
 3- click on process payment",The system should open the Process Payment page or modal to allow the user to continue with the payment workflow.,The system redirects to a 404 Not Found page.,High,High,,,,
-28,ÒPay MilestoneÓ button not functioning on Payment Details page,"1-Go to Services
+28,ï¿½Pay Milestoneï¿½ button not functioning on Payment Details page,"1-Go to Services
 2- click on payment
-3- click on pay milestone",Clicking ÒPay MilestoneÓ should trigger a modal or initiate the payment process for the selected milestone.,No response when clicking the ÒPay MilestoneÓ button,Medium,Medium,,,,
-29,ÒView DetailsÓ and ÒDownloadÓ buttons not working under Payment Milestones section,"1-Go to Services
+3- click on pay milestone",Clicking ï¿½Pay Milestoneï¿½ should trigger a modal or initiate the payment process for the selected milestone.,No response when clicking the ï¿½Pay Milestoneï¿½ button,Medium,Medium,,,,
+29,ï¿½View Detailsï¿½ and ï¿½Downloadï¿½ buttons not working under Payment Milestones section,"1-Go to Services
 2- click on payment
 3- click on view dtails or download","View Details should open milestone information
 Download should generate or download the milestone-related document","Both buttons are unresponsive; no modal, action, or file is triggered",Medium,High,,,,
 30,Payment selection checkbox not working in Payment Details page,"1-Go to Services
 2- click on payment
 3- try to select payment from checkbox on the left",The checkbox should allow the user to select/deselect the payment,The checkbox does not respond; it cannot be selected or deselected,Low,Low,,,,
-31,ÒExport ReportÓ button not working in Analytics page,"1-Go to Services
+31,ï¿½Export Reportï¿½ button not working in Analytics page,"1-Go to Services
 2- click on analytics
-3- click on export report","Clicking the ÒExport ReportÓ button should generate and download a report file (e.g., PDF, Excel, or CSV)",Nothing happens when clicking the button,Medium,High,,,,
-32,ÒExport ReportsÓ button not working in Reports page,"1-Go to Reports
-2- click on export reports","Clicking the ÒExport ReportÓ button should generate and download a report file (e.g., PDF, Excel, or CSV)",Nothing happens when clicking the button,Medium,High,,,,
-33,ÒApply FilterÓ button not working in Reports page,"1-Go to Reports
+3- click on export report","Clicking the ï¿½Export Reportï¿½ button should generate and download a report file (e.g., PDF, Excel, or CSV)",Nothing happens when clicking the button,Medium,High,,,,
+32,ï¿½Export Reportsï¿½ button not working in Reports page,"1-Go to Reports
+2- click on export reports","Clicking the ï¿½Export Reportï¿½ button should generate and download a report file (e.g., PDF, Excel, or CSV)",Nothing happens when clicking the button,Medium,High,,,,
+33,ï¿½Apply Filterï¿½ button not working in Reports page,"1-Go to Reports
 2- select date range
 3- click apply filter",Reports should be filtered according to the selected date range.,"No error message, confirmation, or visual feedback appears.",Low,Medium,,,,
 34,Download icons not working in Reports page,"1-Go to Reports
 2- click on download icon for any Procurement ","Clicking the Download icon should generate and download the respective report file (PDF, Excel, or CSV).",No file download occurs,Medium,Medium,,,,
-35,ÒNew WorkflowÓ button not working in Automation _ Workflows page,"1-Go to automation
+35,ï¿½New Workflowï¿½ button not working in Automation _ Workflows page,"1-Go to automation
 2- click on work flow
 3- click on new workflow",Clicking New Workflow should open a modal or redirect to a page allowing the user to create a new workflow.,Nothing happens,Medium,Medium,,,,
-36,ÒExportÓ button not working in KPIs page,"1-Go to KPIS
+36,ï¿½Exportï¿½ button not working in KPIs page,"1-Go to KPIS
 2- click on export","Clicking the Export button should generate and download a report file (PDF, Excel, or CSV).",Nothing happens,Low,Low,,,,

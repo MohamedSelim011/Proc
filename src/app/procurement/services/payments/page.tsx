@@ -327,11 +327,11 @@ export default function ServicePaymentsPage() {
   // Calculate statistics
   const stats = {
     totalPayments: payments.length,
-    totalValue: payments.reduce((sum, p) => sum + p.totalAmount, 0),
-    pendingValue: payments.reduce((sum, p) => sum + p.pendingAmount, 0),
+    totalValue: payments.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0),
+    pendingValue: payments.reduce((sum, p) => sum + (Number(p.pendingAmount) || 0), 0),
     approvedPayments: payments.filter(p => p.approvalStatus === 'APPROVED').length,
     overduePayments: payments.filter(p => p.paymentStatus === 'OVERDUE').length,
-    avgServiceCompletion: payments.reduce((sum, p) => sum + p.serviceCompletion, 0) / payments.length || 0
+    avgServiceCompletion: payments.reduce((sum, p) => sum + (Number(p.serviceCompletion) || 0), 0) / payments.length || 0
   };
 
   if (loading) {
@@ -387,10 +387,10 @@ export default function ServicePaymentsPage() {
             <div className="p-2 bg-green-100 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 overflow-hidden">
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.totalValue.toLocaleString()} OMR
+              <p className="text-2xl font-bold text-gray-900 break-words">
+                {(Number(stats.totalValue) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} OMR
               </p>
             </div>
           </div>
@@ -401,10 +401,10 @@ export default function ServicePaymentsPage() {
             <div className="p-2 bg-yellow-100 rounded-lg">
               <Clock className="h-6 w-6 text-yellow-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 overflow-hidden">
               <p className="text-sm font-medium text-gray-600">Pending Value</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {stats.pendingValue.toLocaleString()} OMR
+              <p className="text-2xl font-bold text-yellow-600 break-words">
+                {(Number(stats.pendingValue) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} OMR
               </p>
             </div>
           </div>
@@ -454,14 +454,14 @@ export default function ServicePaymentsPage() {
             <input
               type="text"
               placeholder="Search payments..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.paymentStatus}
               onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
             >
@@ -474,7 +474,7 @@ export default function ServicePaymentsPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.approvalStatus}
               onChange={(e) => setFilters(prev => ({ ...prev, approvalStatus: e.target.value }))}
             >
@@ -486,7 +486,7 @@ export default function ServicePaymentsPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               value={filters.serviceType}
               onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
             >
@@ -561,7 +561,7 @@ export default function ServicePaymentsPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold text-gray-900">
-                    {payment.pendingAmount.toLocaleString()} {payment.currency}
+                    {(Number(payment.pendingAmount) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}
                   </p>
                   <p className="text-sm text-gray-500">Pending Payment</p>
                   <div className="mt-1">
@@ -582,19 +582,19 @@ export default function ServicePaymentsPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Contract Value:</span>
-                      <span className="text-sm font-medium">{payment.contract.totalValue.toLocaleString()} {payment.currency}</span>
+                      <span className="text-sm font-medium">{(Number(payment.contract.totalValue) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Invoice Amount:</span>
-                      <span className="text-sm font-medium">{payment.totalAmount.toLocaleString()} {payment.currency}</span>
+                      <span className="text-sm font-medium">{(Number(payment.totalAmount) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Amount Paid:</span>
-                      <span className="text-sm font-medium">{payment.amountPaid.toLocaleString()} {payment.currency}</span>
+                      <span className="text-sm font-medium">{(Number(payment.amountPaid) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-sm font-medium text-gray-900">Pending Amount:</span>
-                      <span className="text-sm font-bold text-gray-900">{payment.pendingAmount.toLocaleString()} {payment.currency}</span>
+                      <span className="text-sm font-bold text-gray-900">{(Number(payment.pendingAmount) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}</span>
                     </div>
                   </div>
                 </div>
@@ -641,7 +641,7 @@ export default function ServicePaymentsPage() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-600">
-                          Amount: {milestone.amount.toLocaleString()} {payment.currency}
+                          Amount: {(Number(milestone.amount) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {payment.currency}
                         </p>
                         <p className="text-xs text-gray-500">
                           Target: {new Date(milestone.targetDate).toLocaleDateString()}
@@ -725,10 +725,9 @@ export default function ServicePaymentsPage() {
                 <div>
                   <p className="text-sm text-gray-600">Selected Payments: {selectedPayments.length}</p>
                   <p className="text-sm text-gray-600">
-                    Total Amount: {payments
+                    Total Amount: {(payments
                       .filter(p => selectedPayments.includes(p.id))
-                      .reduce((sum, p) => sum + p.pendingAmount, 0)
-                      .toLocaleString()} OMR
+                      .reduce((sum, p) => sum + (Number(p.pendingAmount) || 0), 0) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} OMR
                   </p>
                 </div>
                 <div className="flex gap-3">
