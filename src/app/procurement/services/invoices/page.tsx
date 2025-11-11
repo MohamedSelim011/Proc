@@ -218,7 +218,7 @@ export default function ServiceInvoicesPage() {
   // Calculate statistics
   const stats = {
     total: invoices.length,
-    totalValue: invoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
+    totalValue: invoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0),
     pending: invoices.filter(inv => inv.matchingStatus === 'PENDING').length,
     matched: invoices.filter(inv => inv.matchingStatus === 'MATCHED').length,
     discrepancies: invoices.filter(inv => inv.matchingStatus === 'DISCREPANCY').length,
@@ -268,10 +268,10 @@ export default function ServiceInvoicesPage() {
             <div className="p-2 bg-green-100 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 overflow-hidden">
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.totalValue.toLocaleString()} OMR
+              <p className="text-2xl font-bold text-gray-900 break-words">
+                {(Number(stats.totalValue) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} OMR
               </p>
             </div>
           </div>
@@ -482,14 +482,14 @@ export default function ServiceInvoicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {invoice.totalAmount.toLocaleString()} {invoice.currency}
+                        {(Number(invoice.totalAmount) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {invoice.currency}
                       </div>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(invoice.paymentStatus)}`}>
                         {invoice.paymentStatus}
                       </span>
                       {invoice.amountPaid > 0 && (
                         <div className="text-xs text-gray-500">
-                          Paid: {invoice.amountPaid.toLocaleString()} {invoice.currency}
+                          Paid: {(Number(invoice.amountPaid) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} {invoice.currency}
                         </div>
                       )}
                     </div>

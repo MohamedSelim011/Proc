@@ -183,6 +183,320 @@ export default function ServiceContractDetail() {
     }
   };
 
+  const handleExportPDF = () => {
+    // Create a print-friendly version
+    const printWindow = window.open('', '_blank');
+    if (!printWindow || !contract) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Service Contract - ${contract.contractNumber}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+            color: #1f2937;
+            line-height: 1.6;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+          }
+          .header h1 {
+            color: #1e40af;
+            font-size: 28px;
+            margin-bottom: 10px;
+          }
+          .header .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+          }
+          .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+          }
+          .section-title {
+            background: #eff6ff;
+            padding: 12px 15px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+            border-left: 4px solid #2563eb;
+            margin-bottom: 15px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          .info-item {
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+          }
+          .info-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+          }
+          .info-value {
+            font-size: 14px;
+            color: #111827;
+            font-weight: 500;
+          }
+          .info-value.large {
+            font-size: 20px;
+            color: #059669;
+            font-weight: 700;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+          th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #d1d5db;
+          }
+          td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          .status-active { background: #d1fae5; color: #065f46; }
+          .status-draft { background: #f3f4f6; color: #374151; }
+          .terms-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+          }
+          .terms-box h4 {
+            color: #92400e;
+            font-size: 14px;
+            margin-bottom: 8px;
+          }
+          .terms-box p {
+            color: #78350f;
+            font-size: 13px;
+          }
+          .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>SERVICE CONTRACT</h1>
+          <h2>${contract.contractNumber}</h2>
+          <p class="subtitle">Service Agreement - ${contract.contractType.replace('_', ' ')}</p>
+          <div style="margin-top: 15px;">
+            <span class="status-badge status-${contract.status.toLowerCase()}">${contract.status}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Contract Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Contract Number</div>
+              <div class="info-value">${contract.contractNumber}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Purchase Requisition</div>
+              <div class="info-value">${contract.pr.prNumber}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Vendor</div>
+              <div class="info-value">${contract.vendor.nameEn}</div>
+              <div style="font-size: 12px; color: #6b7280;">${contract.vendor.vendorCode}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Contract Period</div>
+              <div class="info-value">${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Payment Terms</div>
+              <div class="info-value">${contract.paymentTerms}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Total Contract Value</div>
+              <div class="info-value large">${formatCurrency(contract.totalValue)} ${contract.currency}</div>
+            </div>
+          </div>
+        </div>
+
+        ${contract.pr.servicePR ? `
+        <div class="section">
+          <div class="section-title">Service Requirements</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Service Scope</div>
+              <div class="info-value">${contract.pr.servicePR.serviceScope}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Duration</div>
+              <div class="info-value">${contract.pr.servicePR.duration} ${contract.pr.servicePR.durationUnit}</div>
+            </div>
+          </div>
+          ${contract.pr.servicePR.technicalSpecifications ? `
+            <div style="margin-top: 15px; padding: 15px; background: #f9fafb; border-radius: 6px;">
+              <div class="info-label">Technical Specifications</div>
+              <div class="info-value">${contract.pr.servicePR.technicalSpecifications}</div>
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        ${contract.pr.servicePR?.items && contract.pr.servicePR.items.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Service Items</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Service Code</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${contract.pr.servicePR.items.map(item => `
+                <tr>
+                  <td>${item.serviceItem.serviceCode}</td>
+                  <td>${item.serviceItem.nameEn}</td>
+                  <td>${item.serviceItem.serviceCategory.nameEn}</td>
+                  <td>${item.quantity} ${item.serviceItem.unitOfMeasure}</td>
+                  <td>${formatCurrency(parseFloat(item.estimatedRate))}</td>
+                  <td>${item.duration} ${item.durationUnit}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${contract.performanceBond || contract.retentionAmount ? `
+        <div class="section">
+          <div class="section-title">Financial Guarantees</div>
+          <div class="info-grid">
+            ${contract.performanceBond ? `
+              <div class="info-item">
+                <div class="info-label">Performance Bond</div>
+                <div class="info-value">${formatCurrency(contract.performanceBond)} ${contract.currency}</div>
+              </div>
+            ` : ''}
+            ${contract.retentionAmount ? `
+              <div class="info-item">
+                <div class="info-label">Retention Amount</div>
+                <div class="info-value">${formatCurrency(contract.retentionAmount)} ${contract.currency}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        ${contract.slaTerms || contract.penaltyClause || contract.insuranceRequirements ? `
+        <div class="section">
+          <div class="section-title">Contract Terms & Conditions</div>
+          ${contract.slaTerms ? `
+            <div class="terms-box" style="background: #dbeafe; border-color: #3b82f6;">
+              <h4 style="color: #1e40af;">SLA Terms</h4>
+              <p style="color: #1e3a8a;">${contract.slaTerms}</p>
+            </div>
+          ` : ''}
+          ${contract.penaltyClause ? `
+            <div class="terms-box" style="background: #fee2e2; border-color: #ef4444;">
+              <h4 style="color: #991b1b;">Penalty Clause</h4>
+              <p style="color: #7f1d1d;">${contract.penaltyClause}</p>
+            </div>
+          ` : ''}
+          ${contract.insuranceRequirements ? `
+            <div class="terms-box" style="background: #d1fae5; border-color: #10b981;">
+              <h4 style="color: #065f46;">Insurance Requirements</h4>
+              <p style="color: #064e3b;">${contract.insuranceRequirements}</p>
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        ${contract.pr.justification ? `
+        <div class="section">
+          <div class="section-title">Business Justification</div>
+          <div style="padding: 15px; background: #f9fafb; border-radius: 6px;">
+            <p style="font-size: 13px; color: #374151;">${contract.pr.justification}</p>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+          <p><strong>WUJHA HR Procurement System</strong></p>
+          <p>Generated on ${new Date().toLocaleString('en-OM', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}</p>
+          <p style="margin-top: 10px; font-size: 11px;">This is a system-generated document</p>
+        </div>
+
+        <div class="no-print" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+          <button
+            onclick="window.print()"
+            style="background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+          >
+            Print / Save as PDF
+          </button>
+          <button
+            onclick="window.close()"
+            style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+          >
+            Close
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -224,7 +538,11 @@ export default function ServiceContractDetail() {
           </button>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          <button
+            onClick={handleExportPDF}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            title="Export contract as PDF"
+          >
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </button>
