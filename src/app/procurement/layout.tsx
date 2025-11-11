@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  ShoppingCart, 
-  Truck, 
-  Receipt, 
+import { useSession } from 'next-auth/react';
+import {
+  LayoutDashboard,
+  FileText,
+  ShoppingCart,
+  Truck,
+  Receipt,
   CreditCard,
   Users,
   BarChart3,
@@ -16,8 +17,12 @@ import {
   Bell,
   Search,
   Menu,
-  X
+  X,
+  ShieldCheck,
+  Clock,
+  MessageSquare
 } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const navigation = [
   {
@@ -31,6 +36,18 @@ const navigation = [
     href: '/procurement/dynamic-dashboard',
     icon: BarChart3,
     description: 'Interactive analytics with Metabase'
+  },
+  {
+    name: 'Approvals',
+    href: '/approvals',
+    icon: Clock,
+    description: 'Pending approvals'
+  },
+  {
+    name: 'Consultations',
+    href: '/consultations',
+    icon: MessageSquare,
+    description: 'Consultation requests'
   },
   {
     name: 'Requisitions',
@@ -104,6 +121,13 @@ const navigation = [
           href: '/procurement/kpis',
           icon: BarChart3,
           description: 'Key Performance Indicators'
+        },
+        {
+          name: 'Admin',
+          href: '/admin/users',
+          icon: ShieldCheck,
+          description: 'User & System Management',
+          requiredRoles: ['ADMIN', 'SUPER_ADMIN']
         }
 ];
 
@@ -114,6 +138,15 @@ export default function ProcurementLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  // Filter navigation based on user role
+  const filteredNavigation = navigation.filter((item) => {
+    if (item.requiredRoles) {
+      return item.requiredRoles.includes(session?.user?.role || '');
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -145,7 +178,7 @@ export default function ProcurementLayout({
           
           <nav className="sidebar-nav flex-1 overflow-y-auto px-4 py-2 min-h-0">
             <div className="space-y-1 pb-4">
-              {navigation.map((item) => {
+              {filteredNavigation.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <div key={item.name}>
@@ -163,7 +196,7 @@ export default function ProcurementLayout({
                         <div className="font-medium">{item.name}</div>
                       </div>
                     </Link>
-                    
+
                     {/* Render submenu items if they exist and parent is active */}
                     {item.subItems && isActive && (
                       <div className="ml-6 mt-1 space-y-1 mb-2">
@@ -215,7 +248,7 @@ export default function ProcurementLayout({
           
           <nav className="sidebar-nav flex-1 overflow-y-auto px-4 py-2 min-h-0">
             <div className="space-y-1 pb-4">
-              {navigation.map((item) => {
+              {filteredNavigation.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <div key={item.name}>
@@ -232,7 +265,7 @@ export default function ProcurementLayout({
                         <div className="font-medium">{item.name}</div>
                       </div>
                     </Link>
-                    
+
                     {/* Render submenu items if they exist and parent is active */}
                     {item.subItems && isActive && (
                       <div className="ml-6 mt-1 space-y-1 mb-2">
@@ -298,10 +331,7 @@ export default function ProcurementLayout({
             </button>
             
             {/* Notifications */}
-            <button className="relative p-2 text-gray-400 hover:text-gray-500">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
-            </button>
+            <NotificationBell />
             
             <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
             

@@ -1,9 +1,120 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole } from '@prisma/client'
+import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Starting seed with Omani data...')
+
+  // ===========================================
+  // SEED USERS (Authentication System)
+  // ===========================================
+  console.log('\n📧 Seeding users...')
+
+  // Create default admin user
+  const adminEmail = 'admin@wujha.om'
+  const defaultPassword = 'Admin@123' // Must be changed on first login
+
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  })
+
+  if (existingAdmin) {
+    console.log('✅ Admin user already exists:', adminEmail)
+  } else {
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+    const admin = await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        name: 'System Administrator',
+        employeeId: 'ADMIN-001',
+        department: 'IT',
+        role: UserRole.ADMIN,
+        isActive: true,
+        mustChangePassword: true,
+      },
+    })
+    console.log('✅ Created admin user:', admin.email)
+  }
+
+  // Create sample users for testing
+  const testUsers = [
+    {
+      email: 'requester@wujha.om',
+      name: 'John Requestor',
+      employeeId: 'EMP-001',
+      department: 'Operations',
+      role: UserRole.REQUESTOR,
+      password: 'Request@123',
+    },
+    {
+      email: 'manager@wujha.om',
+      name: 'Sarah Manager',
+      employeeId: 'MGR-001',
+      department: 'Operations',
+      role: UserRole.DEPARTMENT_MANAGER,
+      password: 'Manager@123',
+      approvalLimit: 5000,
+    },
+    {
+      email: 'buyer@wujha.om',
+      name: 'Ahmed Buyer',
+      employeeId: 'BUY-001',
+      department: 'Procurement',
+      role: UserRole.PROCUREMENT_OFFICER,
+      password: 'Buyer@123',
+    },
+    {
+      email: 'procmgr@wujha.om',
+      name: 'Ali Procurement',
+      employeeId: 'PMG-001',
+      department: 'Procurement',
+      role: UserRole.PROCUREMENT_MANAGER,
+      password: 'ProcMgr@123',
+      approvalLimit: 50000,
+    },
+    {
+      email: 'finance@wujha.om',
+      name: 'Fatima Finance',
+      employeeId: 'FIN-001',
+      department: 'Finance',
+      role: UserRole.FINANCE_MANAGER,
+      password: 'Finance@123',
+      approvalLimit: 1000000,
+    },
+  ]
+
+  for (const userData of testUsers) {
+    const existing = await prisma.user.findUnique({
+      where: { email: userData.email },
+    })
+
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash(userData.password, 10)
+      await prisma.user.create({
+        data: {
+          email: userData.email,
+          password: hashedPassword,
+          name: userData.name,
+          employeeId: userData.employeeId,
+          department: userData.department,
+          role: userData.role,
+          approvalLimit: userData.approvalLimit || 0,
+          isActive: true,
+          mustChangePassword: true,
+        },
+      })
+      console.log(`✅ Created user: ${userData.email} (${userData.role})`)
+    }
+  }
+
+  console.log('\n✅ User seeding completed!\n')
+
+  // ===========================================
+  // SEED MASTER DATA (Categories, Vendors, etc)
+  // ===========================================
+  console.log('📦 Seeding master data...\n')
 
   // Create categories
   const categories = await Promise.all([

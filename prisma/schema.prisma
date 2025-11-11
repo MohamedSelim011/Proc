@@ -7,6 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// AUTHENTICATION & USER MANAGEMENT
+// ============================================
+
+// User Roles Enum
+enum UserRole {
+  SUPER_ADMIN            // Super Administrator - full system access
+  ADMIN                  // System Administrator - user & system management
+  FINANCE_MANAGER        // Approves payments, budget oversight
+  PROCUREMENT_MANAGER    // Approves POs, manages procurement
+  BUDGET_CONTROLLER      // Budget control and monitoring
+  PROJECT_MANAGER        // Project-level approvals
+  SITE_ENGINEER          // Site operations and inspections
+  WAREHOUSE_KEEPER       // Goods receipts, inventory
+  PROCUREMENT_OFFICER    // Creates POs, manages RFQs
+  APPROVER               // General approval authority
+  VIEWER                 // Read-only access
+  // Legacy roles (for backward compatibility)
+  REQUESTOR              // Legacy - maps to VIEWER
+  DEPARTMENT_MANAGER     // Legacy - maps to APPROVER
+  CPO                    // Legacy - maps to SUPER_ADMIN
+  WAREHOUSE_MANAGER      // Legacy - maps to WAREHOUSE_KEEPER
+  SERVICE_MANAGER        // Legacy - maps to PROJECT_MANAGER
+  AUDITOR                // Legacy - maps to VIEWER
+  VENDOR                 // Legacy - external supplier
+}
+
+// User Model
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  password             String    // Hashed password
+  name                 String
+  employeeId           String?   @unique
+  mobile               String?
+  department           String?
+  role                 UserRole  @default(VIEWER)
+  approvalLimit        Decimal?  @default(0) // Max amount user can approve
+  isActive             Boolean   @default(true)
+  mustChangePassword   Boolean   @default(true)
+  passwordChangedAt    DateTime?
+  lastLoginAt          DateTime?
+  lastLoginIP          String?
+  failedLoginAttempts  Int       @default(0)
+  lockedUntil          DateTime?
+  twoFactorEnabled     Boolean   @default(false)
+  twoFactorSecret      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  createdBy            String?
+
+  // Relations
+  sessions             Session[]
+  auditLogs            AuditLog[]
+  passwordHistory      PasswordHistory[]
+  // createdPRs           PurchaseRequisition[] @relation("PRCreator")  // Temporarily disabled
+  // approvals            Approval[]  // Temporarily disabled
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+// Session Model (for JWT session management)
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Password History (prevent password reuse)
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Audit Log (track all user actions)
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       String   // e.g., "user_created", "role_changed", "pr_approved"
+  module       String   // e.g., "user_management", "purchase_requisition"
+  resourceId   String?  // ID of affected resource
+  resourceType String?  // Type of resource
+  oldValue     Json?    // Before change
+  newValue     Json?    // After change
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Permission Model (defines all available permissions)
+model Permission {
+  id           String   @id @default(cuid())
+  code         String   @unique // e.g., "pr.create", "po.approve", "invoice.view"
+  name         String   // Human-readable name
+  description  String?  // Description of what this permission allows
+  module       String   // e.g., "purchase_requisition", "purchase_order"
+  action       String   // e.g., "create", "read", "update", "delete", "approve"
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@index([action])
+  @@index([isActive])
+}
+
+// Role Permissions (maps roles to permissions)
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  conditions   Json?      // e.g., {"scope": "own", "maxAmount": 5000}
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+  @@index([isActive])
+}
+
+// ============================================
+// VENDOR MANAGEMENT
+// ============================================
+
 // Vendor Management
 model Vendor {
   id                String   @id @default(cuid())
@@ -123,31 +276,34 @@ model PurchaseRequisition {
   id              String   @id @default(cuid())
   prNumber        String   @unique
   requestDate     DateTime @default(now())
-  requesterId     String
+  requesterId     String?
+  // requester       User?    @relation("PRCreator", fields: [requesterId], references: [id])  // Temporarily disabled
   departmentId    String
   itemType        ItemType
   priority        Priority @default(NORMAL)
   status          PRStatus @default(DRAFT)
-  
+
   // Budget
   estimatedCost   Decimal
   budgetCode      String
   justification   String?
-  
+
   // Items
   items           PRItem[]
-  
+
   // Approval
   approvals       Approval[]
-  
+
   // Relationships
   purchaseOrders  PurchaseOrder[]
   rfqs            RFQ[]
   servicePR       ServicePR?
   serviceContracts ServiceContract[]
-  
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([requesterId])
 }
 
 model PRItem {
@@ -353,18 +509,149 @@ model InvoiceItem {
 
 // Approval Workflow
 model Approval {
-  id           String   @id @default(cuid())
-  documentType String
-  documentId   String
-  prId         String?
-  pr           PurchaseRequisition? @relation(fields: [prId], references: [id])
-  approverId   String
-  status       ApprovalStatus @default(PENDING)
-  comments     String?
-  approvedAt   DateTime?
-  level        Int
-  
-  createdAt    DateTime @default(now())
+  id                     String   @id @default(cuid())
+  documentType           String
+  documentId             String
+
+  // Document relationships
+  purchaseRequisitionId  String?
+  purchaseOrderId        String?
+  invoiceId              String?
+  prId                   String?
+  pr                     PurchaseRequisition? @relation(fields: [prId], references: [id])
+
+  // Approval details
+  approverId             String
+  // approver            User     @relation(fields: [approverId], references: [id])  // Temporarily disabled
+  status                 ApprovalStatus @default(PENDING)
+  comments               String?
+  approvedAt             DateTime?
+  level                  Int
+
+  // Routing
+  routingRuleId          String?  // Link to ApprovalRule that determined this chain
+
+  // History
+  approvalHistory        ApprovalHistory[]
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now()) @updatedAt
+
+  @@index([approverId])
+  @@index([prId])
+  @@index([purchaseRequisitionId])
+  @@index([purchaseOrderId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([routingRuleId])
+}
+
+// ============================================
+// ENHANCED APPROVAL WORKFLOW (Oracle AME / SAP Style)
+// ============================================
+
+// Approval Rules - Defines conditions for approval routing
+model ApprovalRule {
+  id                String   @id @default(cuid())
+  name              String   // e.g., "PR Approval - High Value"
+  description       String?
+  documentType      String   // "PR", "PO", "INVOICE", "PAYMENT"
+  isActive          Boolean  @default(true)
+  priority          Int      @default(1) // Higher number = higher priority
+
+  // Conditions (JSON for flexibility)
+  conditions        Json     // e.g., {"minAmount": 50000, "maxAmount": null, "departments": ["IT", "HR"]}
+
+  // Routing
+  routings          ApprovalRouting[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String?
+
+  @@index([documentType])
+  @@index([isActive])
+  @@index([priority])
+}
+
+// Approval Routing - Defines approval chain levels
+model ApprovalRouting {
+  id                String        @id @default(cuid())
+  ruleId            String
+  rule              ApprovalRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  level             Int           // Approval sequence: 1, 2, 3...
+  approverRole      UserRole      // Role that can approve at this level
+  raciType          RACIType      @default(ACCOUNTABLE) // RACI designation
+  isOptional        Boolean       @default(false) // Can be skipped?
+  timeoutHours      Int?          // Auto-escalate after X hours
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([ruleId, level])
+  @@index([ruleId])
+  @@index([approverRole])
+}
+
+// Approval Notifications - RACI Informed parties
+model ApprovalNotification {
+  id                String         @id @default(cuid())
+  documentType      String
+  documentId        String
+  approvalId        String?        // Reference to approval that triggered this
+  userId            String
+  raciType          RACIType       @default(INFORMED)
+  notificationType  NotificationType @default(EMAIL)
+  isRead            Boolean        @default(false)
+  sentAt            DateTime?
+  readAt            DateTime?
+
+  createdAt         DateTime       @default(now())
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([isRead])
+}
+
+// Approval Consultation - RACI Consulted parties
+model ApprovalConsultation {
+  id                String                @id @default(cuid())
+  documentType      String
+  documentId        String
+  approvalId        String?
+  consultedUserId   String
+  consultedRole     UserRole?
+  raciType          RACIType              @default(CONSULTED)
+  status            ConsultationStatus    @default(PENDING)
+  comments          String?
+  respondedAt       DateTime?
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([consultedUserId])
+  @@index([documentId])
+  @@index([status])
+}
+
+// Enhanced Approval History
+model ApprovalHistory {
+  id                String         @id @default(cuid())
+  approvalId        String
+  approval          Approval       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  level             Int            // Approval level this action occurred at
+  action            String         // SUBMITTED, APPROVED, REJECTED, DELEGATED, ESCALATED
+  performedBy       String
+  previousStatus    ApprovalStatus?
+  newStatus         ApprovalStatus
+  comments          String?
+  metadata          Json?          // Additional context
+
+  createdAt         DateTime       @default(now())
+
+  @@index([approvalId])
+  @@index([performedBy])
+  @@index([level])
 }
 
 // Enums
@@ -459,6 +746,22 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   ESCALATED
+}
+
+// RACI Matrix Types
+enum RACIType {
+  RESPONSIBLE   // Person who executes the task
+  ACCOUNTABLE   // Person who approves/is ultimately responsible
+  CONSULTED     // Person who provides input before decision
+  INFORMED      // Person who is notified after action
+}
+
+// Consultation Status
+enum ConsultationStatus {
+  PENDING
+  RESPONDED
+  DECLINED
+  EXPIRED
 }
 
 // Service-specific models for proper non-stock/service procurement
