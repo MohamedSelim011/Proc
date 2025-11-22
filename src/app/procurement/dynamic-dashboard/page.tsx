@@ -6,8 +6,10 @@ import {
   ExternalLink,
   RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface MetabaseDashboard {
   id: number;
@@ -64,7 +66,7 @@ function MetabaseIframe({
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mx-auto"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-wujha-primary mx-auto" />
           <p className="text-gray-600 mt-4">Loading dashboard...</p>
         </div>
       </div>
@@ -79,7 +81,7 @@ function MetabaseIframe({
           <p className="text-red-500">{error || 'Failed to load dashboard'}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+            className="mt-4 px-4 py-2 bg-wujha-primary text-white rounded hover:bg-wujha-primary-hover"
           >
             Retry
           </button>
@@ -102,6 +104,7 @@ function MetabaseIframe({
 }
 
 export default function DynamicDashboard() {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [metabaseAvailable, setMetabaseAvailable] = useState(false);
@@ -182,17 +185,17 @@ export default function DynamicDashboard() {
   };
 
   const startMetabase = () => {
-    alert('To start Metabase, run: ./scripts/start-metabase.sh\n\nOr manually run: docker-compose up -d');
+    showToast('info', 'To start Metabase, run: ./scripts/start-metabase.sh\n\nOr manually run: docker-compose up -d');
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg mx-auto mb-4 flex items-center justify-center shadow-sm animate-pulse">
+          <div className="w-16 h-16 bg-wujha-primary rounded-lg mx-auto mb-4 flex items-center justify-center shadow-sm animate-pulse">
             <span className="text-white font-bold text-xl">W</span>
           </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mx-auto"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-wujha-primary mx-auto" />
           <p className="text-gray-600 mt-4">Loading dynamic dashboard...</p>
         </div>
       </div>
@@ -226,7 +229,7 @@ export default function DynamicDashboard() {
           <div className="flex gap-3">
             <button
               onClick={openMetabaseInNewTab}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center gap-2 font-medium transition-all"
+              className="px-4 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:ring-offset-2 flex items-center gap-2 font-medium transition-all"
             >
               <ExternalLink className="w-4 h-4" />
               Edit Dashboard
@@ -245,15 +248,15 @@ export default function DynamicDashboard() {
       {/* Metabase Dashboard */}
       {metabaseAvailable ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
+          <div className="bg-wujha-primary p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold mb-2">Procurement Analytics Dashboard</h2>
-                <p className="text-orange-100">Interactive analytics and insights for your procurement data</p>
+                <p className="text-white/80">Interactive analytics and insights for your procurement data</p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-sm text-orange-100">Connected</span>
+                <span className="text-sm text-white/80">Connected</span>
               </div>
             </div>
           </div>
@@ -275,7 +278,7 @@ export default function DynamicDashboard() {
           <p className="text-gray-600 mb-6">The dynamic dashboard service is currently not available. Please try again later or contact your administrator.</p>
           <button
             onClick={startMetabase}
-            className="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-colors"
+            className="px-6 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover transition-colors"
           >
             Start Metabase Service
           </button>

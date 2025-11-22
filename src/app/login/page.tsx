@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Lock, Mail, ShoppingCart } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -54,6 +54,89 @@ export default function LoginPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50">
+          <AlertDescription className="text-red-800 font-medium">{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {searchParams.get('error') === 'SessionRequired' && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <AlertDescription className="text-blue-800 font-medium">
+            Please sign in to access this page.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {searchParams.get('passwordChanged') === 'true' && (
+        <Alert className="border-green-500 bg-green-50">
+          <AlertDescription className="text-green-800 font-medium">
+            Password changed successfully! Please sign in with your new password.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-gray-700 font-semibold text-sm">
+          Email Address
+        </Label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
+          <Input
+            id="email"
+            type="email"
+            placeholder="your.email@wujha.om"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+            required
+            disabled={isLoading}
+            autoComplete="email"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-gray-700 font-semibold text-sm">
+          Password
+        </Label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+            required
+            disabled={isLoading}
+            autoComplete="current-password"
+          />
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-base shadow-lg shadow-blue-500/30"
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          'Sign In'
+        )}
+      </Button>
+    </form>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
       <div className="w-full max-w-md">
         <Card className="border-0 shadow-2xl">
@@ -67,84 +150,9 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-8 pb-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <Alert variant="destructive" className="border-red-200 bg-red-50">
-                  <AlertDescription className="text-red-800 font-medium">{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {searchParams.get('error') === 'SessionRequired' && (
-                <Alert className="border-blue-200 bg-blue-50">
-                  <AlertDescription className="text-blue-800 font-medium">
-                    Please sign in to access this page.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {searchParams.get('passwordChanged') === 'true' && (
-                <Alert className="border-green-500 bg-green-50">
-                  <AlertDescription className="text-green-800 font-medium">
-                    Password changed successfully! Please sign in with your new password.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-semibold text-sm">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your.email@wujha.om"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                    required
-                    disabled={isLoading}
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700 font-semibold text-sm">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                    required
-                    disabled={isLoading}
-                    autoComplete="current-password"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-base shadow-lg shadow-blue-500/30"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
+            <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+              <LoginForm />
+            </Suspense>
 
             <div className="mt-8 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-gray-600 font-medium mb-2">Default admin credentials:</p>

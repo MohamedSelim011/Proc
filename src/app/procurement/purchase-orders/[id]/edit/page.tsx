@@ -15,8 +15,10 @@ import {
   MapPin,
   CreditCard,
   Save,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface Vendor {
   id: string;
@@ -126,6 +128,7 @@ interface POFormData {
 function EditPurchaseOrderContent() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const poId = params.id as string;
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -296,14 +299,15 @@ function EditPurchaseOrderContent() {
       });
 
       if (response.ok) {
+        showToast('success', 'Purchase order updated successfully');
         router.push(`/procurement/purchase-orders/${poId}`);
       } else {
         const error = await response.json();
-        alert(`Failed to update purchase order: ${error.error}`);
+        showToast('error', `Failed to update purchase order: ${error.error}`);
       }
     } catch (error) {
       console.error('Error updating purchase order:', error);
-      alert('Failed to update purchase order');
+      showToast('error', 'Failed to update purchase order');
     } finally {
       setSaving(false);
     }
@@ -354,7 +358,7 @@ function EditPurchaseOrderContent() {
         <div className="mt-6">
           <button
             onClick={() => router.push('/procurement/purchase-orders')}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             Back to Purchase Orders
           </button>
@@ -500,7 +504,7 @@ function EditPurchaseOrderContent() {
                     <input
                       type="text"
                       placeholder="Search vendors..."
-                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={searchVendor}
                       onChange={(e) => setSearchVendor(e.target.value)}
                     />
@@ -555,7 +559,7 @@ function EditPurchaseOrderContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                       errors.deliveryDate ? 'border-red-300' : ''
                     }`}
                     value={formData.deliveryDate}
@@ -572,7 +576,7 @@ function EditPurchaseOrderContent() {
                     Currency
                   </label>
                   <select
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
@@ -596,7 +600,7 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                         errors.building ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.building}
@@ -617,7 +621,7 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                         errors.street ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.street}
@@ -638,7 +642,7 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={formData.deliveryAddress.city}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -652,7 +656,7 @@ function EditPurchaseOrderContent() {
                       Governorate
                     </label>
                     <select
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={formData.deliveryAddress.governorate}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -679,7 +683,7 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                         errors.postalCode ? 'border-red-300' : ''
                       }`}
                       value={formData.deliveryAddress.postalCode}
@@ -700,7 +704,7 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={formData.deliveryAddress.country}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -718,7 +722,7 @@ function EditPurchaseOrderContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
                   value={formData.paymentTerms}
@@ -807,7 +811,7 @@ function EditPurchaseOrderContent() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`pl-12 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                                className={`pl-12 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-sm ${
                                   errors[`item_${index}_price`] ? 'border-red-300' : ''
                                 }`}
                                 value={poItem?.unitPrice || 0}
@@ -854,7 +858,7 @@ function EditPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                     value={formData.specialConditions || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialConditions: e.target.value }))}
                     placeholder="Any special conditions or requirements..."
@@ -867,7 +871,7 @@ function EditPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                     value={formData.warrantyRequirements || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, warrantyRequirements: e.target.value }))}
                     placeholder="Warranty terms and requirements..."
@@ -880,7 +884,7 @@ function EditPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                     value={formData.qualityStandards || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                     placeholder="Quality standards and inspection requirements..."
@@ -936,7 +940,7 @@ function EditPurchaseOrderContent() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -946,7 +950,7 @@ function EditPurchaseOrderContent() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="h-4 w-4 mr-2" />
               {saving ? 'Saving...' : 'Save Changes'}

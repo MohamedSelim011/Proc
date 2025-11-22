@@ -19,6 +19,7 @@ import {
   Banknote
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface ServicePayment {
   id: string;
@@ -75,6 +76,7 @@ interface PaymentBatch {
 }
 
 export default function ServicePaymentsPage() {
+  const { showToast } = useToast();
   const [payments, setPayments] = useState<ServicePayment[]>([]);
   const [paymentBatches, setPaymentBatches] = useState<PaymentBatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -351,15 +353,14 @@ export default function ServicePaymentsPage() {
       });
 
       if (response.ok) {
-        alert('Payment processed successfully!');
+        showToast('success', 'Payment processed successfully!');
         fetchServicePayments();
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.error || 'Failed to process payment'}`);
+        showToast('error', errorData.error || 'Failed to process payment. Please try again.');
       }
     } catch (error) {
-      console.error('Error processing individual payment:', error);
-      alert('Error processing payment');
+      showToast('error', 'An error occurred while processing the payment. Please try again.');
     }
   };
 

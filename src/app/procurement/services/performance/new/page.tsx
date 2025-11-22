@@ -15,6 +15,7 @@ import {
   Target,
   DollarSign
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceContract {
   id: string;
@@ -55,6 +56,7 @@ interface PerformanceFormData {
 
 function NewPerformanceReportContent() {
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const contractId = searchParams.get('contractId');
 
@@ -229,13 +231,14 @@ function NewPerformanceReportContent() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Performance report created successfully!');
+        showToast('success', 'Performance report created successfully!');
         router.push('/procurement/services/performance');
       } else {
+        showToast('error', data.error || 'Failed to create performance report.');
         setErrors({ submit: data.error || 'Failed to create performance report' });
       }
     } catch (error) {
-      console.error('Error creating performance report:', error);
+      showToast('error', 'An error occurred while creating the performance report. Please try again.');
       setErrors({ submit: 'Failed to create performance report. Please try again.' });
     } finally {
       setLoading(false);
@@ -285,7 +288,7 @@ function NewPerformanceReportContent() {
                 value={formData.contractId}
                 onChange={(e) => handleContractChange(e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.contractId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.contractId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
               >
                 <option value="">Select a service contract</option>
@@ -332,7 +335,7 @@ function NewPerformanceReportContent() {
               <select
                 value={formData.evaluationPeriod}
                 onChange={(e) => handleInputChange('evaluationPeriod', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
               >
                 <option value="Weekly">Weekly</option>
                 <option value="Monthly">Monthly</option>
@@ -354,7 +357,7 @@ function NewPerformanceReportContent() {
                 value={formData.startDate}
                 onChange={(e) => handleInputChange('startDate', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.startDate ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.startDate ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
               />
               {errors.startDate && (
@@ -371,7 +374,7 @@ function NewPerformanceReportContent() {
                 value={formData.endDate}
                 onChange={(e) => handleInputChange('endDate', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.endDate ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.endDate ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
               />
               {errors.endDate && (
@@ -401,7 +404,7 @@ function NewPerformanceReportContent() {
                 value={formData.qualityScore}
                 onChange={(e) => handleInputChange('qualityScore', parseFloat(e.target.value) || 0)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.qualityScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.qualityScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
                 placeholder="0-100"
               />
@@ -423,7 +426,7 @@ function NewPerformanceReportContent() {
                 value={formData.timelinessScore}
                 onChange={(e) => handleInputChange('timelinessScore', parseFloat(e.target.value) || 0)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.timelinessScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.timelinessScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
                 placeholder="0-100"
               />
@@ -445,7 +448,7 @@ function NewPerformanceReportContent() {
                 value={formData.complianceScore}
                 onChange={(e) => handleInputChange('complianceScore', parseFloat(e.target.value) || 0)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.complianceScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  errors.complianceScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
                 placeholder="0-100"
               />
@@ -489,7 +492,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.kpiMetrics.deliveryAccuracy || 0}
                 onChange={(e) => handleKPIChange('deliveryAccuracy', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -505,7 +508,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.kpiMetrics.responseTime || 0}
                 onChange={(e) => handleKPIChange('responseTime', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -521,7 +524,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.kpiMetrics.customerSatisfaction || 0}
                 onChange={(e) => handleKPIChange('customerSatisfaction', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -537,7 +540,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.kpiMetrics.defectRate || 0}
                 onChange={(e) => handleKPIChange('defectRate', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -563,7 +566,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.slaCompliance.availability || 0}
                 onChange={(e) => handleSLAChange('availability', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -579,7 +582,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.slaCompliance.responseTime || 0}
                 onChange={(e) => handleSLAChange('responseTime', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -595,7 +598,7 @@ function NewPerformanceReportContent() {
                 step="0.1"
                 value={formData.slaCompliance.resolutionTime || 0}
                 onChange={(e) => handleSLAChange('resolutionTime', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0-100"
               />
             </div>
@@ -620,7 +623,7 @@ function NewPerformanceReportContent() {
                 step="0.001"
                 value={formData.penalties}
                 onChange={(e) => handleInputChange('penalties', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0.000"
               />
               <p className="mt-1 text-xs text-gray-500">Financial penalties for non-compliance</p>
@@ -636,7 +639,7 @@ function NewPerformanceReportContent() {
                 step="0.001"
                 value={formData.bonuses}
                 onChange={(e) => handleInputChange('bonuses', parseFloat(e.target.value) || 0)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0.000"
               />
               <p className="mt-1 text-xs text-gray-500">Performance bonuses for exceeding targets</p>
@@ -658,7 +661,7 @@ function NewPerformanceReportContent() {
               rows={4}
               value={formData.comments}
               onChange={(e) => handleInputChange('comments', e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
               placeholder="Enter detailed comments about the service performance, issues encountered, recommendations, etc."
             />
           </div>
@@ -675,7 +678,7 @@ function NewPerformanceReportContent() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Creating...' : 'Create Performance Report'}

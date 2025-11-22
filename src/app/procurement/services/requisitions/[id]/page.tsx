@@ -17,6 +17,7 @@ import {
   Settings,
   DollarSign
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceRequisition {
   id: string;
@@ -80,6 +81,7 @@ const priorityColors = {
 export default function ServiceRequisitionDetail() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [sr, setSr] = useState<ServiceRequisition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -116,15 +118,15 @@ export default function ServiceRequisitionDetail() {
 
       if (response.ok) {
         // Refresh the data to show updated status
+        showToast('success', 'Requisition submitted successfully!');
         fetchServiceRequisition();
-        alert('Requisition submitted successfully!');
       } else {
         const errorData = await response.json();
-        alert(`Failed to submit: ${errorData.error || 'Unknown error'}`);
+        showToast('error', `Failed to submit: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error submitting requisition:', error);
-      alert('Failed to submit requisition');
+      showToast('error', 'Failed to submit requisition');
     }
   };
 

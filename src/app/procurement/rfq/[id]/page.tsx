@@ -17,9 +17,11 @@ import {
   Award,
   Star,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface RFQ {
   id: string;
@@ -71,6 +73,7 @@ interface RFQ {
 export default function RFQDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [rfq, setRfq] = useState<RFQ | null>(null);
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
@@ -110,15 +113,16 @@ export default function RFQDetailPage() {
       });
 
       if (response.ok) {
+        showToast('success', `RFQ status updated to ${newStatus}`);
         fetchRFQ(params.id as string);
       } else {
         const errorData = await response.json();
         console.error('Failed to update status:', errorData.error);
-        alert(`Failed to update status: ${errorData.error}`);
+        showToast('error', `Failed to update status: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Failed to update status');
+      showToast('error', 'Failed to update status');
     } finally {
       setEvaluating(false);
     }
@@ -149,7 +153,7 @@ export default function RFQDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-wujha-primary" />
       </div>
     );
   }
@@ -165,7 +169,7 @@ export default function RFQDetailPage() {
         <div className="mt-6">
           <Link
             href="/procurement/rfq"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             Back to RFQs
           </Link>
@@ -318,8 +322,8 @@ export default function RFQDetailPage() {
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Calendar className="h-6 w-6 text-orange-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <Calendar className="h-6 w-6 text-wujha-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Closing Date</p>

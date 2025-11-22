@@ -19,9 +19,11 @@ import {
   MapPin,
   User,
   CreditCard,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface PurchaseOrder {
   id: string;
@@ -103,6 +105,7 @@ interface PurchaseOrder {
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
@@ -160,15 +163,16 @@ export default function PurchaseOrderDetailPage() {
 
       if (response.ok) {
         // Refresh PO data
+        showToast('success', `Status updated to ${pendingStatus}`);
         await fetchPurchaseOrder(po.id);
         setShowStatusDialog(false);
       } else {
         const error = await response.json();
-        alert(`Failed to update status: ${error.error}`);
+        showToast('error', `Failed to update status: ${error.error}`);
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Failed to update status');
+      showToast('error', 'Failed to update status');
     } finally {
       setUpdatingStatus(false);
     }
@@ -199,7 +203,7 @@ export default function PurchaseOrderDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-wujha-primary" />
       </div>
     );
   }
@@ -215,7 +219,7 @@ export default function PurchaseOrderDetailPage() {
         <div className="mt-6">
           <Link
             href="/procurement/purchase-orders"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             Back to Purchase Orders
           </Link>
@@ -235,7 +239,7 @@ export default function PurchaseOrderDetailPage() {
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(po.status)}`}>
                 {po.status}
               </span>
-              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-wujha-info/10 text-wujha-info">
                 {po.itemType}
               </span>
             </div>
@@ -280,7 +284,7 @@ export default function PurchaseOrderDetailPage() {
                   </button>
                   <button 
                     onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                    className="px-4 py-2 text-sm font-medium text-wujha-info bg-wujha-info/10 rounded-lg hover:bg-wujha-info/20"
                   >
                     <Edit className="h-4 w-4 inline mr-1" />
                     Edit
@@ -292,7 +296,7 @@ export default function PurchaseOrderDetailPage() {
                   <button 
                     onClick={() => handleStatusUpdate('SENT')}
                     disabled={updatingStatus}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium text-wujha-info bg-wujha-info/10 rounded-lg hover:bg-wujha-info/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Mail className="h-4 w-4 inline mr-1" />
                     {updatingStatus ? 'Sending...' : 'Send to Vendor'}
@@ -341,7 +345,7 @@ export default function PurchaseOrderDetailPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`${
                   activeTab === tab.id
-                    ? 'border-orange-500 text-orange-600'
+                    ? 'border-wujha-primary text-wujha-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >
@@ -436,7 +440,7 @@ export default function PurchaseOrderDetailPage() {
                             isCompleted 
                               ? 'bg-green-500 border-green-500 text-white' 
                               : isCurrent
-                              ? 'bg-orange-500 border-orange-500 text-white'
+                              ? 'bg-wujha-primary border-wujha-primary text-white'
                               : 'bg-gray-100 border-gray-300 text-gray-400'
                           }`}>
                             {isCompleted || isCurrent ? (
@@ -447,12 +451,12 @@ export default function PurchaseOrderDetailPage() {
                           </div>
                           <div className="flex-1">
                             <div className={`text-sm font-medium ${
-                              isCompleted ? 'text-green-700' : isCurrent ? 'text-orange-700' : 'text-gray-500'
+                              isCompleted ? 'text-green-700' : isCurrent ? 'text-wujha-primary' : 'text-gray-500'
                             }`}>
                               {step.label}
                             </div>
                             {isCurrent && (
-                              <div className="text-xs text-orange-600">Current Step</div>
+                              <div className="text-xs text-wujha-primary">Current Step</div>
                             )}
                           </div>
                         </div>
@@ -512,7 +516,7 @@ export default function PurchaseOrderDetailPage() {
                       </div>
                       <Link
                         href={`/procurement/requisitions/${po.pr.id}`}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-wujha-info hover:text-wujha-info/80"
                       >
                         <FileText className="h-4 w-4" />
                       </Link>
@@ -595,7 +599,7 @@ export default function PurchaseOrderDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center">
-                      <Package className="h-8 w-8 text-blue-600" />
+                      <Package className="h-8 w-8 text-wujha-info" />
                       <div className="ml-3">
                         <p className="text-sm font-medium text-blue-900">Ordered</p>
                         <p className="text-2xl font-bold text-blue-900">{po.deliveryStats.totalOrdered}</p>
@@ -691,7 +695,7 @@ export default function PurchaseOrderDetailPage() {
                           <div className="mt-2">
                             <Link
                               href={`/procurement/invoices/${invoice.id}`}
-                              className="text-orange-600 hover:text-orange-800 text-sm"
+                              className="text-wujha-primary hover:text-wujha-primary-hover text-sm"
                             >
                               View Invoice
                             </Link>
@@ -765,7 +769,7 @@ export default function PurchaseOrderDetailPage() {
           <textarea
             value={statusComments}
             onChange={(e) => setStatusComments(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-transparent"
             rows={3}
             placeholder="Add any comments about this status change..."
           />
@@ -781,7 +785,7 @@ export default function PurchaseOrderDetailPage() {
           <button
             onClick={confirmStatusUpdate}
             disabled={updatingStatus}
-            className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-md hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {updatingStatus ? 'Updating...' : 'Confirm'}
           </button>

@@ -11,9 +11,11 @@ import {
   Plus,
   Trash2,
   Save,
-  Send
+  Send,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface PurchaseRequisition {
   id: string;
@@ -61,6 +63,7 @@ interface RFQFormData {
 
 export default function NewRFQPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [prs, setPrs] = useState<PurchaseRequisition[]>([]);
@@ -138,17 +141,17 @@ export default function NewRFQPage() {
     e.preventDefault();
     
     if (dataLoading) {
-      alert('Please wait for data to load');
+      showToast('warning', 'Please wait for data to load');
       return;
     }
     
     if (!formData.prId || !formData.title || !formData.closingDate) {
-      alert('Please fill in all required fields');
+      showToast('error', 'Please fill in all required fields');
       return;
     }
 
     if (formData.selectedVendors.length === 0) {
-      alert('Please select at least one vendor');
+      showToast('error', 'Please select at least one vendor');
       return;
     }
 
@@ -176,14 +179,15 @@ export default function NewRFQPage() {
 
       if (response.ok) {
         const result = await response.json();
+        showToast('success', 'RFQ created successfully');
         router.push(`/procurement/rfq/${result.id}`);
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create RFQ');
+        showToast('error', error.error || 'Failed to create RFQ');
       }
     } catch (error) {
       console.error('Error creating RFQ:', error);
-      alert('Failed to create RFQ');
+      showToast('error', 'Failed to create RFQ');
     } finally {
       setLoading(false);
     }
@@ -208,10 +212,10 @@ export default function NewRFQPage() {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Loading Indicator */}
         {dataLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-wujha-info/10 border border-wujha-info/20 rounded-lg p-4">
             <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              <span className="text-sm text-blue-800">Loading purchase requisitions and vendors...</span>
+              <Loader2 className="h-4 w-4 animate-spin text-wujha-info mr-2" />
+              <span className="text-sm text-wujha-info">Loading purchase requisitions and vendors...</span>
             </div>
           </div>
         )}
@@ -229,7 +233,7 @@ export default function NewRFQPage() {
                 Purchase Requisition *
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.prId}
                 onChange={(e) => handlePRSelect(e.target.value)}
                 required
@@ -286,7 +290,7 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 required
@@ -299,7 +303,7 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="datetime-local"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.closingDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, closingDate: e.target.value }))}
                 required
@@ -312,7 +316,7 @@ export default function NewRFQPage() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
@@ -333,7 +337,7 @@ export default function NewRFQPage() {
                 key={vendor.id}
                 className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
                   formData.selectedVendors.find(v => v.id === vendor.id)
-                    ? 'border-orange-500 bg-orange-50'
+                    ? 'border-wujha-primary bg-wujha-primary/10'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
                 onClick={() => handleVendorToggle(vendor)}
@@ -343,7 +347,7 @@ export default function NewRFQPage() {
                     type="checkbox"
                     checked={formData.selectedVendors.find(v => v.id === vendor.id) !== undefined}
                     onChange={() => {}}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                   />
                   <div>
                     <h3 className="font-medium text-gray-900">{vendor.nameEn}</h3>
@@ -378,7 +382,7 @@ export default function NewRFQPage() {
                   type="number"
                   min="0"
                   max="100"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={value}
                   onChange={(e) => {
                     const newValue = parseInt(e.target.value) || 0;
@@ -411,7 +415,7 @@ export default function NewRFQPage() {
           
           <textarea
             rows={6}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
             placeholder="Enter terms and conditions for the RFQ..."
             value={formData.termsAndConditions}
             onChange={(e) => setFormData(prev => ({ ...prev, termsAndConditions: e.target.value }))}
@@ -430,10 +434,10 @@ export default function NewRFQPage() {
           <button
             type="submit"
             disabled={loading || dataLoading}
-            className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center space-x-2"
+            className="px-6 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover disabled:opacity-50 flex items-center space-x-2"
           >
             {loading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Save className="h-4 w-4" />
             )}

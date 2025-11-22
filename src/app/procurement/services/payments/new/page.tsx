@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, CreditCard, Calendar, Building, FileText, DollarSign } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface Invoice {
   id: string;
@@ -22,6 +23,7 @@ interface Invoice {
 
 export default function NewServicePaymentPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -156,15 +158,14 @@ export default function NewServicePaymentPage() {
       });
 
       if (response.ok) {
-        alert('Payment processed successfully!');
+        showToast('success', 'Payment processed successfully!');
         router.push('/procurement/services/payments');
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.error || 'Failed to process payment'}`);
+        showToast('error', errorData.error || 'Failed to process payment. Please try again.');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
-      alert('Error processing payment');
+      showToast('error', 'An error occurred while processing the payment. Please try again.');
     } finally {
       setSubmitting(false);
     }

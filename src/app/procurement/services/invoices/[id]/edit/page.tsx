@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface InvoiceFormData {
   invoiceNumber: string;
@@ -23,6 +24,7 @@ interface InvoiceFormData {
 
 export default function EditServiceInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [invoiceId, setInvoiceId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -77,12 +79,11 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
           paymentTerms: data.paymentTerms || ''
         });
       } else {
-        alert('Failed to fetch invoice');
+        showToast('error', 'Failed to fetch invoice. Redirecting...');
         router.push('/procurement/services/invoices');
       }
     } catch (error) {
-      console.error('Error fetching invoice:', error);
-      alert('Error fetching invoice');
+      showToast('error', 'An error occurred while fetching the invoice.');
     } finally {
       setLoading(false);
     }
@@ -145,15 +146,14 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
       });
 
       if (response.ok) {
-        alert('Invoice updated successfully!');
+        showToast('success', 'Invoice updated successfully!');
         router.push(`/procurement/services/invoices/${invoiceId}`);
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.error || 'Failed to update invoice'}`);
+        showToast('error', errorData.error || 'Failed to update invoice. Please try again.');
       }
     } catch (error) {
-      console.error('Error updating invoice:', error);
-      alert('Error updating invoice');
+      showToast('error', 'An error occurred while updating the invoice. Please try again.');
     } finally {
       setSubmitting(false);
     }

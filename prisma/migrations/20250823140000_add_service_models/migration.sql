@@ -174,11 +174,26 @@ CREATE UNIQUE INDEX "ServiceReceipt_srnNumber_key" ON "ServiceReceipt"("srnNumbe
 
 -- Add foreign key constraints
 ALTER TABLE "ServiceItem" ADD CONSTRAINT "ServiceItem_serviceCategoryId_fkey" FOREIGN KEY ("serviceCategoryId") REFERENCES "ServiceCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "ServicePR" ADD CONSTRAINT "ServicePR_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PurchaseRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Note: PurchaseRequisition and Vendor tables should exist before these foreign keys are created
+-- If they don't exist, you'll need to create them first or remove these constraints temporarily
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PurchaseRequisition') THEN
+        ALTER TABLE "ServicePR" ADD CONSTRAINT "ServicePR_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PurchaseRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PurchaseRequisition') THEN
+        ALTER TABLE "ServiceContract" ADD CONSTRAINT "ServiceContract_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PurchaseRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Vendor') THEN
+        ALTER TABLE "ServiceContract" ADD CONSTRAINT "ServiceContract_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
 ALTER TABLE "ServicePRItem" ADD CONSTRAINT "ServicePRItem_servicePRId_fkey" FOREIGN KEY ("servicePRId") REFERENCES "ServicePR"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ServicePRItem" ADD CONSTRAINT "ServicePRItem_serviceItemId_fkey" FOREIGN KEY ("serviceItemId") REFERENCES "ServiceItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "ServiceContract" ADD CONSTRAINT "ServiceContract_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PurchaseRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "ServiceContract" ADD CONSTRAINT "ServiceContract_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "ServiceMilestone" ADD CONSTRAINT "ServiceMilestone_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "ServiceContract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ServiceReceipt" ADD CONSTRAINT "ServiceReceipt_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "ServiceContract"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "ServiceReceipt" ADD CONSTRAINT "ServiceReceipt_milestoneId_fkey" FOREIGN KEY ("milestoneId") REFERENCES "ServiceMilestone"("id") ON DELETE SET NULL ON UPDATE CASCADE;

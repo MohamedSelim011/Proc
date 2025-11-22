@@ -14,6 +14,7 @@ import {
   Save,
   RefreshCw
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface SystemSettings {
   companyName: string;
@@ -33,6 +34,7 @@ interface SystemSettings {
 }
 
 export default function SettingsPage() {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -58,17 +60,16 @@ export default function SettingsPage() {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('Settings saved successfully!');
+      showToast('success', 'Settings saved successfully!');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Error saving settings. Please try again.');
+      showToast('error', 'Error saving settings. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to reset all settings to default?')) {
+    if (window.confirm('Are you sure you want to reset all settings to default?')) {
       setSettings({
         companyName: 'WUJHA HR',
         companyEmail: 'procurement@wujha.com',

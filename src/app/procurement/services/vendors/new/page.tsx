@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface VendorFormData {
   vendorCode: string;
@@ -39,6 +40,7 @@ interface VendorFormData {
 
 export default function NewVendorPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -153,13 +155,14 @@ export default function NewVendorPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Vendor created successfully!');
+        showToast('success', 'Vendor created successfully!');
         router.push('/procurement/services/vendors');
       } else {
+        showToast('error', data.error || 'Failed to create vendor.');
         setErrors({ submit: data.error || 'Failed to create vendor' });
       }
     } catch (error) {
-      console.error('Error creating vendor:', error);
+      showToast('error', 'An error occurred while creating the vendor. Please try again.');
       setErrors({ submit: 'Failed to create vendor. Please try again.' });
     } finally {
       setLoading(false);
@@ -207,8 +210,8 @@ export default function NewVendorPage() {
                   value={formData.vendorCode}
                   onChange={(e) => handleInputChange('vendorCode', e.target.value)}
                   className={`block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                    errors.vendorCode ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } text-gray-900 bg-white`}
+                    errors.vendorCode ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                  } text-gray-900 bg-white transition-colors`}
                   placeholder="e.g., VEN-001"
                 />
               </div>
@@ -224,7 +227,7 @@ export default function NewVendorPage() {
               <select
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
@@ -241,8 +244,8 @@ export default function NewVendorPage() {
                 value={formData.nameEn}
                 onChange={(e) => handleInputChange('nameEn', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.nameEn ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.nameEn ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="Enter vendor name in English"
               />
               {errors.nameEn && (
@@ -259,8 +262,8 @@ export default function NewVendorPage() {
                 value={formData.nameAr}
                 onChange={(e) => handleInputChange('nameAr', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.nameAr ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.nameAr ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="أدخل اسم المورد بالعربية"
                 dir="rtl"
               />
@@ -282,8 +285,8 @@ export default function NewVendorPage() {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className={`block w-full pl-10 rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                    errors.email ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } text-gray-900 bg-white`}
+                    errors.email ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                  } text-gray-900 bg-white transition-colors`}
                   placeholder="vendor@example.com"
                 />
               </div>
@@ -305,8 +308,8 @@ export default function NewVendorPage() {
                   value={formData.mobile}
                   onChange={(e) => handleInputChange('mobile', e.target.value)}
                   className={`block w-full pl-10 rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                    errors.mobile ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } text-gray-900 bg-white`}
+                    errors.mobile ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                  } text-gray-900 bg-white transition-colors`}
                   placeholder="+968 XXXX XXXX"
                 />
               </div>
@@ -327,7 +330,7 @@ export default function NewVendorPage() {
                   type="tel"
                   value={formData.alternativePhone || ''}
                   onChange={(e) => handleInputChange('alternativePhone', e.target.value)}
-                  className="block w-full pl-10 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                  className="block w-full pl-10 rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary sm:text-sm px-3 py-2 text-gray-900 bg-white transition-colors"
                   placeholder="+968 XXXX XXXX"
                 />
               </div>
@@ -341,7 +344,7 @@ export default function NewVendorPage() {
                 type="url"
                 value={formData.website || ''}
                 onChange={(e) => handleInputChange('website', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="https://www.example.com"
               />
             </div>
@@ -364,8 +367,8 @@ export default function NewVendorPage() {
                 value={formData.taxId}
                 onChange={(e) => handleInputChange('taxId', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.taxId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.taxId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="Enter tax identification number"
               />
               {errors.taxId && (
@@ -381,7 +384,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.vatNumber || ''}
                 onChange={(e) => handleInputChange('vatNumber', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Enter VAT number"
               />
             </div>
@@ -395,8 +398,8 @@ export default function NewVendorPage() {
                 value={formData.crNumber}
                 onChange={(e) => handleInputChange('crNumber', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.crNumber ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.crNumber ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="Enter CR number"
               />
               {errors.crNumber && (
@@ -412,8 +415,8 @@ export default function NewVendorPage() {
                 value={formData.businessType}
                 onChange={(e) => handleInputChange('businessType', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.businessType ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.businessType ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
               >
                 <option value="">Select business type</option>
                 <option value="SOLE_PROPRIETORSHIP">Sole Proprietorship</option>
@@ -439,8 +442,8 @@ export default function NewVendorPage() {
                 value={formData.yearEstablished}
                 onChange={(e) => handleInputChange('yearEstablished', parseInt(e.target.value) || 0)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.yearEstablished ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.yearEstablished ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="e.g., 2010"
               />
               {errors.yearEstablished && (
@@ -458,8 +461,8 @@ export default function NewVendorPage() {
                 value={formData.numberOfEmployees}
                 onChange={(e) => handleInputChange('numberOfEmployees', parseInt(e.target.value) || 0)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.numberOfEmployees ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.numberOfEmployees ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="e.g., 50"
               />
               {errors.numberOfEmployees && (
@@ -478,7 +481,7 @@ export default function NewVendorPage() {
                 step="0.1"
                 value={formData.omanizationPercentage || ''}
                 onChange={(e) => handleInputChange('omanizationPercentage', parseFloat(e.target.value) || undefined)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="e.g., 15.5"
               />
             </div>
@@ -500,7 +503,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.building || ''}
                 onChange={(e) => handleAddressChange('building', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Building number"
               />
             </div>
@@ -513,7 +516,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.street || ''}
                 onChange={(e) => handleAddressChange('street', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Street name"
               />
             </div>
@@ -526,7 +529,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.city || ''}
                 onChange={(e) => handleAddressChange('city', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="City"
               />
             </div>
@@ -539,7 +542,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.governorate || ''}
                 onChange={(e) => handleAddressChange('governorate', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Governorate"
               />
             </div>
@@ -552,7 +555,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.postalCode || ''}
                 onChange={(e) => handleAddressChange('postalCode', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Postal code"
               />
             </div>
@@ -565,7 +568,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.address.country || ''}
                 onChange={(e) => handleAddressChange('country', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Country"
               />
             </div>
@@ -587,7 +590,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.bankName || ''}
                 onChange={(e) => handleInputChange('bankName', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Bank name"
               />
             </div>
@@ -600,7 +603,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.bankAccount || ''}
                 onChange={(e) => handleInputChange('bankAccount', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="Account number"
               />
             </div>
@@ -613,7 +616,7 @@ export default function NewVendorPage() {
                 type="text"
                 value={formData.iban || ''}
                 onChange={(e) => handleInputChange('iban', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="OM XX XXXX XXXXXXXXXXXX"
               />
             </div>
@@ -635,8 +638,8 @@ export default function NewVendorPage() {
                 value={formData.primaryContactName}
                 onChange={(e) => handleInputChange('primaryContactName', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.primaryContactName ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                } text-gray-900 bg-white`}
+                  errors.primaryContactName ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
+                } text-gray-900 bg-white transition-colors`}
                 placeholder="Full name"
               />
               {errors.primaryContactName && (
@@ -652,7 +655,7 @@ export default function NewVendorPage() {
                 type="email"
                 value={formData.contactEmail || ''}
                 onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="contact@example.com"
               />
             </div>
@@ -665,7 +668,7 @@ export default function NewVendorPage() {
                 type="tel"
                 value={formData.contactPhone || ''}
                 onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="+968 XXXX XXXX"
               />
             </div>
@@ -683,7 +686,7 @@ export default function NewVendorPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Creating...' : 'Create Vendor'}

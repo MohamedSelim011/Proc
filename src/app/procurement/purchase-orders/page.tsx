@@ -15,8 +15,10 @@ import {
   XCircle,
   Truck,
   AlertTriangle,
-  Package
+  Package,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface PurchaseOrder {
   id: string;
@@ -63,6 +65,7 @@ interface PaginationInfo {
 }
 
 export default function PurchaseOrdersPage() {
+  const { showToast } = useToast();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -101,10 +104,10 @@ export default function PurchaseOrdersPage() {
         setOrders(data.orders || []);
         setPagination(data.pagination);
       } else {
-        console.error('Error fetching purchase orders:', data.error);
+        showToast('error', 'Failed to load purchase orders. Please try again.');
       }
     } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      showToast('error', 'An error occurred while loading purchase orders.');
     } finally {
       setLoading(false);
     }
@@ -189,7 +192,7 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleQuickApprove = async (poId: string) => {
-    if (confirm('Are you sure you want to approve this purchase order?')) {
+    if (window.confirm('Are you sure you want to approve this purchase order?')) {
       try {
         const response = await fetch(`/api/purchase-orders/${poId}/status`, {
           method: 'PUT',
@@ -206,19 +209,19 @@ export default function PurchaseOrdersPage() {
         if (response.ok) {
           // Refresh the orders list
           fetchOrders();
+          showToast('success', 'Purchase order approved successfully!');
         } else {
           const error = await response.json();
-          alert(`Failed to approve PO: ${error.error}`);
+          showToast('error', error.error || 'Failed to approve purchase order.');
         }
       } catch (error) {
-        console.error('Error approving PO:', error);
-        alert('Failed to approve purchase order');
+        showToast('error', 'An error occurred while approving the purchase order.');
       }
     }
   };
 
   const handleQuickReject = async (poId: string) => {
-    if (confirm('Are you sure you want to reject this purchase order?')) {
+    if (window.confirm('Are you sure you want to reject this purchase order?')) {
       try {
         const response = await fetch(`/api/purchase-orders/${poId}/status`, {
           method: 'PUT',
@@ -235,13 +238,13 @@ export default function PurchaseOrdersPage() {
         if (response.ok) {
           // Refresh the orders list
           fetchOrders();
+          showToast('success', 'Purchase order rejected successfully!');
         } else {
           const error = await response.json();
-          alert(`Failed to reject PO: ${error.error}`);
+          showToast('error', error.error || 'Failed to reject purchase order.');
         }
       } catch (error) {
-        console.error('Error rejecting PO:', error);
-        alert('Failed to reject purchase order');
+        showToast('error', 'An error occurred while rejecting the purchase order.');
       }
     }
   };
@@ -259,7 +262,7 @@ export default function PurchaseOrdersPage() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <Link
             href="/procurement/purchase-orders/new"
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Purchase Order
@@ -376,7 +379,7 @@ export default function PurchaseOrdersPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleFilterChange('status', 'DRAFT')}
-                className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                className="inline-flex items-center px-3 py-2 border border-wujha-primary shadow-sm text-sm leading-4 font-medium rounded-md text-wujha-primary bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
               >
                 View All Draft POs
               </button>
@@ -389,20 +392,20 @@ export default function PurchaseOrdersPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <input
-              type="text"
-              placeholder="Search POs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
+              <input
+                type="text"
+                placeholder="Search POs..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
           </div>
           <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+              >
               <option value="">All Statuses</option>
               <option value="DRAFT">Draft</option>
               <option value="APPROVED">Approved</option>
@@ -414,13 +417,13 @@ export default function PurchaseOrdersPage() {
             </select>
           </div>
           <div>
-            <input
-              type="text"
-              placeholder="Vendor ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              value={filters.vendorId}
-              onChange={(e) => handleFilterChange('vendorId', e.target.value)}
-            />
+              <input
+                type="text"
+                placeholder="Vendor ID"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+                value={filters.vendorId}
+                onChange={(e) => handleFilterChange('vendorId', e.target.value)}
+              />
           </div>
           <div>
             <button
@@ -440,7 +443,7 @@ export default function PurchaseOrdersPage() {
             <h3 className="text-lg font-medium text-gray-900">
               Purchase Orders ({pagination.total})
             </h3>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary">
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>
@@ -448,12 +451,9 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {loading ? (
-          <div className="p-6">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
+          <div className="p-12 flex flex-col items-center justify-center text-gray-500">
+            <Loader2 className="w-8 h-8 animate-spin text-wujha-primary mb-4" />
+            <p>Loading purchase orders...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -559,7 +559,7 @@ export default function PurchaseOrdersPage() {
                         <div className="flex items-center justify-end space-x-2">
                           <Link
                             href={`/procurement/purchase-orders/${po.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-wujha-primary hover:text-wujha-primary-hover"
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
@@ -659,7 +659,7 @@ export default function PurchaseOrdersPage() {
                         onClick={() => handlePageChange(page)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           page === pagination.page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            ? 'z-10 bg-orange-50 border-wujha-primary text-wujha-primary'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                         }`}
                       >

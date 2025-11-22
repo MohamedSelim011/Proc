@@ -17,8 +17,10 @@ import {
   AlertTriangle,
   DollarSign,
   CreditCard,
-  CheckSquare
+  CheckSquare,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface Invoice {
   id: string;
@@ -55,6 +57,7 @@ interface PaginationInfo {
 }
 
 export default function InvoicesPage() {
+  const { showToast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -156,7 +159,7 @@ export default function InvoicesPage() {
       case 'PAID':
         return 'bg-green-100 text-green-800';
       case 'APPROVED':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-wujha-info/10 text-wujha-info';
       case 'SUBMITTED':
         return 'bg-yellow-100 text-yellow-800';
       case 'OVERDUE':
@@ -233,16 +236,17 @@ export default function InvoicesPage() {
 
       if (response.ok) {
         // Refresh invoices to show updated status
+        showToast('success', `Invoice ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully`);
         await fetchInvoices();
         closeApprovalModal();
       } else {
         const error = await response.json();
         console.error('Error updating invoice status:', error);
-        alert('Failed to update invoice status: ' + error.error);
+        showToast('error', 'Failed to update invoice status: ' + error.error);
       }
     } catch (error) {
       console.error('Error updating invoice status:', error);
-      alert('Failed to update invoice status');
+      showToast('error', 'Failed to update invoice status');
     }
   };
 
@@ -281,7 +285,7 @@ export default function InvoicesPage() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <Link
             href="/procurement/invoices/new"
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Invoice
@@ -383,14 +387,14 @@ export default function InvoicesPage() {
             <input
               type="text"
               placeholder="Search invoices..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
@@ -405,7 +409,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.paymentStatus}
               onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
             >
@@ -496,7 +500,7 @@ export default function InvoicesPage() {
                               {formatDate(invoice.invoiceDate)}
                             </div>
                             {invoice.po && (
-                              <div className="text-xs text-blue-600">
+                              <div className="text-xs text-wujha-info">
                                 PO: {invoice.po.poNumber}
                               </div>
                             )}
@@ -565,7 +569,7 @@ export default function InvoicesPage() {
                         <div className="flex items-center justify-end space-x-2">
                           <Link
                             href={`/procurement/invoices/${invoice.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-wujha-info hover:text-wujha-info/80"
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
@@ -657,7 +661,7 @@ export default function InvoicesPage() {
                         onClick={() => handlePageChange(page)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           page === pagination.page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            ? 'z-10 bg-wujha-primary/10 border-wujha-primary text-wujha-primary'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                         }`}
                       >

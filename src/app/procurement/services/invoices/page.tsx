@@ -19,6 +19,7 @@ import {
   Users
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceInvoice {
   id: string;
@@ -69,6 +70,7 @@ interface ServiceInvoice {
 }
 
 export default function ServiceInvoicesPage() {
+  const { showToast } = useToast();
   const [invoices, setInvoices] = useState<ServiceInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -188,7 +190,7 @@ export default function ServiceInvoicesPage() {
       // Fetch full invoice data
       const response = await fetch(`/api/invoices/${invoiceId}`);
       if (!response.ok) {
-        alert('Failed to fetch invoice');
+        showToast('error', 'Failed to fetch invoice. Please try again.');
         return;
       }
 
@@ -197,7 +199,7 @@ export default function ServiceInvoicesPage() {
       // Generate and open PDF
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
-        alert('Please allow popups to download the invoice');
+        showToast('info', 'Please allow popups to download the invoice.');
         return;
       }
 
@@ -445,8 +447,7 @@ export default function ServiceInvoicesPage() {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
     } catch (error) {
-      console.error('Error downloading invoice:', error);
-      alert('Failed to download invoice');
+      showToast('error', 'Failed to download invoice. Please try again.');
     }
   };
 

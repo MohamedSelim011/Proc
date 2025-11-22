@@ -19,8 +19,10 @@ import {
   Activity,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface WorkflowDefinition {
   id: string;
@@ -67,6 +69,7 @@ interface NotificationStats {
 }
 
 export default function AutomationDashboard() {
+  const { showToast } = useToast();
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [triggers, setTriggers] = useState<AutomationTrigger[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
@@ -138,14 +141,15 @@ export default function AutomationDashboard() {
 
       if (response.ok) {
         // Refresh approvals
+        showToast('success', `Approval ${action === 'APPROVE' ? 'approved' : 'rejected'} successfully`);
         fetchAutomationData();
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        showToast('error', `Error: ${error.error}`);
       }
     } catch (error) {
       console.error('Error processing approval:', error);
-      alert('Failed to process approval');
+      showToast('error', 'Failed to process approval');
     }
   };
 
@@ -184,7 +188,7 @@ export default function AutomationDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-wujha-primary" />
       </div>
     );
   }
@@ -204,11 +208,11 @@ export default function AutomationDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Workflow className="h-8 w-8 text-blue-600" />
+              <Workflow className="h-8 w-8 text-wujha-info" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Active Workflows</h3>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-2xl font-bold text-wujha-info">
                 {workflows.filter(w => w.isActive).length}
               </p>
               <p className="text-sm text-gray-500">
@@ -255,11 +259,11 @@ export default function AutomationDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Bell className="h-8 w-8 text-orange-600" />
+              <Bell className="h-8 w-8 text-wujha-primary" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-2xl font-bold text-wujha-primary">
                 {notificationStats.pending}
               </p>
               <p className="text-sm text-gray-500">
@@ -285,7 +289,7 @@ export default function AutomationDashboard() {
               onClick={() => setActiveTab(tab.id)}
               className={`${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-wujha-primary text-wujha-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
@@ -377,7 +381,7 @@ export default function AutomationDashboard() {
                 Manage automated approval workflows
               </p>
             </div>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover">
               <Plus className="h-4 w-4 mr-2" />
               New Workflow
             </button>
@@ -451,7 +455,7 @@ export default function AutomationDashboard() {
             </div>
             <button
               onClick={processNotifications}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <Activity className="h-4 w-4 mr-2" />
               Process Queue
@@ -492,12 +496,12 @@ export default function AutomationDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="bg-blue-50 rounded-lg p-4">
+              <div className="bg-wujha-info/10 rounded-lg p-4">
                 <div className="flex items-center">
-                  <Mail className="h-8 w-8 text-blue-600" />
+                  <Mail className="h-8 w-8 text-wujha-info" />
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-blue-900">Total</p>
-                    <p className="text-2xl font-bold text-blue-600">
+                    <p className="text-sm font-medium text-wujha-info">Total</p>
+                    <p className="text-2xl font-bold text-wujha-info">
                       {notificationStats.total}
                     </p>
                   </div>

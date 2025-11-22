@@ -17,6 +17,7 @@ import {
   Trash2,
   Package
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface Invoice {
   id: string;
@@ -68,6 +69,7 @@ interface Invoice {
 
 export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [invoiceId, setInvoiceId] = useState<string>('');
@@ -101,7 +103,7 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    if (!window.confirm('Are you sure you want to delete this invoice?')) return;
 
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
@@ -109,14 +111,13 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
       });
 
       if (response.ok) {
-        alert('Invoice deleted successfully');
+        showToast('success', 'Invoice deleted successfully!');
         router.push('/procurement/services/invoices');
       } else {
-        alert('Failed to delete invoice');
+        showToast('error', 'Failed to delete invoice. Please try again.');
       }
     } catch (error) {
-      console.error('Error deleting invoice:', error);
-      alert('Error deleting invoice');
+      showToast('error', 'An error occurred while deleting the invoice. Please try again.');
     }
   };
 

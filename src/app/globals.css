@@ -3,6 +3,15 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Wujha Brand Colors */
+  --wujha-primary: #FF5722;
+  --wujha-primary-hover: #E64A19;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --border: #E0E0E0;
+  --bg-light: #F5F5F5;
+  --bg-sidebar: #FAFAFA;
 }
 
 @theme inline {
@@ -10,6 +19,15 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Wujha Design System Colors */
+  --color-wujha-primary: var(--wujha-primary);
+  --color-wujha-primary-hover: var(--wujha-primary-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border);
+  --color-bg-light: var(--bg-light);
+  --color-bg-sidebar: var(--bg-sidebar);
 }
 
 @media (prefers-color-scheme: dark) {
