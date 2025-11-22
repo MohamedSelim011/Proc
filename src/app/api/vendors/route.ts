@@ -80,14 +80,59 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Helper function to generate unique vendor code
+async function generateUniqueVendorCode(): Promise<string> {
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    // Generate 8-digit random number
+    const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+    const vendorCode = `VEN-${randomNum}`;
+    
+    // Check if code already exists
+    const existing = await prisma.vendor.findUnique({
+      where: { vendorCode }
+    });
+    
+    if (!existing) {
+      return vendorCode;
+    }
+    
+    attempts++;
+  }
+  
+  // Fallback: use timestamp-based code if random generation fails
+  const timestamp = Date.now().toString().slice(-8);
+  return `VEN-${timestamp}`;
+}
+
 // POST /api/vendors - Create new vendor
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    // Auto-generate vendor code if not provided or empty
+    let vendorCode = body.vendorCode?.trim();
+    if (!vendorCode) {
+      vendorCode = await generateUniqueVendorCode();
+    } else {
+      // Validate uniqueness if code is provided
+      const existing = await prisma.vendor.findUnique({
+        where: { vendorCode }
+      });
+      
+      if (existing) {
+        return NextResponse.json(
+          { error: 'Vendor code already exists. Please use a different code or leave it empty for auto-generation.' },
+          { status: 400 }
+        );
+      }
+    }
+    
     const vendor = await prisma.vendor.create({
       data: {
-        vendorCode: body.vendorCode,
+        vendorCode,
         nameEn: body.nameEn,
         nameAr: body.nameAr,
         crNumber: body.crNumber,
@@ -120,8 +165,18 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(vendor, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating vendor:', error);
+    
+    // Handle unique constraint violations
+    if (error.code === 'P2002') {
+      const field = error.meta?.target?.[0] || 'field';
+      return NextResponse.json(
+        { error: `A vendor with this ${field} already exists.` },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create vendor' },
       { status: 500 }

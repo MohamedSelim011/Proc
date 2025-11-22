@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash } from 'lucide-react';
+import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface VendorFormData {
@@ -42,6 +42,7 @@ export default function NewVendorPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<VendorFormData>({
@@ -67,6 +68,30 @@ export default function NewVendorPage() {
     status: 'ACTIVE'
   });
 
+  // Auto-generate vendor code on component mount
+  useEffect(() => {
+    const generateVendorCode = async () => {
+      try {
+        setGeneratingCode(true);
+        const response = await fetch('/api/vendors/generate-code');
+        const data = await response.json();
+        
+        if (response.ok && data.vendorCode) {
+          setFormData(prev => ({ ...prev, vendorCode: data.vendorCode }));
+        } else {
+          showToast('error', 'Failed to generate vendor code');
+        }
+      } catch (error) {
+        console.error('Error generating vendor code:', error);
+        showToast('error', 'Error generating vendor code');
+      } finally {
+        setGeneratingCode(false);
+      }
+    };
+
+    generateVendorCode();
+  }, [showToast]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -90,6 +115,26 @@ export default function NewVendorPage() {
         [field]: value
       }
     }));
+  };
+
+  const handleRegenerateCode = async () => {
+    try {
+      setGeneratingCode(true);
+      const response = await fetch('/api/vendors/generate-code');
+      const data = await response.json();
+      
+      if (response.ok && data.vendorCode) {
+        setFormData(prev => ({ ...prev, vendorCode: data.vendorCode }));
+        showToast('success', 'New vendor code generated');
+      } else {
+        showToast('error', 'Failed to generate vendor code');
+      }
+    } catch (error) {
+      console.error('Error generating vendor code:', error);
+      showToast('error', 'Error generating vendor code');
+    } finally {
+      setGeneratingCode(false);
+    }
   };
 
   const validateForm = () => {
@@ -208,16 +253,33 @@ export default function NewVendorPage() {
                 <input
                   type="text"
                   value={formData.vendorCode}
-                  onChange={(e) => handleInputChange('vendorCode', e.target.value)}
+                  readOnly
+                  disabled={generatingCode}
                   className={`block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                     errors.vendorCode ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary'
-                  } text-gray-900 bg-white transition-colors`}
-                  placeholder="e.g., VEN-001"
+                  } text-gray-900 bg-gray-50 transition-colors ${generatingCode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  placeholder={generatingCode ? 'Generating...' : 'e.g., VEN-12345678'}
                 />
+                <button
+                  type="button"
+                  onClick={handleRegenerateCode}
+                  disabled={generatingCode}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Generate new vendor code"
+                >
+                  {generatingCode ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </button>
               </div>
               {errors.vendorCode && (
                 <p className="mt-1 text-sm text-red-600">{errors.vendorCode}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Vendor code is auto-generated and unique
+              </p>
             </div>
 
             <div>
