@@ -9,11 +9,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
+    const prId = searchParams.get('prId') || '';
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (status) where.status = status;
+    if (prId) where.prId = prId;
 
     const [rfqs, total] = await Promise.all([
       prisma.rFQ.findMany({
@@ -63,6 +65,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    // Check if PR already has an RFQ
+    if (body.prId) {
+      const existingRFQ = await prisma.rFQ.findFirst({
+        where: { prId: body.prId }
+      });
+
+      if (existingRFQ) {
+        return NextResponse.json(
+          { error: `An RFQ (${existingRFQ.rfqNumber}) already exists for this Purchase Requisition` },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Generate RFQ number
     const count = await prisma.rFQ.count();
     const rfqNumber = `RFQ-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
@@ -73,7 +89,8 @@ export async function POST(request: NextRequest) {
       title: body.title,
       description: body.description,
       closingDate: new Date(body.closingDate),
-      status: body.status || 'DRAFT'
+      status: body.status || 'DRAFT',
+      createdBy: body.createdBy || null
     };
 
     // Add PR relation if prId is provided
@@ -93,6 +110,15 @@ export async function POST(request: NextRequest) {
       rfqData.termsAndConditions = body.termsAndConditions;
     }
 
+    // Add invited vendors if provided
+    if (body.vendorIds && Array.isArray(body.vendorIds) && body.vendorIds.length > 0) {
+      rfqData.invitedVendors = {
+        create: body.vendorIds.map((vendorId: string) => ({
+          vendorId: vendorId
+        }))
+      };
+    }
+
     const rfq = await prisma.rFQ.create({
       data: rfqData,
       include: {
@@ -104,19 +130,14 @@ export async function POST(request: NextRequest) {
               }
             }
           }
+        },
+        invitedVendors: {
+          include: {
+            vendor: true
+          }
         }
       }
     });
-
-    // If publishing immediately, send to vendors
-    if (body.status === 'PUBLISHED' && body.vendorIds?.length > 0) {
-      // In real implementation, this would send emails to vendors
-      // For now, just update the status
-      await prisma.rFQ.update({
-        where: { id: rfq.id },
-        data: { status: 'PUBLISHED' }
-      });
-    }
 
     return NextResponse.json(rfq, { status: 201 });
   } catch (error) {

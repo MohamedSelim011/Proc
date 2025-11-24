@@ -118,6 +118,10 @@ export default function PRApprovalPage() {
       const pendingApproval = pr.approvals?.find(a => a.status === 'PENDING');
       const currentLevel = pendingApproval?.level || 1;
 
+      // Get user data from localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const approverId = userData.employeeId || userData.id || 'admin001';
+
       const response = await fetch(`/api/purchase-requisitions/${prId}/approve`, {
         method: 'POST',
         headers: {
@@ -125,7 +129,7 @@ export default function PRApprovalPage() {
         },
         body: JSON.stringify({
           action,
-          approverId: 'manager001', // This should come from auth context
+          approverId, // Use actual logged-in user
           comments,
           level: currentLevel // Use the actual pending approval level
         }),
@@ -249,7 +253,7 @@ export default function PRApprovalPage() {
   if (!pr) return null;
 
   const approvalReq = getApprovalRequirement();
-  const canApprove = pr.status === 'SUBMITTED';
+  const canApprove = pr.status === 'SUBMITTED' || pr.status === 'PENDING_APPROVAL';
   const isAlreadyProcessed = ['APPROVED', 'REJECTED'].includes(pr.status || '');
 
   return (

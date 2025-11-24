@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 // Helper function to generate unique vendor code
+// Generates format: VEN-XXXXXXXX (8 digits)
 async function generateUniqueVendorCode(): Promise<string> {
   let attempts = 0;
   const maxAttempts = 10;
   
   while (attempts < maxAttempts) {
-    // Generate 8-digit random number
+    // Generate 8-digit random number (10000000 to 99999999)
     const randomNum = Math.floor(10000000 + Math.random() * 90000000);
     const vendorCode = `VEN-${randomNum}`;
     
-    // Check if code already exists
+    // Check if code already exists in database
     const existing = await prisma.vendor.findUnique({
       where: { vendorCode }
     });
@@ -23,7 +24,7 @@ async function generateUniqueVendorCode(): Promise<string> {
     attempts++;
   }
   
-  // Fallback: use timestamp-based code if random generation fails
+  // Fallback: use timestamp-based code if random generation fails after max attempts
   const timestamp = Date.now().toString().slice(-8);
   return `VEN-${timestamp}`;
 }

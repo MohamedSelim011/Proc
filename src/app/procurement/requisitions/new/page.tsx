@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Calculator
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface PRItem {
   itemId: string;
@@ -72,6 +73,7 @@ export default function NewPurchaseRequisition() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (currentStep === 2) {
@@ -191,9 +193,14 @@ export default function NewPurchaseRequisition() {
     try {
       setLoading(true);
 
+      // Get user data from localStorage
+      const userDataStr = localStorage.getItem('user');
+      const userData = userDataStr ? JSON.parse(userDataStr) : null;
+      const requesterId = userData?.employeeId || userData?.id || 'emp001';
+
       const submitData = {
         ...formData,
-        requesterId: 'emp001', // This should come from auth context
+        requesterId,
         estimatedCost: calculateTotalCost(),
         autoSubmit: false // Keep as draft initially
       };
@@ -209,12 +216,15 @@ export default function NewPurchaseRequisition() {
       const data = await response.json();
 
       if (response.ok) {
+        showToast('success', 'Purchase requisition created successfully!');
         router.push(`/procurement/requisitions/${data.id}`);
       } else {
+        showToast('error', data.error || 'Failed to create purchase requisition');
         console.error('Error creating PR:', data.error);
         setErrors({ submit: data.error || 'Failed to create purchase requisition' });
       }
     } catch (error) {
+      showToast('error', 'An error occurred while creating the requisition');
       console.error('Error submitting PR:', error);
       setErrors({ submit: 'Failed to create purchase requisition' });
     } finally {
@@ -260,23 +270,23 @@ export default function NewPurchaseRequisition() {
                   {stepIdx !== 2 && (
                     <div className="absolute top-4 left-1/2 w-full h-0.5 bg-gray-200 -translate-y-1/2" aria-hidden="true">
                       <div className={`h-full transition-all duration-300 ${
-                        step.id < currentStep ? 'bg-gradient-to-r from-blue-600 to-blue-500 w-full' : 'w-0'
+                        step.id < currentStep ? 'bg-wujha-primary w-full' : 'w-0'
                       }`} />
                     </div>
                   )}
                   <div className="relative flex flex-col items-center group">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                       step.id < currentStep 
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 border-blue-600 shadow-lg' 
+                        ? 'bg-wujha-primary border-wujha-primary shadow-lg' 
                         : step.id === currentStep 
-                          ? 'border-blue-600 bg-white shadow-md ring-4 ring-blue-100' 
+                          ? 'border-wujha-primary bg-white shadow-md ring-4 ring-wujha-primary/20' 
                           : 'border-gray-300 bg-white group-hover:border-gray-400'
                     }`}>
                       {step.id < currentStep ? (
                         <CheckCircle className="h-6 w-6 text-white" />
                       ) : (
                         <span className={`text-sm font-semibold ${
-                          step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                          step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                         }`}>
                           {step.id}
                         </span>
@@ -284,7 +294,7 @@ export default function NewPurchaseRequisition() {
                     </div>
                     <div className="mt-4 text-center">
                       <span className={`text-sm font-semibold block ${
-                        step.id === currentStep ? 'text-blue-600' : step.id < currentStep ? 'text-gray-700' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : step.id < currentStep ? 'text-gray-700' : 'text-gray-500'
                       }`}>
                         {step.name}
                       </span>
@@ -314,7 +324,7 @@ export default function NewPurchaseRequisition() {
                       Item Type <span className="text-red-500">*</span>
                     </label>
                     <select
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.itemType}
                       onChange={(e) => setFormData(prev => ({ ...prev, itemType: e.target.value as any }))}
                     >
@@ -330,7 +340,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                         errors.departmentId ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.departmentId}
@@ -351,7 +361,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.projectId || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                       placeholder="Optional project reference"
@@ -363,7 +373,7 @@ export default function NewPurchaseRequisition() {
                       Priority <span className="text-red-500">*</span>
                     </label>
                     <select
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.priority}
                       onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                     >
@@ -380,7 +390,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="date"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                         errors.requiredByDate ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.requiredByDate}
@@ -401,7 +411,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.boqReference || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, boqReference: e.target.value }))}
                       placeholder="Bill of quantities reference"
@@ -415,7 +425,7 @@ export default function NewPurchaseRequisition() {
                   </label>
                   <textarea
                     rows={5}
-                    className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 resize-none ${
+                    className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 resize-none ${
                       errors.justification ? 'border-red-300 ring-red-100' : ''
                     }`}
                     value={formData.justification}
@@ -442,8 +452,8 @@ export default function NewPurchaseRequisition() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
-                      <Plus className="h-5 w-5 text-blue-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-wujha-primary/10 rounded-lg">
+                      <Plus className="h-5 w-5 text-wujha-primary" />
                     </div>
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900">Item Selection</h4>
@@ -452,7 +462,7 @@ export default function NewPurchaseRequisition() {
                   </div>
                   <button
                     onClick={addItem}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg transition-all duration-200 transform hover:scale-105"
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary shadow-lg transition-all duration-200 transform hover:scale-105"
                   >
                     <Plus className="h-5 w-5 mr-2" />
                     Add Item
@@ -475,8 +485,8 @@ export default function NewPurchaseRequisition() {
                     <div key={index} className="border border-gray-200 rounded-xl p-6 bg-gray-50 hover:bg-gray-100 transition-colors duration-200">
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
-                            <span className="text-sm font-bold text-blue-600">{index + 1}</span>
+                          <div className="flex items-center justify-center w-8 h-8 bg-wujha-primary/10 rounded-full">
+                            <span className="text-sm font-bold text-wujha-primary">{index + 1}</span>
                           </div>
                           <h4 className="text-lg font-semibold text-gray-900">Item {index + 1}</h4>
                         </div>
@@ -498,7 +508,7 @@ export default function NewPurchaseRequisition() {
                             <input
                               type="text"
                               placeholder="Search items by code or name..."
-                              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 pr-10 text-base transition-colors duration-200"
+                              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 pr-10 text-base transition-colors duration-200"
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -510,7 +520,7 @@ export default function NewPurchaseRequisition() {
                                 {filteredItems.map((searchItem) => (
                                   <div
                                     key={searchItem.id}
-                                    className="cursor-pointer select-none relative px-4 py-3 hover:bg-blue-50 transition-colors duration-150"
+                                    className="cursor-pointer select-none relative px-4 py-3 hover:bg-wujha-primary/5 transition-colors duration-150"
                                     onClick={() => {
                                       updateItem(index, 'itemId', searchItem.id);
                                       setSearchTerm('');
@@ -527,7 +537,7 @@ export default function NewPurchaseRequisition() {
                                           </span>
                                         </div>
                                         <div className="flex items-center space-x-2 mt-1">
-                                          <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                          <span className="text-xs text-wujha-primary bg-wujha-primary/10 px-2 py-1 rounded-full">
                                             {searchItem.category.nameEn}
                                           </span>
                                           <span className="text-xs text-gray-500">
@@ -564,7 +574,7 @@ export default function NewPurchaseRequisition() {
                             <input
                               type="number"
                               min="1"
-                              className={`block w-full rounded-l-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                              className={`block w-full rounded-l-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                                 errors[`item_${index}_quantity`] ? 'border-red-300 ring-red-100' : ''
                               }`}
                               value={item.quantity}
@@ -592,7 +602,7 @@ export default function NewPurchaseRequisition() {
                               type="number"
                               step="0.001"
                               min="0"
-                              className={`pl-16 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                              className={`pl-16 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                                 errors[`item_${index}_price`] ? 'border-red-300 ring-red-100' : ''
                               }`}
                               value={item.estimatedPrice}
@@ -614,7 +624,7 @@ export default function NewPurchaseRequisition() {
                           </label>
                           <textarea
                             rows={3}
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 resize-none"
+                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 resize-none"
                             value={item.specifications || ''}
                             onChange={(e) => updateItem(index, 'specifications', e.target.value)}
                             placeholder="Technical specifications, brand preferences, quality requirements, etc."
@@ -622,12 +632,12 @@ export default function NewPurchaseRequisition() {
                         </div>
 
                         <div className="lg:col-span-3 pt-4 border-t border-gray-200">
-                          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                          <div className="flex items-center justify-between p-4 bg-wujha-primary/10 rounded-lg">
                             <div className="flex items-center space-x-2">
-                              <Calculator className="h-5 w-5 text-blue-600" />
-                              <span className="text-sm font-semibold text-blue-900">Line Total</span>
+                              <Calculator className="h-5 w-5 text-wujha-primary" />
+                              <span className="text-sm font-semibold text-wujha-primary">Line Total</span>
                             </div>
-                            <span className="text-lg font-bold text-blue-900">
+                            <span className="text-lg font-bold text-wujha-primary">
                               {formatCurrency(item.quantity * item.estimatedPrice)}
                             </span>
                           </div>
@@ -638,7 +648,7 @@ export default function NewPurchaseRequisition() {
                 </div>
 
                 {formData.items.length > 0 && (
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-6 shadow-sm">
+                  <div className="bg-gradient-to-r from-green-50 to-wujha-primary/5 border border-green-200 rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg">
@@ -676,7 +686,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                         errors.budgetCode ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.budgetCode}
@@ -697,7 +707,7 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.costCenter || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
                       placeholder="Optional cost center"
@@ -706,10 +716,10 @@ export default function NewPurchaseRequisition() {
                 </div>
 
                 {/* PR Summary */}
-                <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-8">
+                <div className="bg-gradient-to-br from-gray-50 to-wujha-primary/5 border border-gray-200 rounded-xl p-8">
                   <div className="flex items-center space-x-3 mb-6">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
-                      <CheckCircle className="h-6 w-6 text-blue-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-wujha-primary/10 rounded-lg">
+                      <CheckCircle className="h-6 w-6 text-wujha-primary" />
                     </div>
                     <h4 className="text-xl font-bold text-gray-900">Purchase Requisition Summary</h4>
                   </div>
@@ -741,7 +751,7 @@ export default function NewPurchaseRequisition() {
                     </div>
                     <div className="bg-white rounded-lg p-4 shadow-sm sm:col-span-2">
                       <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Estimated Cost</dt>
-                      <dd className="mt-2 text-2xl font-bold text-blue-600">
+                      <dd className="mt-2 text-2xl font-bold text-wujha-primary">
                         {formatCurrency(calculateTotalCost())}
                       </dd>
                     </div>
@@ -763,11 +773,11 @@ export default function NewPurchaseRequisition() {
           </div>
 
           {/* Navigation */}
-          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 border-t border-gray-200 flex justify-between items-center">
+          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-wujha-primary/5 border-t border-gray-200 flex justify-between items-center">
             <button
               onClick={handlePrevious}
               disabled={currentStep === 1}
-              className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <ChevronLeft className="h-5 w-5 mr-2" />
               Previous
@@ -780,7 +790,7 @@ export default function NewPurchaseRequisition() {
                   <div
                     key={step}
                     className={`w-2 h-2 rounded-full ${
-                      step <= currentStep ? 'bg-blue-600' : 'bg-gray-300'
+                      step <= currentStep ? 'bg-wujha-primary' : 'bg-gray-300'
                     }`}
                   />
                 ))}
@@ -790,7 +800,7 @@ export default function NewPurchaseRequisition() {
             <button
               onClick={handleNext}
               disabled={loading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200 transform hover:scale-105"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               {loading ? (
                 <>

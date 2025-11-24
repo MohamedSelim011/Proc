@@ -15,6 +15,7 @@ import {
   MapPin,
   CreditCard
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface Vendor {
   id: string;
@@ -99,6 +100,9 @@ function NewPurchaseOrderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prId = searchParams.get('prId');
+  const rfqId = searchParams.get('rfqId');
+  const vendorIdFromUrl = searchParams.get('vendorId');
+  const { showToast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -106,10 +110,12 @@ function NewPurchaseOrderContent() {
   const [approvedPRs, setApprovedPRs] = useState<PurchaseRequisition[]>([]);
   const [selectedPR, setSelectedPR] = useState<PurchaseRequisition | null>(null);
   const [searchVendor, setSearchVendor] = useState('');
+  const [winningVendorId, setWinningVendorId] = useState<string | null>(null);
+  const [rfqData, setRfqData] = useState<any>(null);
 
   const [formData, setFormData] = useState<POFormData>({
     prId: prId || '',
-    vendorId: '',
+    vendorId: vendorIdFromUrl || '',
     deliveryDate: '',
     deliveryAddress: {
       building: '',
@@ -132,7 +138,14 @@ function NewPurchaseOrderContent() {
     if (prId) {
       fetchPRDetails(prId);
     }
-  }, [prId]);
+    if (rfqId) {
+      fetchRFQDetails(rfqId);
+    }
+    if (vendorIdFromUrl) {
+      setWinningVendorId(vendorIdFromUrl);
+      setFormData(prev => ({ ...prev, vendorId: vendorIdFromUrl }));
+    }
+  }, [prId, rfqId, vendorIdFromUrl]);
 
   const fetchVendors = async () => {
     try {
@@ -155,6 +168,32 @@ function NewPurchaseOrderContent() {
       }
     } catch (error) {
       console.error('Error fetching approved PRs:', error);
+    }
+  };
+
+  const fetchRFQDetails = async (id: string) => {
+    try {
+      const response = await fetch(`/api/rfq/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRfqData(data.rfq);
+        
+        // Find the selected/winning vendor
+        const winningResponse = data.rfq.responses?.find((r: any) => r.status === 'SELECTED');
+        if (winningResponse) {
+          const winnerId = winningResponse.vendor.id;
+          setWinningVendorId(winnerId);
+          setFormData(prev => ({ ...prev, vendorId: winnerId }));
+          
+          // Also set the PR ID if not already set
+          if (data.rfq.prId && !formData.prId) {
+            setFormData(prev => ({ ...prev, prId: data.rfq.prId }));
+            fetchPRDetails(data.rfq.prId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching RFQ details:', error);
     }
   };
 
@@ -197,9 +236,40 @@ function NewPurchaseOrderContent() {
           prId: id,
           items: items
         }));
+        
+        // Check if this PR has an RFQ with a selected winner
+        await checkRFQForPR(id);
       }
     } catch (error) {
       console.error('Error fetching PR details:', error);
+    }
+  };
+
+  const checkRFQForPR = async (prId: string) => {
+    try {
+      // Fetch RFQs for this PR
+      const response = await fetch(`/api/rfq?prId=${prId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Find RFQ with AWARDED status and SELECTED response
+        const awardedRFQ = data.rfqs?.find((rfq: any) => 
+          rfq.status === 'AWARDED' && 
+          rfq.responses?.some((r: any) => r.status === 'SELECTED')
+        );
+        
+        if (awardedRFQ) {
+          const winningResponse = awardedRFQ.responses.find((r: any) => r.status === 'SELECTED');
+          if (winningResponse) {
+            setRfqData(awardedRFQ);
+            const winnerId = winningResponse.vendor.id;
+            setWinningVendorId(winnerId);
+            setFormData(prev => ({ ...prev, vendorId: winnerId }));
+            showToast('info', `Winning vendor from RFQ ${awardedRFQ.rfqNumber} has been pre-selected`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking RFQ for PR:', error);
     }
   };
 
@@ -254,7 +324,7 @@ function NewPurchaseOrderContent() {
     setCurrentStep(currentStep - 1);
   };
 
-  const handlePRSelection = (pr: PurchaseRequisition) => {
+  const handlePRSelection = async (pr: PurchaseRequisition) => {
     setSelectedPR(pr);
     console.log('Selected PR:', pr);
     
@@ -284,6 +354,9 @@ function NewPurchaseOrderContent() {
       prId: pr.id,
       items: items
     }));
+    
+    // Check if this PR has an RFQ with a selected winner
+    await checkRFQForPR(pr.id);
   };
 
   const updateItemPrice = (index: number, unitPrice: number) => {
@@ -315,6 +388,10 @@ function NewPurchaseOrderContent() {
         return;
       }
 
+      // Get current user ID
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const createdBy = userData.employeeId || userData.id || '';
+
       const submitData = {
         prId: formData.prId,
         vendorId: formData.vendorId,
@@ -323,7 +400,8 @@ function NewPurchaseOrderContent() {
         paymentTerms: formData.paymentTerms,
         currency: formData.currency,
         status: 'DRAFT',
-        items: formData.items
+        items: formData.items,
+        createdBy: createdBy
       };
 
       const response = await fetch('/api/purchase-orders', {
@@ -337,12 +415,15 @@ function NewPurchaseOrderContent() {
       const data = await response.json();
 
       if (response.ok) {
+        showToast('success', 'Purchase order created successfully!');
         router.push(`/procurement/purchase-orders/${data.id}`);
       } else {
+        showToast('error', data.error || 'Failed to create purchase order');
         console.error('Error creating PO:', data.error);
         setErrors({ submit: data.error || 'Failed to create purchase order' });
       }
     } catch (error) {
+      showToast('error', 'An error occurred while creating the purchase order');
       console.error('Error submitting PO:', error);
       setErrors({ submit: 'Failed to create purchase order' });
     } finally {
@@ -357,10 +438,15 @@ function NewPurchaseOrderContent() {
     }).format(amount);
   };
 
-  const filteredVendors = vendors.filter(vendor =>
-    vendor.nameEn.toLowerCase().includes(searchVendor.toLowerCase()) ||
-    vendor.vendorCode.toLowerCase().includes(searchVendor.toLowerCase())
-  );
+  const filteredVendors = vendors.filter(vendor => {
+    // If coming from RFQ, only show the winning vendor
+    if (winningVendorId) {
+      return vendor.id === winningVendorId;
+    }
+    // Otherwise, filter by search
+    return vendor.nameEn.toLowerCase().includes(searchVendor.toLowerCase()) ||
+           vendor.vendorCode.toLowerCase().includes(searchVendor.toLowerCase());
+  });
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -389,22 +475,22 @@ function NewPurchaseOrderContent() {
               <li key={step.id} className="relative flex-1">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   {stepIdx < 3 && (
-                    <div className={`h-0.5 w-full transform -translate-y-px ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-full transform -translate-y-px ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
                 <div className="relative flex flex-col items-center">
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-blue-600 bg-white shadow-lg' 
+                        ? 'border-wujha-primary bg-white shadow-lg' 
                         : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -412,7 +498,7 @@ function NewPurchaseOrderContent() {
                   </div>
                   <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
-                      step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                     }`}>
                       {step.name}
                     </span>
@@ -440,18 +526,18 @@ function NewPurchaseOrderContent() {
                 </label>
                 {prId ? (
                   selectedPR && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-medium text-blue-900">{selectedPR.prNumber}</h4>
-                          <p className="text-sm text-blue-700">
+                          <h4 className="text-sm font-medium text-wujha-primary">{selectedPR.prNumber}</h4>
+                          <p className="text-sm text-gray-700">
                             {selectedPR.requesterId} • {selectedPR.departmentId}
                           </p>
-                          <p className="text-sm text-blue-700">
+                          <p className="text-sm text-gray-700">
                             {selectedPR?.items?.length} items • {formatCurrency(Number(selectedPR?.estimatedCost))}
                           </p>
                         </div>
-                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                        <CheckCircle className="h-5 w-5 text-wujha-primary" />
                       </div>
                     </div>
                   )
@@ -462,7 +548,7 @@ function NewPurchaseOrderContent() {
                         key={pr.id}
                         className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                           formData.prId === pr.id
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-wujha-primary bg-wujha-primary/10'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => handlePRSelection(pr)}
@@ -478,7 +564,7 @@ function NewPurchaseOrderContent() {
                             </p>
                           </div>
                           {formData.prId === pr.id && (
-                            <CheckCircle className="h-5 w-5 text-blue-600" />
+                            <CheckCircle className="h-5 w-5 text-wujha-primary" />
                           )}
                         </div>
                       </div>
@@ -495,47 +581,87 @@ function NewPurchaseOrderContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Vendor *
                 </label>
+                
+                {/* RFQ Winner Notice */}
+                {winningVendorId && rfqData && (
+                  <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start">
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-900">
+                          Selected Vendor from RFQ
+                        </p>
+                        <p className="text-xs text-green-700 mt-1">
+                          This vendor was selected as the winner from RFQ {rfqData.rfqNumber}. Only this vendor can be used for this Purchase Order.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="mb-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search vendors..."
+                      placeholder={winningVendorId ? "Winning vendor is pre-selected" : "Search vendors..."}
                       className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       value={searchVendor}
-                      onChange={(e) => setSearchVendor(e.target.value)}
+                      onChange={(e) => !winningVendorId && setSearchVendor(e.target.value)}
+                      disabled={!!winningVendorId}
                     />
                   </div>
                 </div>
                 <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {filteredVendors.map((vendor) => (
-                    <div
-                      key={vendor.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        formData.vendorId === vendor.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setFormData(prev => ({ ...prev, vendorId: vendor.id }))}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {vendor.vendorCode} - {vendor.nameEn}
-                          </h4>
-                          <p className="text-sm text-gray-500">{vendor.email}</p>
-                          {vendor.performanceScore && (
-                            <p className="text-xs text-gray-400">
-                              Performance: {vendor.performanceScore.toFixed(1)}/5
-                            </p>
+                  {filteredVendors.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-gray-500">
+                      {winningVendorId ? 'Winning vendor not found' : 'No vendors found'}
+                    </div>
+                  ) : (
+                    filteredVendors.map((vendor) => (
+                      <div
+                        key={vendor.id}
+                        className={`border rounded-lg p-4 transition-colors ${
+                          winningVendorId && vendor.id === winningVendorId
+                            ? 'border-green-500 bg-green-50'
+                            : formData.vendorId === vendor.id
+                            ? 'border-wujha-primary bg-wujha-primary/10'
+                            : winningVendorId
+                            ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                        }`}
+                        onClick={() => {
+                          if (!winningVendorId || vendor.id === winningVendorId) {
+                            setFormData(prev => ({ ...prev, vendorId: vendor.id }));
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                {vendor.vendorCode} - {vendor.nameEn}
+                              </h4>
+                              {winningVendorId && vendor.id === winningVendorId && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  RFQ Winner
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500">{vendor.email}</p>
+                            {vendor.performanceScore && (
+                              <p className="text-xs text-gray-400">
+                                Performance: {vendor.performanceScore.toFixed(1)}/5
+                              </p>
+                            )}
+                          </div>
+                          {formData.vendorId === vendor.id && (
+                            <CheckCircle className="h-5 w-5 text-wujha-primary flex-shrink-0" />
                           )}
                         </div>
-                        {formData.vendorId === vendor.id && (
-                          <CheckCircle className="h-5 w-5 text-blue-600" />
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 {errors.vendorId && (
                   <p className="mt-1 text-sm text-red-600">{errors.vendorId}</p>
@@ -1012,7 +1138,7 @@ function NewPurchaseOrderContent() {
           <button
             onClick={handleNext}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               'Creating...'
@@ -1035,7 +1161,7 @@ export default function NewPurchaseOrder() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewPurchaseOrderContent />

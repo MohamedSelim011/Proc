@@ -37,8 +37,8 @@ export async function POST(
       );
     }
 
-    // Allow approval if PR is submitted
-    if (pr.status !== 'SUBMITTED') {
+    // Allow approval if PR is pending approval
+    if (pr.status !== 'PENDING_APPROVAL' && pr.status !== 'SUBMITTED') {
       return NextResponse.json(
         { error: `PR is not in a state that can be approved. Current status: ${pr.status}` },
         { status: 400 }

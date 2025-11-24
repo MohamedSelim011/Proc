@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash } from 'lucide-react';
+import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface VendorFormData {
@@ -36,6 +36,7 @@ interface VendorFormData {
   contactEmail?: string;
   contactPhone?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+  performanceScore?: number;
 }
 
 export default function EditVendorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -66,7 +67,8 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
       postalCode: '',
       country: 'Oman'
     },
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    performanceScore: 0
   });
 
   useEffect(() => {
@@ -117,7 +119,8 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
           primaryContactName: data.primaryContactName || '',
           contactEmail: data.contactEmail,
           contactPhone: data.contactPhone,
-          status: data.status || 'ACTIVE'
+          status: data.status || 'ACTIVE',
+          performanceScore: data.performanceScore ?? 0
         });
       } else {
         setErrors({ submit: 'Failed to load vendor data' });
@@ -236,7 +239,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <Loader2 className="animate-spin h-12 w-12 text-wujha-primary" />
         </div>
       </div>
     );
@@ -308,6 +311,23 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 <option value="INACTIVE">Inactive</option>
                 <option value="PENDING">Pending</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Performance Score (0-5)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
+                value={formData.performanceScore ?? 0}
+                onChange={(e) => handleInputChange('performanceScore', parseFloat(e.target.value) || 0)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
+                placeholder="0.0"
+              />
+              <p className="mt-1 text-xs text-gray-500">Vendor performance rating from 0 to 5</p>
             </div>
 
             <div>

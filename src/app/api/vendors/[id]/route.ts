@@ -66,13 +66,20 @@ export async function PUT(
         primaryContactName: body.primaryContactName,
         email: body.email,
         mobile: body.mobile,
+        alternativePhone: body.alternativePhone,
+        website: body.website,
         address: body.address,
+        bankName: body.bankName,
+        bankAccount: body.bankAccount,
+        iban: body.iban,
+        contactEmail: body.contactEmail,
+        contactPhone: body.contactPhone,
         businessType: body.businessType,
         yearEstablished: body.yearEstablished,
         numberOfEmployees: body.numberOfEmployees,
         omanizationPercentage: body.omanizationPercentage,
         status: body.status,
-        performanceScore: body.performanceScore
+        performanceScore: body.performanceScore ?? 0
       },
       include: {
         categories: {

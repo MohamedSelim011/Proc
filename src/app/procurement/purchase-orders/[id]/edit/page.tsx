@@ -173,6 +173,13 @@ function EditPurchaseOrderContent() {
       const data = await response.json();
       
       if (response.ok) {
+        // Check if PO can be edited - only DRAFT status can be edited
+        if (data.status !== 'DRAFT') {
+          showToast('error', 'Cannot edit Purchase Order after it has been submitted for approval.');
+          router.push(`/procurement/purchase-orders/${id}`);
+          return;
+        }
+        
         setPo(data);
         // Populate form data
         setFormData({
@@ -342,7 +349,7 @@ function EditPurchaseOrderContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -389,7 +396,7 @@ function EditPurchaseOrderContent() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="h-4 w-4 inline mr-2" />
               {saving ? 'Saving...' : 'Save Changes'}
@@ -411,22 +418,22 @@ function EditPurchaseOrderContent() {
               <li key={step.id} className="relative flex-1">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   {stepIdx < 3 && (
-                    <div className={`h-0.5 w-full transform -translate-y-px ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-full transform -translate-y-px ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
                 <div className="relative flex flex-col items-center">
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-blue-600 bg-white shadow-lg' 
+                        ? 'border-wujha-primary bg-white shadow-lg' 
                         : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -466,7 +473,7 @@ function EditPurchaseOrderContent() {
                       key={pr.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                         formData.prId === pr.id
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-wujha-primary bg-wujha-primary/10'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => setFormData(prev => ({ ...prev, prId: pr.id }))}
@@ -482,7 +489,7 @@ function EditPurchaseOrderContent() {
                           </p>
                         </div>
                         {formData.prId === pr.id && (
-                          <CheckCircle className="h-5 w-5 text-blue-600" />
+                          <CheckCircle className="h-5 w-5 text-wujha-primary" />
                         )}
                       </div>
                     </div>
@@ -516,7 +523,7 @@ function EditPurchaseOrderContent() {
                       key={vendor.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                         formData.vendorId === vendor.id
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-wujha-primary bg-wujha-primary/10'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => setFormData(prev => ({ ...prev, vendorId: vendor.id }))}
@@ -534,7 +541,7 @@ function EditPurchaseOrderContent() {
                           )}
                         </div>
                         {formData.vendorId === vendor.id && (
-                          <CheckCircle className="h-5 w-5 text-blue-600" />
+                          <CheckCircle className="h-5 w-5 text-wujha-primary" />
                         )}
                       </div>
                     </div>
@@ -976,7 +983,7 @@ export default function EditPurchaseOrder() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <EditPurchaseOrderContent />

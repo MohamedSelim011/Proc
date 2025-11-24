@@ -30,9 +30,9 @@ export async function POST(
     }
 
     // Check if RFQ can be evaluated
-    if (rfq.status !== 'CLOSED') {
+    if (!['CLOSED', 'PUBLISHED', 'APPROVED'].includes(rfq.status)) {
       return NextResponse.json(
-        { error: 'RFQ must be closed before evaluation' },
+        { error: 'RFQ must be closed or published before evaluation' },
         { status: 400 }
       );
     }
@@ -56,13 +56,18 @@ export async function POST(
     const result = await prisma.$transaction(async (tx) => {
       const updatedResponses = [];
 
+      // Get RFQ evaluation criteria
+      const criteria = rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : { technical: 40, commercial: 30, delivery: 20, experience: 10 };
+      
       for (const evaluation of evaluations) {
-        const { responseId, technicalScore, commercialScore, comments } = evaluation;
+        const { responseId, technicalScore, commercialScore, deliveryScore, experienceScore, comments } = evaluation;
 
         // Validate scores
-        if (technicalScore < 0 || technicalScore > 100 || 
-            commercialScore < 0 || commercialScore > 100) {
-          throw new Error('Scores must be between 0 and 100');
+        const scores = [technicalScore, commercialScore, deliveryScore, experienceScore].filter(s => s !== undefined && s !== null);
+        for (const score of scores) {
+          if (score < 0 || score > 100) {
+            throw new Error('Scores must be between 0 and 100');
+          }
         }
 
         // Check if response exists
@@ -71,13 +76,31 @@ export async function POST(
           throw new Error(`Response ${responseId} not found`);
         }
 
+        // Calculate overall weighted score
+        let overallScore = 0;
+        if (criteria.technical && technicalScore !== undefined && technicalScore !== null) {
+          overallScore += (technicalScore * criteria.technical) / 100;
+        }
+        if (criteria.commercial && commercialScore !== undefined && commercialScore !== null) {
+          overallScore += (commercialScore * criteria.commercial) / 100;
+        }
+        if (criteria.delivery && deliveryScore !== undefined && deliveryScore !== null) {
+          overallScore += (deliveryScore * criteria.delivery) / 100;
+        }
+        if (criteria.experience && experienceScore !== undefined && experienceScore !== null) {
+          overallScore += (experienceScore * criteria.experience) / 100;
+        }
+
         // Update response with scores
         const updatedResponse = await tx.rFQResponse.update({
           where: { id: responseId },
           data: {
-            technicalScore,
-            commercialScore,
-            status: 'UNDER_REVIEW'
+            technicalScore: technicalScore ?? null,
+            commercialScore: commercialScore ?? null,
+            deliveryScore: deliveryScore ?? null,
+            experienceScore: experienceScore ?? null,
+            overallScore: Math.round(overallScore * 100) / 100,
+            status: 'REVIEWED'
           },
           include: {
             vendor: true
@@ -95,21 +118,12 @@ export async function POST(
 
     // Calculate rankings
     const rankedResponses = result.map(response => {
-      // Calculate weighted score (you can adjust weights as needed)
-      const technicalWeight = 0.6;
-      const commercialWeight = 0.4;
-      
-      const weightedScore = 
-        (response.technicalScore * technicalWeight) + 
-        (response.commercialScore * commercialWeight);
-
       return {
         ...response,
-        weightedScore,
         // Calculate price competitiveness (lower price = higher score)
         priceCompetitiveness: calculatePriceScore(response.totalAmount, result)
       };
-    }).sort((a, b) => b.weightedScore - a.weightedScore);
+    }).sort((a, b) => b.overallScore - a.overallScore);
 
     // Assign rankings
     rankedResponses.forEach((response, index) => {
@@ -123,9 +137,11 @@ export async function POST(
       evaluatedAt: new Date(),
       topResponse: rankedResponses[0],
       averageScores: {
-        technical: rankedResponses.reduce((sum, r) => sum + r.technicalScore, 0) / rankedResponses.length,
-        commercial: rankedResponses.reduce((sum, r) => sum + r.commercialScore, 0) / rankedResponses.length,
-        weighted: rankedResponses.reduce((sum, r) => sum + r.weightedScore, 0) / rankedResponses.length
+        technical: rankedResponses.reduce((sum, r) => sum + (r.technicalScore || 0), 0) / rankedResponses.length,
+        commercial: rankedResponses.reduce((sum, r) => sum + (r.commercialScore || 0), 0) / rankedResponses.length,
+        delivery: rankedResponses.reduce((sum, r) => sum + (r.deliveryScore || 0), 0) / rankedResponses.length,
+        experience: rankedResponses.reduce((sum, r) => sum + (r.experienceScore || 0), 0) / rankedResponses.length,
+        overall: rankedResponses.reduce((sum, r) => sum + r.overallScore, 0) / rankedResponses.length
       },
       priceRange: {
         lowest: Math.min(...rankedResponses.map(r => Number(r.totalAmount))),

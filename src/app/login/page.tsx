@@ -1,174 +1,265 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Lock, Mail, ShoppingCart } from 'lucide-react'
+import { Building2, Mail, KeySquare, ArrowRight, Shield } from 'lucide-react'
+import { useToast } from '@/components/ui/toast'
+import { apiFetch } from '@/lib/apiFetch'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const { showToast } = useToast()
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    remember: false,
+  })
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setIsLoading(true)
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
+      // Use custom signin API route instead of NextAuth
+      const response = await apiFetch('/api/auth/signin', {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
       })
 
-      if (result?.error) {
-        setError(result.error)
+      const data = await response.json()
+
+      if (!response.ok) {
+        const errorMessage =
+          data?.error?.message ??
+          (response.status === 401
+            ? 'Invalid email or password'
+            : 'Unable to sign in. Please try again.')
+        showToast('error', errorMessage)
         setIsLoading(false)
         return
       }
 
-      if (result?.ok) {
-        // Check if password change is required
-        const response = await fetch('/api/auth/session')
-        const session = await response.json()
-
-        if (session?.user?.mustChangePassword) {
-          router.push('/change-password')
-        } else {
-          router.push(searchParams.get('callbackUrl') || '/')
-        }
+      // Store user data and token in localStorage
+      if (data?.token) {
+        localStorage.setItem('token', data.token)
+        console.log('✅ Token stored in localStorage')
+      } else {
+        console.warn('⚠️ No token received from API')
       }
+
+      if (data?.user) {
+        const role = data.user.role || 'REQUESTOR' // Fallback if role is null
+        localStorage.setItem('role', role)
+        console.log('✅ Role stored in localStorage:', role)
+
+        const userData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: role,
+          department: data.user.department,
+          employeeId: data.user.employeeId,
+        }
+        localStorage.setItem('user', JSON.stringify(userData))
+        console.log('✅ User data stored in localStorage:', userData)
+      } else {
+        console.warn('⚠️ No user data received from API')
+      }
+
+      showToast('success', `Welcome back, ${data?.user?.name ?? 'User'}!`)
+
+      // Get destination and decode if URL-encoded
+      let destination = searchParams.get('callbackUrl') || data?.homePath || '/procurement/dashboard'
+      // Decode URL if it's encoded
+      try {
+        destination = decodeURIComponent(destination)
+      } catch (e) {
+        // If decoding fails, use as-is
+      }
+
+      console.log('🔄 Redirecting to:', destination)
+      
+      // Set loading to false
+      setIsLoading(false)
+      
+      // Small delay to ensure localStorage is set and toast is shown
+      setTimeout(() => {
+        // Use window.location.href for a hard redirect to bypass middleware issues
+        window.location.href = destination
+      }, 500)
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+      console.error('❌ Login error:', err)
+      showToast('error', err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')
       setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {error && (
-        <Alert variant="destructive" className="border-red-200 bg-red-50">
-          <AlertDescription className="text-red-800 font-medium">{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {searchParams.get('error') === 'SessionRequired' && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <AlertDescription className="text-blue-800 font-medium">
-            Please sign in to access this page.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {searchParams.get('passwordChanged') === 'true' && (
-        <Alert className="border-green-500 bg-green-50">
-          <AlertDescription className="text-green-800 font-medium">
-            Password changed successfully! Please sign in with your new password.
-          </AlertDescription>
-        </Alert>
-      )}
-
+    <form className="space-y-8" onSubmit={handleSubmit} noValidate>
+      {/* Email Input */}
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-gray-700 font-semibold text-sm">
+        <label
+          htmlFor="email"
+          className="block text-lg font-semibold text-gray-700"
+        >
           Email Address
-        </Label>
+        </label>
         <div className="relative">
-          <Mail className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
-          <Input
+          <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400" />
+          <input
             id="email"
             type="email"
+            autoComplete="email"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
+            className="w-full rounded-xl border-2 border-gray-200 bg-white pl-16 pr-6 py-5 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all placeholder:text-gray-400"
             placeholder="your.email@wujha.om"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             required
             disabled={isLoading}
-            autoComplete="email"
           />
         </div>
       </div>
 
+      {/* Password Input */}
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-gray-700 font-semibold text-sm">
+        <label
+          htmlFor="password"
+          className="block text-lg font-semibold text-gray-700"
+        >
           Password
-        </Label>
+        </label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
-          <Input
+          <KeySquare className="absolute left-6 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400" />
+          <input
             id="password"
             type="password"
+            autoComplete="current-password"
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            className="w-full rounded-xl border-2 border-gray-200 bg-white pl-16 pr-6 py-5 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all placeholder:text-gray-400"
             placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="pl-11 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             required
             disabled={isLoading}
-            autoComplete="current-password"
           />
         </div>
       </div>
 
-      <Button
+      {/* Sign In Button */}
+      <button
         type="submit"
-        className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-base shadow-lg shadow-blue-500/30"
         disabled={isLoading}
+        className="w-full inline-flex items-center justify-center gap-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-semibold py-5 text-xl rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-orange-500/30 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-orange-500/20"
       >
         {isLoading ? (
           <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             Signing in...
           </>
         ) : (
-          'Sign In'
+          <>
+            Sign in now
+            <ArrowRight className="w-7 h-7" />
+          </>
         )}
-      </Button>
+      </button>
     </form>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
-      <div className="w-full max-w-md">
-        <Card className="border-0 shadow-2xl">
-          <CardHeader className="space-y-3 text-center pb-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
-            <div className="mx-auto w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-3 shadow-lg">
-              <ShoppingCart className="w-8 h-8 text-white" />
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* Background Image Overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url('/wujha-bg.webp')`,
+        }}
+      >
+        {/* Dark overlay for better text contrast */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/50"></div>
+      </div>
+
+      {/* Left Side - Welcome Section */}
+      <div className="hidden lg:flex lg:w-2/3 relative z-10 flex-col justify-center text-white px-24 py-24">
+        <div>
+          <div className="flex items-center gap-8 mb-20">
+            <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/20">
+              <Building2 className="w-12 h-12 text-white" strokeWidth={2.5} />
             </div>
-            <CardTitle className="text-3xl font-bold text-white">WUJHA Procurement</CardTitle>
-            <CardDescription className="text-blue-100 text-base">
-              Sign in to your account to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-8 pb-6">
+            <div>
+              <h1 className="text-5xl font-bold tracking-tight">
+                WUJHA Procurement
+              </h1>
+              <p className="text-lg text-white/80 font-medium">
+                Procurement Management System
+              </p>
+            </div>
+          </div>
+
+          <div className="max-w-2xl">
+            <h2 className="text-8xl font-bold leading-tight mb-10">
+              Welcome<br />Back
+            </h2>
+            <p className="text-2xl text-white/80 leading-relaxed">
+              Access your procurement management dashboard. Secure, compliant, and designed for enterprise excellence.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Sign In Form */}
+      <div className="flex-1 flex items-center justify-center px-10 py-20 relative z-10">
+        <div className="w-full max-w-xl">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center gap-5 mb-12">
+            <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
+              <Building2 className="w-9 h-9 text-white" />
+            </div>
+            <div className="text-white">
+              <h1 className="text-4xl font-bold">WUJHA Procurement</h1>
+              <p className="text-lg text-white/80">Procurement System</p>
+            </div>
+          </div>
+
+          {/* Sign In Card */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-16 border border-white/20">
+            <div className="mb-12">
+              <h3 className="text-4xl font-bold text-gray-900 mb-4">Sign in</h3>
+              <p className="text-lg text-gray-600">
+                Enter your credentials to access your account
+              </p>
+            </div>
+
             <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
               <LoginForm />
             </Suspense>
+          </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-600 font-medium mb-2">Default admin credentials:</p>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="font-mono text-sm text-gray-800 font-semibold">
-                  admin@wujha.om / Admin@123
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Security Badge */}
+          <div className="mt-10 flex items-center justify-center gap-4 text-white/80">
+            <Shield className="w-6 h-6" />
+            <p className="text-lg">
+              <span className="font-semibold text-white">Secured by SSL Encryption</span>
+            </p>
+          </div>
 
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            © 2024 WUJHA Procurement System. All rights reserved.
-          </p>
+          {/* Footer */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-white/60">
+              © 2024 WUJHA Procurement System. All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
     </div>

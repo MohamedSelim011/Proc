@@ -163,7 +163,7 @@ export default function ProcurementDashboard() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'URGENT': return 'text-red-600 bg-red-100';
-      case 'HIGH': return 'text-orange-600 bg-orange-100';
+      case 'HIGH': return 'text-wujha-primary bg-wujha-primary/10';
       case 'NORMAL': return 'text-blue-600 bg-blue-100';
       case 'LOW': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
@@ -173,10 +173,10 @@ export default function ProcurementDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'APPROVED': return 'text-green-600 bg-green-100';
-      case 'PENDING': case 'SUBMITTED': return 'text-yellow-600 bg-yellow-100';
+      case 'PENDING': case 'SUBMITTED': return 'text-wujha-primary bg-wujha-primary/10';
       case 'REJECTED': return 'text-red-600 bg-red-100';
       case 'DRAFT': return 'text-gray-600 bg-gray-100';
-      default: return 'text-blue-600 bg-blue-100';
+      default: return 'text-wujha-primary bg-wujha-primary/10';
     }
   };
 
@@ -207,7 +207,7 @@ export default function ProcurementDashboard() {
         <div className="mt-4 flex md:ml-4 md:mt-0">
           <button
             onClick={fetchDashboardData}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            className="inline-flex items-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover"
           >
             Refresh Data
           </button>
@@ -411,7 +411,7 @@ export default function ProcurementDashboard() {
                       </div>
                       <Link 
                         href={`/procurement/requisitions/${approval.id}/approve`}
-                        className="text-xs text-blue-600 hover:text-blue-500 hover:underline"
+                        className="text-xs text-wujha-primary hover:text-wujha-primary-hover hover:underline"
                       >
                         Review
                       </Link>
@@ -488,9 +488,9 @@ export default function ProcurementDashboard() {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
-                <span className="rounded-lg inline-flex p-3 bg-blue-50 text-blue-700 ring-4 ring-white">
+                <span className="rounded-lg inline-flex p-3 bg-wujha-primary/10 text-wujha-primary ring-4 ring-white">
                   <FileText className="h-6 w-6" />
                 </span>
               </div>
@@ -507,7 +507,7 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
                 <span className="rounded-lg inline-flex p-3 bg-green-50 text-green-700 ring-4 ring-white">
                   <ShoppingCart className="h-6 w-6" />
@@ -526,7 +526,7 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
                 <span className="rounded-lg inline-flex p-3 bg-yellow-50 text-yellow-700 ring-4 ring-white">
                   <Package className="h-6 w-6" />
@@ -545,7 +545,7 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
                 <span className="rounded-lg inline-flex p-3 bg-purple-50 text-purple-700 ring-4 ring-white">
                   <Users className="h-6 w-6" />
@@ -564,7 +564,7 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
                 <span className="rounded-lg inline-flex p-3 bg-indigo-50 text-indigo-700 ring-4 ring-white">
                   <BarChart3 className="h-6 w-6" />
@@ -583,7 +583,7 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg hover:bg-gray-100">
+            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
               <div>
                 <span className="rounded-lg inline-flex p-3 bg-rose-50 text-rose-700 ring-4 ring-white">
                   <Settings className="h-6 w-6" />

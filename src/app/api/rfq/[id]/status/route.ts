@@ -97,22 +97,25 @@ async function updateRFQStatus(
     }
 
     if (status === 'EVALUATED') {
-      // Check if there are responses to evaluate
-      if (rfq.responses.length === 0) {
+      // Filter to only submitted responses (tokenUsed && proposalFileUrl)
+      const submittedResponses = rfq.responses.filter(r => r.tokenUsed && r.proposalFileUrl);
+      
+      // Check if there are submitted responses to evaluate
+      if (submittedResponses.length === 0) {
         return NextResponse.json(
-          { error: 'Cannot evaluate RFQ with no responses' },
+          { error: 'Cannot evaluate RFQ with no submitted responses' },
           { status: 400 }
         );
       }
 
-      // Check if all responses have been scored
-      const unscoredResponses = rfq.responses.filter(r => 
+      // Check if all submitted responses have been scored
+      const unscoredResponses = submittedResponses.filter(r => 
         r.technicalScore === null || r.commercialScore === null
       );
       
       if (unscoredResponses.length > 0) {
         return NextResponse.json(
-          { error: 'All responses must be scored before evaluation can be completed' },
+          { error: 'All submitted responses must be scored before evaluation can be completed' },
           { status: 400 }
         );
       }

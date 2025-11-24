@@ -6,17 +6,6 @@ export default withAuth(
     const token = req.nextauth.token
     const pathname = req.nextUrl.pathname
 
-    // If user must change password, only allow access to change-password page
-    if (token?.mustChangePassword && pathname !== '/change-password') {
-      return NextResponse.redirect(new URL('/change-password', req.url))
-    }
-
-    // If user has changed password, don't allow back to change-password unless explicitly navigating
-    if (!token?.mustChangePassword && pathname === '/change-password') {
-      // Allow access - user may want to change password voluntarily
-      return NextResponse.next()
-    }
-
     // Role-based access control for admin routes
     if (pathname.startsWith('/admin')) {
       const userRole = token?.role as string
@@ -35,14 +24,23 @@ export default withAuth(
         const pathname = req.nextUrl.pathname
 
         // Public routes that don't require authentication
-        const publicRoutes = ['/login', '/api/auth']
+        const publicRoutes = ['/login', '/api/auth', '/api/auth/signin']
 
         if (publicRoutes.some(route => pathname.startsWith(route))) {
           return true
         }
 
+        // Check for JWT token in cookies (from custom signin)
+        const jwtToken = req.cookies.get('token')?.value
+        
+        // Allow access if NextAuth token exists OR JWT token cookie exists
+        // This allows both authentication methods to work
+        if (token || jwtToken) {
+          return true
+        }
+
         // All other routes require authentication
-        return !!token
+        return false
       },
     },
     pages: {

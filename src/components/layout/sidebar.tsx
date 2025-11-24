@@ -56,18 +56,18 @@ const navigation: NavigationItem[] = [
     icon: Users,
     description: 'Vendor/Suppliers Management'
   },
-  {
-    name: 'Approvals',
-    href: '/approvals',
-    icon: Clock,
-    description: 'Pending approvals'
-  },
-  {
-    name: 'Consultations',
-    href: '/consultations',
-    icon: MessageSquare,
-    description: 'Consultation requests'
-  },
+//   {
+//     name: 'Approvals',
+//     href: '/approvals',
+//     icon: Clock,
+//     description: 'Pending approvals'
+//   },
+//   {
+//     name: 'Consultations',
+//     href: '/consultations',
+//     icon: MessageSquare,
+//     description: 'Consultation requests'
+//   },
   {
     name: 'Requisitions',
     href: '/procurement/requisitions',
@@ -75,16 +75,16 @@ const navigation: NavigationItem[] = [
     description: 'Purchase requisitions'
   },
   {
-    name: 'Purchase Orders',
-    href: '/procurement/purchase-orders',
-    icon: ShoppingCart,
-    description: 'Purchase order management'
-  },
-  {
     name: 'RFQ',
     href: '/procurement/rfq',
     icon: FileText,
     description: 'Request for quotation'
+  },
+  {
+    name: 'Purchase Orders',
+    href: '/procurement/purchase-orders',
+    icon: ShoppingCart,
+    description: 'Purchase order management'
   },
   {
     name: 'Goods Receipt',

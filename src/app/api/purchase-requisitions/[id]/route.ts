@@ -32,7 +32,30 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(pr);
+    // Fetch creator information if createdBy exists
+    let creatorName = pr.createdBy;
+    if (pr.createdBy) {
+      const creator = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: pr.createdBy },
+            { employeeId: pr.createdBy }
+          ]
+        },
+        select: {
+          name: true
+        }
+      });
+      if (creator) {
+        creatorName = creator.name;
+      }
+    }
+
+    // Return PR with creator name
+    return NextResponse.json({
+      ...pr,
+      creatorName
+    });
   } catch (error) {
     console.error('Error fetching purchase requisition:', error);
     return NextResponse.json(
@@ -64,7 +87,7 @@ export async function PUT(
     } = body;
 
     // Calculate total estimated cost
-    const totalEstimatedCost = items.reduce(
+    const estimatedCost = items.reduce(
       (sum: number, item: any) => sum + (item.quantity * item.estimatedPrice),
       0
     );
@@ -83,12 +106,12 @@ export async function PUT(
         justification,
         budgetCode,
         costCenter,
-        totalEstimatedCost,
+        estimatedCost,
         updatedAt: new Date(),
         // Update items
         items: {
           deleteMany: {
-            purchaseRequisitionId: id,
+            prId: id,
           }, // Remove existing items
           create: items.map((item: any) => ({
             itemId: item.itemId,

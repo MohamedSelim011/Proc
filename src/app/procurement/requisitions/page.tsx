@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import * as XLSX from 'xlsx';
 
 interface PurchaseRequisition {
   id: string;
@@ -32,6 +33,7 @@ interface PurchaseRequisition {
   justification?: string;
   items: any[];
   approvals: any[];
+  createdBy?: string;
   _count: {
     purchaseOrders: number;
     rfqs: number;
@@ -57,6 +59,15 @@ export default function PurchaseRequisitionsPage() {
     total: 0,
     totalPages: 0
   });
+
+  // Get user data from localStorage for permission checks
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') || '' : '';
+  const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
+  const userId = userData.id || '';
+  const userEmployeeId = userData.employeeId || '';
+
+  // Check permissions
+  const canApprove = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN'].includes(userRole);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -153,12 +164,14 @@ export default function PurchaseRequisitionsPage() {
     switch (status) {
       case 'APPROVED':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'PENDING_APPROVAL':
+        return <Clock className="h-4 w-4 text-wujha-primary" />;
       case 'SUBMITTED':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'CONVERTED':
-        return <CheckCircle className="h-4 w-4 text-blue-500" />;
+        return <CheckCircle className="h-4 w-4 text-wujha-primary" />;
       default:
         return <FileText className="h-4 w-4 text-gray-500" />;
     }
@@ -168,12 +181,14 @@ export default function PurchaseRequisitionsPage() {
     switch (status) {
       case 'APPROVED':
         return 'bg-green-100 text-green-800';
+      case 'PENDING_APPROVAL':
+        return 'bg-wujha-primary/10 text-wujha-primary';
       case 'SUBMITTED':
         return 'bg-yellow-100 text-yellow-800';
       case 'REJECTED':
         return 'bg-red-100 text-red-800';
       case 'CONVERTED':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-wujha-primary/10 text-wujha-primary';
       case 'CANCELLED':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -193,6 +208,83 @@ export default function PurchaseRequisitionsPage() {
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      showToast('info', 'Preparing export...');
+      
+      // Build query params with current filters
+      const params = new URLSearchParams({
+        export: 'true',
+        ...(filters.status && { status: filters.status }),
+        ...(filters.priority && { priority: filters.priority }),
+        ...(filters.requesterId && { requesterId: filters.requesterId }),
+        ...(filters.departmentId && { departmentId: filters.departmentId })
+      });
+
+      const response = await fetch(`/api/purchase-requisitions?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast('error', 'Failed to export requisitions');
+        return;
+      }
+
+      // Prepare data for Excel
+      const exportData = data.requisitions.map((pr: PurchaseRequisition) => ({
+        'PR Number': pr.prNumber,
+        'Request Date': formatDate(pr.requestDate),
+        'Requester ID': pr.requesterId,
+        'Department ID': pr.departmentId,
+        'Item Type': pr.itemType,
+        'Priority': pr.priority,
+        'Status': pr.status,
+        'Estimated Cost (OMR)': Number(pr.estimatedCost).toFixed(3),
+        'Budget Code': pr.budgetCode,
+        'Justification': pr.justification || '',
+        'Number of Items': pr.items?.length || 0,
+        'Purchase Orders': pr._count?.purchaseOrders || 0,
+        'RFQs': pr._count?.rfqs || 0,
+        'Created At': formatDate(pr.createdAt),
+        'Updated At': formatDate(pr.updatedAt)
+      }));
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Purchase Requisitions');
+
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // PR Number
+        { wch: 12 }, // Request Date
+        { wch: 12 }, // Requester ID
+        { wch: 12 }, // Department ID
+        { wch: 12 }, // Item Type
+        { wch: 10 }, // Priority
+        { wch: 15 }, // Status
+        { wch: 18 }, // Estimated Cost
+        { wch: 12 }, // Budget Code
+        { wch: 30 }, // Justification
+        { wch: 15 }, // Number of Items
+        { wch: 15 }, // Purchase Orders
+        { wch: 10 }, // RFQs
+        { wch: 12 }, // Created At
+        { wch: 12 }  // Updated At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Generate filename with timestamp
+      const filename = `Purchase_Requisitions_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      showToast('success', `Exported ${data.total} requisitions successfully`);
+    } catch (error) {
+      console.error('Error exporting requisitions:', error);
+      showToast('error', 'Failed to export requisitions');
     }
   };
 
@@ -237,6 +329,7 @@ export default function PurchaseRequisitionsPage() {
             >
               <option value="">All Statuses</option>
               <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="SUBMITTED">Submitted</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
@@ -275,7 +368,10 @@ export default function PurchaseRequisitionsPage() {
             <h3 className="text-lg font-medium text-gray-900">
               Requisitions ({pagination.total})
             </h3>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary">
+            <button 
+              onClick={handleExport}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>
@@ -376,21 +472,16 @@ export default function PurchaseRequisitionsPage() {
                             >
                               <Edit className="h-4 w-4" />
                             </Link>
-                            {pr.status === 'DRAFT' && (
-                              <button
-                                onClick={() => handleSubmitDraft(pr.id)}
-                                className="text-green-600 hover:text-green-900 ml-2"
-                                title="Submit for Approval"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            )}
                           </>
                         )}
-                        {pr.status === 'SUBMITTED' && (
+                        {(pr.status === 'PENDING_APPROVAL' || pr.status === 'SUBMITTED') && 
+                         canApprove && 
+                         pr.requesterId !== userId && 
+                         pr.requesterId !== userEmployeeId &&
+                         pr.createdBy !== userId && (
                           <Link
                             href={`/procurement/requisitions/${pr.id}/approve`}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-wujha-primary hover:text-wujha-primary-hover"
                             title="Review & Approve"
                           >
                             <CheckCircle className="h-4 w-4" />

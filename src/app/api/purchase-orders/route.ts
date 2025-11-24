@@ -6,12 +6,13 @@ import { prisma } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const isExport = searchParams.get('export') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = isExport ? undefined : parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
     const vendorId = searchParams.get('vendorId') || '';
 
-    const skip = (page - 1) * limit;
+    const skip = isExport ? undefined : (page - 1) * limit!;
 
     const where: any = {};
     if (status) {
@@ -27,8 +28,8 @@ export async function GET(request: NextRequest) {
     const [orders, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
         where,
-        skip,
-        take: limit,
+        ...(skip !== undefined && { skip }),
+        ...(limit !== undefined && { take: limit }),
         include: {
           vendor: true,
           pr: true,
@@ -52,13 +53,20 @@ export async function GET(request: NextRequest) {
       prisma.purchaseOrder.count({ where })
     ]);
 
+    if (isExport) {
+      return NextResponse.json({
+        orders,
+        total
+      });
+    }
+
     return NextResponse.json({
       orders,
       pagination: {
         page,
-        limit,
+        limit: limit!,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit!)
       }
     });
   } catch (error) {
@@ -95,6 +103,7 @@ export async function POST(request: NextRequest) {
         status: body.status || 'DRAFT',
         totalAmount,
         currency: body.currency || 'OMR',
+        createdBy: body.createdBy || null,
         items: {
           create: body.items.map((item: any) => ({
             itemId: item.itemId,

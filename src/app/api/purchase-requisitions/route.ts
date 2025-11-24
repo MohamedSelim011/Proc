@@ -6,14 +6,16 @@ import { prisma } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const isExport = searchParams.get('export') === 'true';
+    const includeRFQ = searchParams.get('includeRFQ') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = isExport ? undefined : parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
     const priority = searchParams.get('priority') || '';
     const requesterId = searchParams.get('requesterId') || '';
     const departmentId = searchParams.get('departmentId') || '';
 
-    const skip = (page - 1) * limit;
+    const skip = isExport ? undefined : (page - 1) * limit!;
 
     const where: any = {};
     
@@ -25,8 +27,8 @@ export async function GET(request: NextRequest) {
     const [requisitions, total] = await Promise.all([
       prisma.purchaseRequisition.findMany({
         where,
-        skip,
-        take: limit,
+        ...(skip !== undefined && { skip }),
+        ...(limit !== undefined && { take: limit }),
         include: {
           items: {
             include: {
@@ -38,6 +40,16 @@ export async function GET(request: NextRequest) {
               level: 'asc'
             }
           },
+          ...(includeRFQ && {
+            rfqs: {
+              select: {
+                id: true,
+                rfqNumber: true,
+                status: true
+              },
+              take: 1
+            }
+          }),
           _count: {
             select: {
               purchaseOrders: true,
@@ -52,13 +64,29 @@ export async function GET(request: NextRequest) {
       prisma.purchaseRequisition.count({ where })
     ]);
 
+    // Add hasRFQ flag to each requisition if includeRFQ is true
+    const processedRequisitions = includeRFQ 
+      ? requisitions.map(req => ({
+          ...req,
+          hasRFQ: (req as any).rfqs && (req as any).rfqs.length > 0,
+          rfqNumber: (req as any).rfqs && (req as any).rfqs.length > 0 ? (req as any).rfqs[0].rfqNumber : null
+        }))
+      : requisitions;
+
+    if (isExport) {
+      return NextResponse.json({
+        requisitions: processedRequisitions,
+        total
+      });
+    }
+
     return NextResponse.json({
-      requisitions,
+      requisitions: processedRequisitions,
       pagination: {
         page,
-        limit,
+        limit: limit!,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit!)
       }
     });
   } catch (error) {
@@ -84,10 +112,14 @@ export async function POST(request: NextRequest) {
       sum + (item.quantity * item.estimatedPrice), 0
     );
 
+    // Set requesterId from body or use a default for now
+    const requesterId = body.requesterId || 'emp001';
+
     const requisition = await prisma.purchaseRequisition.create({
       data: {
         prNumber,
-        requesterId: body.requesterId,
+        requesterId,
+        requestDate: new Date(),
         departmentId: body.departmentId,
         itemType: body.itemType,
         priority: body.priority,
@@ -95,6 +127,11 @@ export async function POST(request: NextRequest) {
         estimatedCost,
         budgetCode: body.budgetCode,
         justification: body.justification,
+        requiredByDate: body.requiredByDate ? new Date(body.requiredByDate) : null,
+        projectId: body.projectId || null,
+        boqReference: body.boqReference || null,
+        costCenter: body.costCenter || null,
+        createdBy: requesterId,
         items: {
           create: body.items.map((item: any) => ({
             itemId: item.itemId,

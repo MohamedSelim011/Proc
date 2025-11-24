@@ -155,17 +155,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update PO status
-    let newStatus: 'ACKNOWLEDGED' | 'COMPLETED' | 'PARTIAL' = 'ACKNOWLEDGED';
-    if (fullyReceived) {
-      newStatus = 'COMPLETED';
-    } else if (partiallyReceived) {
-      newStatus = 'PARTIAL';
-    }
-
+    // Update PO status - When Goods Receipt is created, PO becomes COMPLETED
     await prisma.purchaseOrder.update({
       where: { id: body.poId },
-      data: { status: newStatus }
+      data: { status: 'COMPLETED' }
+    });
+    
+    // Create process audit entry for PO completion
+    await prisma.processAudit.create({
+      data: {
+        processType: 'PO_COMPLETION',
+        documentId: body.poId,
+        documentType: 'PO',
+        action: 'COMPLETED',
+        performedBy: body.receivedBy || 'SYSTEM',
+        details: {
+          grNumber: grNumber,
+          completedAt: new Date().toISOString(),
+        },
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null,
+        userAgent: request.headers.get('user-agent') || null,
+      },
     });
 
     return NextResponse.json(receipt, { status: 201 });

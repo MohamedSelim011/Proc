@@ -16,16 +16,19 @@ import {
   Truck,
   AlertTriangle,
   Package,
-  Loader2
+  Loader2,
+  Send
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { getUserRole, getUserData } from '@/lib/jwt';
+import * as XLSX from 'xlsx';
 
 interface PurchaseOrder {
   id: string;
   poNumber: string;
   orderDate: string;
   deliveryDate: string;
-  status: 'DRAFT' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED';
+  status: 'DRAFT' | 'SUBMITTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
   totalAmount: number;
   currency: string;
   vendor: {
@@ -75,12 +78,98 @@ export default function PurchaseOrdersPage() {
     totalPages: 0
   });
 
+  // User role and permissions
+  const [userRole, setUserRole] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
+  const [userEmployeeId, setUserEmployeeId] = useState<string>('');
+
   // Filters
   const [filters, setFilters] = useState({
     status: '',
     vendorId: '',
     search: ''
   });
+
+  useEffect(() => {
+    // Function to update user info from JWT
+    const updateUserInfo = () => {
+      if (typeof window === 'undefined') return;
+      
+      // Try multiple sources for role
+      let role = '';
+      let user: any = {};
+      
+      // Method 1: From JWT utility
+      const jwtRole = getUserRole();
+      const jwtUser = getUserData();
+      
+      // Method 2: Direct from localStorage
+      const localRole = localStorage.getItem('role');
+      const localUserStr = localStorage.getItem('user');
+      let localUser: any = null;
+      if (localUserStr) {
+        try {
+          localUser = JSON.parse(localUserStr);
+        } catch (e) {
+          console.error('Error parsing user from localStorage:', e);
+        }
+      }
+      
+      // Method 3: Decode from JWT token directly
+      const token = localStorage.getItem('token');
+      let tokenRole = '';
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            tokenRole = payload.role || '';
+          }
+        } catch (e) {
+          console.error('Error decoding token:', e);
+        }
+      }
+      
+      // Priority: JWT util > localStorage role > token decode
+      role = jwtRole || localRole || tokenRole || '';
+      user = jwtUser || localUser || {};
+      
+      console.log('PO List - Role Detection:', {
+        jwtRole,
+        localRole,
+        tokenRole,
+        finalRole: role,
+        jwtUser,
+        localUser,
+        finalUser: user,
+        tokenExists: !!token
+      });
+      
+      setUserRole(role);
+      setUserId(user.id || '');
+      setUserEmployeeId(user.employeeId || '');
+    };
+
+    // Initial load
+    updateUserInfo();
+
+    // Listen for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'role' || e.key === 'user') {
+        updateUserInfo();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -160,14 +249,22 @@ export default function PurchaseOrdersPage() {
         return 'bg-green-100 text-green-800';
       case 'APPROVED':
         return 'bg-blue-100 text-blue-800';
+      case 'PENDING_APPROVAL':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'SUBMITTED':
+        return 'bg-blue-100 text-blue-800';
       case 'SENT':
         return 'bg-purple-100 text-purple-800';
       case 'ACKNOWLEDGED':
         return 'bg-indigo-100 text-indigo-800';
       case 'PARTIAL':
         return 'bg-yellow-100 text-yellow-800';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800';
       case 'CANCELLED':
         return 'bg-red-100 text-red-800';
+      case 'DRAFT':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -201,7 +298,7 @@ export default function PurchaseOrdersPage() {
           },
           body: JSON.stringify({
             status: 'APPROVED',
-            updatedBy: 'current-user',
+            updatedBy: userEmployeeId || userId || 'current-user',
             comments: 'Quick approved from list view'
           }),
         });
@@ -220,6 +317,30 @@ export default function PurchaseOrdersPage() {
     }
   };
 
+  const handleRequestApproval = async (poId: string) => {
+    if (window.confirm('Are you sure you want to submit this purchase order for approval?')) {
+      try {
+        const response = await fetch(`/api/purchase-orders/${poId}/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          // Refresh the orders list
+          fetchOrders();
+          showToast('success', 'Purchase order submitted for approval successfully!');
+        } else {
+          const error = await response.json();
+          showToast('error', error.error || 'Failed to submit purchase order for approval.');
+        }
+      } catch (error) {
+        showToast('error', 'An error occurred while submitting the purchase order for approval.');
+      }
+    }
+  };
+
   const handleQuickReject = async (poId: string) => {
     if (window.confirm('Are you sure you want to reject this purchase order?')) {
       try {
@@ -230,7 +351,7 @@ export default function PurchaseOrdersPage() {
           },
           body: JSON.stringify({
             status: 'CANCELLED',
-            updatedBy: 'current-user',
+            updatedBy: userEmployeeId || userId || 'current-user',
             comments: 'Quick rejected from list view'
           }),
         });
@@ -246,6 +367,109 @@ export default function PurchaseOrdersPage() {
       } catch (error) {
         showToast('error', 'An error occurred while rejecting the purchase order.');
       }
+    }
+  };
+
+  // Check permissions
+  const roleUpper = userRole?.toUpperCase() || '';
+  const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
+  const hasApprovalRole = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
+  
+  // Super Admin can always approve, others need approval role
+  const canApprove = hasApprovalRole;
+  const canSubmit = ['BUYER', 'REQUESTOR', 'PROCUREMENT_OFFICER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
+  
+  // Debug logging
+  if (typeof window !== 'undefined') {
+    console.log('PO List - Permissions Check:', {
+      userRole,
+      roleUpper,
+      isSuperAdmin,
+      hasApprovalRole,
+      canApprove,
+      canSubmit
+    });
+  }
+
+  const handleExport = async () => {
+    try {
+      showToast('info', 'Preparing export...');
+      
+      // Build query params with current filters
+      const params = new URLSearchParams({
+        export: 'true',
+        ...(filters.status && { status: filters.status }),
+        ...(filters.vendorId && { vendorId: filters.vendorId })
+      });
+
+      const response = await fetch(`/api/purchase-orders?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast('error', 'Failed to export purchase orders');
+        return;
+      }
+
+      // Prepare data for Excel
+      const exportData = data.orders.map((po: PurchaseOrder) => {
+        const deliveryStatus = getDeliveryStatus(po);
+        return {
+          'PO Number': po.poNumber,
+          'Order Date': formatDate(po.orderDate),
+          'Delivery Date': formatDate(po.deliveryDate),
+          'Vendor Name': po.vendor.nameEn,
+          'Vendor Email': po.vendor.email,
+          'Vendor Rating': po.vendor.performanceScore ? po.vendor.performanceScore.toFixed(1) : 'N/A',
+          'PR Number': po.pr?.prNumber || 'N/A',
+          'Status': po.status,
+          'Total Amount (OMR)': Number(po.totalAmount).toFixed(3),
+          'Currency': po.currency,
+          'Number of Items': po.items?.length || 0,
+          'Delivery Status': deliveryStatus.text,
+          'Goods Receipts': po._count?.goodsReceipts || 0,
+          'Invoices': po._count?.invoices || 0,
+          'Amendments': po._count?.amendments || 0,
+          'Created At': formatDate(po.createdAt),
+          'Updated At': formatDate(po.updatedAt)
+        };
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Purchase Orders');
+
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // PO Number
+        { wch: 12 }, // Order Date
+        { wch: 12 }, // Delivery Date
+        { wch: 20 }, // Vendor Name
+        { wch: 25 }, // Vendor Email
+        { wch: 12 }, // Vendor Rating
+        { wch: 15 }, // PR Number
+        { wch: 15 }, // Status
+        { wch: 18 }, // Total Amount
+        { wch: 10 }, // Currency
+        { wch: 15 }, // Number of Items
+        { wch: 18 }, // Delivery Status
+        { wch: 15 }, // Goods Receipts
+        { wch: 10 }, // Invoices
+        { wch: 12 }, // Amendments
+        { wch: 12 }, // Created At
+        { wch: 12 }  // Updated At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Generate filename with timestamp
+      const filename = `Purchase_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      showToast('success', `Exported ${data.total} purchase orders successfully`);
+    } catch (error) {
+      console.error('Error exporting purchase orders:', error);
+      showToast('error', 'Failed to export purchase orders');
     }
   };
 
@@ -316,7 +540,7 @@ export default function PurchaseOrdersPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">In Transit</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {orders.filter(o => o.status === 'PARTIAL').length}
+                    0
                   </dd>
                 </dl>
               </div>
@@ -408,11 +632,13 @@ export default function PurchaseOrdersPage() {
               >
               <option value="">All Statuses</option>
               <option value="DRAFT">Draft</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="APPROVED">Approved</option>
               <option value="SENT">Sent</option>
               <option value="ACKNOWLEDGED">Acknowledged</option>
-              <option value="PARTIAL">Partial Delivery</option>
               <option value="COMPLETED">Completed</option>
+              <option value="REJECTED">Rejected</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
@@ -443,7 +669,10 @@ export default function PurchaseOrdersPage() {
             <h3 className="text-lg font-medium text-gray-900">
               Purchase Orders ({pagination.total})
             </h3>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary">
+            <button 
+              onClick={handleExport}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>
@@ -563,31 +792,42 @@ export default function PurchaseOrdersPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
-                          {po.status === 'DRAFT' && (
-                            <>
-                              <button
-                                onClick={() => handleQuickApprove(po.id)}
-                                className="text-green-600 hover:text-green-900"
-                                title="Quick Approve"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleQuickReject(po.id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Quick Reject"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </button>
-                            </>
+                          {(po.status === 'PENDING_APPROVAL' || po.status === 'DRAFT') && canApprove && (
+                            <Link
+                              href={`/procurement/purchase-orders/${po.id}/approve`}
+                              className="text-green-600 hover:text-green-900"
+                              title="Review & Approve"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Link>
                           )}
-                          {(po.status === 'DRAFT' || po.status === 'APPROVED') && (
+                          {po.status === 'DRAFT' && canSubmit && (
+                            <button
+                              onClick={() => handleRequestApproval(po.id)}
+                              className="text-wujha-primary hover:text-wujha-primary-hover"
+                              title="Request Approval"
+                            >
+                              <Send className="h-4 w-4" />
+                            </button>
+                          )}
+                          {/* Only allow editing when status is DRAFT */}
+                          {po.status === 'DRAFT' && (
                             <Link
                               href={`/procurement/purchase-orders/${po.id}/edit`}
                               className="text-gray-600 hover:text-gray-900"
+                              title="Edit Purchase Order"
                             >
                               <Edit className="h-4 w-4" />
                             </Link>
+                          )}
+                          {/* Show disabled edit icon for all other statuses */}
+                          {po.status !== 'DRAFT' && (
+                            <span
+                              className="text-gray-400 cursor-not-allowed"
+                              title="Cannot edit after submission for approval"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </span>
                           )}
                           {po.status === 'ACKNOWLEDGED' && po._count.goodsReceipts === 0 && (
                             <Link

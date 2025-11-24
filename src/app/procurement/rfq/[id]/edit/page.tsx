@@ -9,9 +9,24 @@ import {
   Clock, 
   FileText,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Users,
+  Building
 } from 'lucide-react';
 import Link from 'next/link';
+
+interface Vendor {
+  id: string;
+  nameEn: string;
+  vendorCode: string;
+  email: string;
+  mobile: string;
+  categories: {
+    category: {
+      nameEn: string;
+    };
+  }[];
+}
 
 interface RFQ {
   id: string;
@@ -34,6 +49,9 @@ interface RFQ {
     delivery: number;
     experience: number;
   };
+  invitedVendors?: {
+    vendorId: string;
+  }[];
 }
 
 export default function EditRFQPage() {
@@ -46,6 +64,8 @@ export default function EditRFQPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -62,8 +82,21 @@ export default function EditRFQPage() {
   useEffect(() => {
     if (rfqId) {
       fetchRFQ();
+      fetchVendors();
     }
   }, [rfqId]);
+
+  const fetchVendors = async () => {
+    try {
+      const response = await fetch('/api/vendors?status=ACTIVE');
+      if (response.ok) {
+        const data = await response.json();
+        setVendors(data.vendors || []);
+      }
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+    }
+  };
 
   const fetchRFQ = async () => {
     try {
@@ -103,12 +136,19 @@ export default function EditRFQPage() {
       };
 
       setRfq(transformedRFQ);
+      
+      // Format dates for HTML date inputs (YYYY-MM-DD format)
       setFormData({
         title: transformedRFQ.title,
         description: transformedRFQ.description,
-        submissionDeadline: transformedRFQ.submissionDeadline,
+        submissionDeadline: formatDateForInput(transformedRFQ.submissionDeadline),
         evaluationCriteria: transformedRFQ.evaluationCriteria
       });
+      
+      // Set selected vendors
+      if (rfqData.invitedVendors) {
+        setSelectedVendorIds(rfqData.invitedVendors.map((inv: any) => inv.vendorId));
+      }
     } catch (error) {
       console.error('Error fetching RFQ:', error);
       setError('Failed to load RFQ details');
@@ -132,6 +172,30 @@ export default function EditRFQPage() {
         ...prev,
         [field]: value
       }));
+    }
+  };
+
+  const handleVendorToggle = (vendorId: string) => {
+    setSelectedVendorIds(prev => 
+      prev.includes(vendorId)
+        ? prev.filter(id => id !== vendorId)
+        : [...prev, vendorId]
+    );
+  };
+
+  // Format date for HTML date input (YYYY-MM-DD)
+  const formatDateForInput = (dateString: string | undefined | null): string => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      // Get local date in YYYY-MM-DD format
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
     }
   };
 
@@ -162,7 +226,8 @@ export default function EditRFQPage() {
           title: formData.title,
           description: formData.description,
           closingDate: formData.submissionDeadline,
-          evaluationCriteria: JSON.stringify(formData.evaluationCriteria)
+          evaluationCriteria: JSON.stringify(formData.evaluationCriteria),
+          vendorIds: selectedVendorIds
         }),
       });
 
@@ -211,8 +276,8 @@ export default function EditRFQPage() {
   }
 
   // Check if RFQ can be edited based on database status
-  // Allow editing for DRAFT status, and potentially other early stages
-  const canEdit = ['DRAFT', 'NEW', 'PENDING'].includes(rfq.status?.trim());
+  // Only allow editing for DRAFT status (not approved or pending approval)
+  const canEdit = rfq.status === 'DRAFT';
 
   if (!canEdit) {
     return (
@@ -338,7 +403,7 @@ export default function EditRFQPage() {
               </label>
               <input
                 type="date"
-                value={rfq.issueDate}
+                value={formatDateForInput(rfq.issueDate)}
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
               />
@@ -442,6 +507,65 @@ export default function EditRFQPage() {
           </div>
         </div>
 
+        {/* Vendor Selection */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Users className="h-5 w-5 mr-2 text-wujha-primary" />
+            Invited Vendors
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Select vendors to invite for this RFQ. Selected vendors will receive email invitations when the RFQ is published.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vendors.map((vendor) => (
+              <div
+                key={vendor.id}
+                className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedVendorIds.includes(vendor.id)
+                    ? 'border-wujha-primary bg-wujha-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => handleVendorToggle(vendor.id)}
+              >
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    checked={selectedVendorIds.includes(vendor.id)}
+                    onChange={() => handleVendorToggle(vendor.id)}
+                    className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded mt-1"
+                  />
+                  <div className="ml-3 flex-1">
+                    <div className="flex items-center">
+                      <Building className="h-4 w-4 text-gray-400 mr-1" />
+                      <h3 className="font-medium text-gray-900">{vendor.nameEn}</h3>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Code: {vendor.vendorCode}</p>
+                    <p className="text-xs text-gray-500">Email: {vendor.email}</p>
+                    {vendor.categories.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {vendor.categories.map(c => c.category.nameEn).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {selectedVendorIds.length === 0 && (
+            <p className="text-sm text-amber-600 mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              ⚠️ No vendors selected. You must select at least one vendor to invite for this RFQ.
+            </p>
+          )}
+          
+          {selectedVendorIds.length > 0 && (
+            <p className="text-sm text-green-600 mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
+              ✓ {selectedVendorIds.length} vendor{selectedVendorIds.length > 1 ? 's' : ''} selected
+            </p>
+          )}
+        </div>
+
         {/* Financial Information */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Information</h2>
@@ -481,8 +605,8 @@ export default function EditRFQPage() {
           </Link>
           <button
             type="submit"
-            disabled={saving || !validateEvaluationCriteria()}
-            className="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saving || !validateEvaluationCriteria() || selectedVendorIds.length === 0}
+            className="px-6 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <div className="flex items-center">

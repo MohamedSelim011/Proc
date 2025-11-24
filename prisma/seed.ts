@@ -12,7 +12,7 @@ async function main() {
   console.log('\n📧 Seeding users...')
 
   // Create default admin user
-  const adminEmail = 'admin@wujha.om'
+  const adminEmail = 'admin@wujha.com'
   const defaultPassword = 'password123' // Must be changed on first login
 
   const existingAdmin = await prisma.user.findUnique({
@@ -41,7 +41,7 @@ async function main() {
   // Create sample users for testing
   const testUsers = [
     {
-      email: 'requester@wujha.om',
+      email: 'requester@wujha.com',
       name: 'John Requestor',
       employeeId: 'EMP-001',
       department: 'Operations',
@@ -49,7 +49,7 @@ async function main() {
       password: 'password123',
     },
     {
-      email: 'manager@wujha.om',
+      email: 'manager@wujha.com',
       name: 'Sarah Manager',
       employeeId: 'MGR-001',
       department: 'Operations',
@@ -58,7 +58,7 @@ async function main() {
       approvalLimit: 5000,
     },
     {
-      email: 'buyer@wujha.om',
+      email: 'buyer@wujha.com',
       name: 'Ahmed Buyer',
       employeeId: 'BUY-001',
       department: 'Procurement',
@@ -66,7 +66,7 @@ async function main() {
       password: 'password123',
     },
     {
-      email: 'procmgr@wujha.om',
+      email: 'procmgr@wujha.com',
       name: 'Ali Procurement',
       employeeId: 'PMG-001',
       department: 'Procurement',
@@ -75,7 +75,7 @@ async function main() {
       approvalLimit: 50000,
     },
     {
-      email: 'finance@wujha.om',
+      email: 'finance@wujha.com',
       name: 'Fatima Finance',
       employeeId: 'FIN-001',
       department: 'Finance',

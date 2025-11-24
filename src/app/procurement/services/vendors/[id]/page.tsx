@@ -17,7 +17,8 @@ import {
   CheckCircle,
   AlertCircle,
   Hash,
-  Globe
+  Globe,
+  Loader2
 } from 'lucide-react';
 
 interface Vendor {
@@ -31,7 +32,14 @@ interface Vendor {
   primaryContactName: string;
   email: string;
   mobile: string;
+  alternativePhone?: string;
+  website?: string;
   address: any;
+  bankName?: string;
+  bankAccount?: string;
+  iban?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   businessType: string;
   yearEstablished: number;
   numberOfEmployees: number;
@@ -115,7 +123,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="animate-spin h-12 w-12 text-wujha-primary" />
       </div>
     );
   }
@@ -134,7 +142,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
         </div>
         <Link
           href="/procurement/services/vendors"
-          className="mt-4 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
+          className="mt-4 inline-flex items-center text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Vendors
@@ -157,8 +165,8 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
-              <Building className="h-8 w-8 text-blue-600" />
+            <div className="h-16 w-16 rounded-full bg-wujha-primary/10 flex items-center justify-center">
+              <Building className="h-8 w-8 text-wujha-primary" />
             </div>
             <div className="ml-6">
               <h1 className="text-2xl font-bold text-gray-900">{vendor.nameEn}</h1>
@@ -173,7 +181,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
             </span>
             <Link
               href={`/procurement/services/vendors/${vendorId}/edit`}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Vendor
@@ -188,7 +196,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FileText className="h-6 w-6 text-blue-400" />
+                <FileText className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -248,7 +256,9 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Performance</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {vendor.performanceScore ? `${vendor.performanceScore.toFixed(1)}/5` : 'N/A'}
+                    {vendor.performanceScore !== null && vendor.performanceScore !== undefined 
+                      ? `${vendor.performanceScore.toFixed(1)}/5` 
+                      : '0.0/5'}
                   </dd>
                 </dl>
               </div>
@@ -347,7 +357,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                     key={index}
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       cat.isPrimary
-                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        ? 'bg-wujha-primary/10 text-wujha-primary border border-wujha-primary/20'
                         : 'bg-gray-100 text-gray-800'
                     }`}
                   >
@@ -379,7 +389,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                 </label>
                 <a
                   href={`mailto:${vendor.email}`}
-                  className="mt-1 text-sm text-blue-600 hover:text-blue-800"
+                  className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
                 >
                   {vendor.email}
                 </a>
@@ -391,13 +401,110 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                 </label>
                 <a
                   href={`tel:${vendor.mobile}`}
-                  className="mt-1 text-sm text-blue-600 hover:text-blue-800"
+                  className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
                 >
                   {vendor.mobile}
                 </a>
               </div>
+              {vendor.alternativePhone && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 flex items-center">
+                    <Phone className="h-4 w-4 mr-1" />
+                    Alternative Phone
+                  </label>
+                  <a
+                    href={`tel:${vendor.alternativePhone}`}
+                    className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
+                  >
+                    {vendor.alternativePhone}
+                  </a>
+                </div>
+              )}
+              {vendor.website && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 flex items-center">
+                    <Globe className="h-4 w-4 mr-1" />
+                    Website
+                  </label>
+                  <a
+                    href={vendor.website.startsWith('http') ? vendor.website : `https://${vendor.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
+                  >
+                    {vendor.website}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Contact Person Information */}
+          {(vendor.contactEmail || vendor.contactPhone) && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Contact Person Information</h2>
+              <div className="space-y-4">
+                {vendor.contactEmail && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center">
+                      <Mail className="h-4 w-4 mr-1" />
+                      Contact Email
+                    </label>
+                    <a
+                      href={`mailto:${vendor.contactEmail}`}
+                      className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
+                    >
+                      {vendor.contactEmail}
+                    </a>
+                  </div>
+                )}
+                {vendor.contactPhone && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center">
+                      <Phone className="h-4 w-4 mr-1" />
+                      Contact Phone
+                    </label>
+                    <a
+                      href={`tel:${vendor.contactPhone}`}
+                      className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
+                    >
+                      {vendor.contactPhone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Banking Information */}
+          {(vendor.bankName || vendor.bankAccount || vendor.iban) && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Hash className="h-5 w-5 mr-2 text-gray-400" />
+                Banking Information
+              </h2>
+              <div className="space-y-4">
+                {vendor.bankName && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Bank Name</label>
+                    <p className="mt-1 text-sm text-gray-900">{vendor.bankName}</p>
+                  </div>
+                )}
+                {vendor.bankAccount && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Bank Account Number</label>
+                    <p className="mt-1 text-sm text-gray-900">{vendor.bankAccount}</p>
+                  </div>
+                )}
+                {vendor.iban && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">IBAN</label>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">{vendor.iban}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Metadata */}
           <div className="bg-white shadow rounded-lg p-6">

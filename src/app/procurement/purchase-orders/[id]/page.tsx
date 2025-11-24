@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { getUserRole, getUserData } from '@/lib/jwt';
 
 interface PurchaseOrder {
   id: string;
@@ -70,6 +71,15 @@ interface PurchaseOrder {
   };
   paymentTerms?: string;
   notes?: string;
+  createdBy?: string;
+  approvals?: {
+    id: string;
+    level: number;
+    status: string;
+    approverId: string;
+    comments?: string;
+    actionDate?: string;
+  }[];
   goodsReceipts: {
     id: string;
     grnNumber: string;
@@ -113,6 +123,101 @@ export default function PurchaseOrderDetailPage() {
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>('');
   const [statusComments, setStatusComments] = useState('');
+  const [submittingForApproval, setSubmittingForApproval] = useState(false);
+  const [history, setHistory] = useState<Array<{
+    id: string;
+    processType: string;
+    action: string;
+    performedBy: string;
+    performedAt: string;
+    details: any;
+  }>>([]);
+
+  // Get user role and ID from localStorage
+  const [userRole, setUserRole] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
+  const [userEmployeeId, setUserEmployeeId] = useState<string>('');
+
+  useEffect(() => {
+    // Function to update user info from JWT
+    const updateUserInfo = () => {
+      if (typeof window === 'undefined') return;
+      
+      // Try multiple sources for role
+      let role = '';
+      let user: any = {};
+      
+      // Method 1: From JWT utility
+      const jwtRole = getUserRole();
+      const jwtUser = getUserData();
+      
+      // Method 2: Direct from localStorage
+      const localRole = localStorage.getItem('role');
+      const localUserStr = localStorage.getItem('user');
+      let localUser: any = null;
+      if (localUserStr) {
+        try {
+          localUser = JSON.parse(localUserStr);
+        } catch (e) {
+          console.error('Error parsing user from localStorage:', e);
+        }
+      }
+      
+      // Method 3: Decode from JWT token directly
+      const token = localStorage.getItem('token');
+      let tokenRole = '';
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            tokenRole = payload.role || '';
+          }
+        } catch (e) {
+          console.error('Error decoding token:', e);
+        }
+      }
+      
+      // Priority: JWT util > localStorage role > token decode
+      role = jwtRole || localRole || tokenRole || '';
+      user = jwtUser || localUser || {};
+      
+      console.log('PO Detail - Role Detection:', {
+        jwtRole,
+        localRole,
+        tokenRole,
+        finalRole: role,
+        jwtUser,
+        localUser,
+        finalUser: user,
+        tokenExists: !!token
+      });
+      
+      setUserRole(role);
+      setUserId(user.id || '');
+      setUserEmployeeId(user.employeeId || '');
+    };
+
+    // Initial load
+    updateUserInfo();
+
+    // Listen for storage changes (e.g., token updated in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'role' || e.key === 'user') {
+        updateUserInfo();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (params.id) {
@@ -128,6 +233,8 @@ export default function PurchaseOrderDetailPage() {
       
       if (response.ok) {
         setPo(data);
+        // Fetch history
+        fetchHistory(id);
       } else {
         console.error('Error fetching purchase order:', data.error);
       }
@@ -135,6 +242,19 @@ export default function PurchaseOrderDetailPage() {
       console.error('Error fetching purchase order:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistory = async (poId: string) => {
+    try {
+      const response = await fetch(`/api/purchase-orders/${poId}/history`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setHistory(data.history || []);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
     }
   };
 
@@ -156,14 +276,23 @@ export default function PurchaseOrderDetailPage() {
         },
         body: JSON.stringify({
           status: pendingStatus,
-          updatedBy: 'current-user', // This should come from auth context
+          updatedBy: userId || userEmployeeId || po.createdBy || 'SYSTEM',
           comments: statusComments || `Status updated to ${pendingStatus}`
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
         // Refresh PO data
-        showToast('success', `Status updated to ${pendingStatus}`);
+        if (pendingStatus === 'SENT') {
+          if (data.emailSent) {
+            showToast('success', `Purchase Order sent to vendor via email successfully!`);
+          } else {
+            showToast('warning', `Status updated to ${pendingStatus}, but email could not be sent. Please contact the vendor manually.`);
+          }
+        } else {
+          showToast('success', `Status updated to ${pendingStatus}`);
+        }
         await fetchPurchaseOrder(po.id);
         setShowStatusDialog(false);
       } else {
@@ -178,13 +307,96 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    if (!po) return;
+    
+    try {
+      setSubmittingForApproval(true);
+      const response = await fetch(`/api/purchase-orders/${po.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submittedBy: userId || userEmployeeId || po.createdBy,
+        }),
+      });
+
+      if (response.ok) {
+        showToast('success', 'Purchase Order submitted for approval');
+        await fetchPurchaseOrder(po.id);
+      } else {
+        const error = await response.json();
+        showToast('error', `Failed to submit: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error submitting for approval:', error);
+      showToast('error', 'Failed to submit for approval');
+    } finally {
+      setSubmittingForApproval(false);
+    }
+  };
+
+  // Check permissions
+  const roleUpper = userRole?.toUpperCase() || '';
+  const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
+  const isAdmin = roleUpper === 'ADMIN' || isSuperAdmin;
+  
+  // Only Department Manager, Procurement Manager, Finance Manager, Admin, and Super Admin can approve
+  const hasApprovalRole = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
+  
+  const isCreator = po?.createdBy === userId || po?.createdBy === userEmployeeId;
+  
+  // Super Admin can approve even if they're the creator, others cannot approve their own POs
+  const canApprove = hasApprovalRole && (isSuperAdmin || !isCreator);
+  
+  // Only Buyer (REQUESTOR), Procurement Officer (PROCUREMENT_MANAGER), and Admin can submit POs for approval
+  // Also allow if user is the creator of the PO
+  const canSubmit = ['BUYER', 'REQUESTOR', 'PROCUREMENT_OFFICER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper) || isCreator;
+
+  // Debug logging (only in browser)
+  if (typeof window !== 'undefined') {
+    console.log('PO Detail - Permissions Check:', {
+      userRole,
+      roleUpper,
+      userId,
+      userEmployeeId,
+      poStatus: po?.status,
+      poCreatedBy: po?.createdBy,
+      isSuperAdmin,
+      isAdmin,
+      hasApprovalRole,
+      canApprove,
+      canSubmit,
+      isCreator,
+      localStorageRole: localStorage.getItem('role'),
+      localStorageToken: localStorage.getItem('token') ? 'exists' : 'missing',
+      jwtDecoded: (() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              return payload;
+            }
+          } catch (e) {}
+        }
+        return null;
+      })()
+    });
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
+      case 'SUBMITTED': return 'bg-blue-100 text-blue-800';
+      case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'SENT': return 'bg-blue-100 text-blue-800';
       case 'ACKNOWLEDGED': return 'bg-purple-100 text-purple-800';
       case 'DELIVERED': return 'bg-green-100 text-green-800';
+      case 'REJECTED': return 'bg-red-100 text-red-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -264,23 +476,14 @@ export default function PurchaseOrderDetailPage() {
             </p>
             <p className="text-sm text-gray-500">Total Amount</p>
             <div className="flex gap-2 mt-4">
-              {po.status === 'DRAFT' && (
+              {po.status === 'DRAFT' && canSubmit && (
                 <>
                   <button 
-                    onClick={() => handleStatusUpdate('APPROVED')}
-                    disabled={updatingStatus}
-                    className="px-4 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleSubmitForApproval}
+                    disabled={submittingForApproval}
+                    className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <CheckCircle className="h-4 w-4 inline mr-1" />
-                    {updatingStatus ? 'Approving...' : 'Approve'}
-                  </button>
-                  <button 
-                    onClick={() => handleStatusUpdate('CANCELLED')}
-                    disabled={updatingStatus}
-                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <XCircle className="h-4 w-4 inline mr-1" />
-                    {updatingStatus ? 'Rejecting...' : 'Reject'}
+                    {submittingForApproval ? 'Submitting...' : 'Request Approval'}
                   </button>
                   <button 
                     onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
@@ -291,24 +494,45 @@ export default function PurchaseOrderDetailPage() {
                   </button>
                 </>
               )}
+              {po.status === 'PENDING_APPROVAL' && canApprove && (
+                <Link
+                  href={`/procurement/purchase-orders/${po.id}/approve`}
+                  className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover"
+                >
+                  <CheckCircle className="h-4 w-4 inline mr-1" />
+                  Review & Approve
+                </Link>
+              )}
               {po.status === 'APPROVED' && (
-                <>
-                  <button 
-                    onClick={() => handleStatusUpdate('SENT')}
-                    disabled={updatingStatus}
-                    className="px-4 py-2 text-sm font-medium text-wujha-info bg-wujha-info/10 rounded-lg hover:bg-wujha-info/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Mail className="h-4 w-4 inline mr-1" />
-                    {updatingStatus ? 'Sending...' : 'Send to Vendor'}
-                  </button>
-                  <button 
-                    onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
-                    className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100"
-                  >
-                    <Edit className="h-4 w-4 inline mr-1" />
-                    Edit
-                  </button>
-                </>
+                <button 
+                  onClick={() => handleStatusUpdate('SENT')}
+                  disabled={updatingStatus}
+                  className="px-6 py-3 text-base font-semibold text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Mail className="h-5 w-5" />
+                  {updatingStatus ? 'Sending Email...' : 'Send to Vendor'}
+                </button>
+              )}
+              {/* Only allow editing when status is DRAFT */}
+              {po.status === 'DRAFT' && (
+                <button 
+                  onClick={() => router.push(`/procurement/purchase-orders/${po.id}/edit`)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <Edit className="h-4 w-4 inline mr-1" />
+                  Edit
+                </button>
+              )}
+              {/* Show disabled edit button for statuses that cannot be edited */}
+              {(po.status === 'PENDING_APPROVAL' || po.status === 'SUBMITTED' || po.status === 'APPROVED' || po.status === 'SENT' || po.status === 'ACKNOWLEDGED' || po.status === 'PARTIAL' || po.status === 'COMPLETED') && po.status !== 'DRAFT' && (
+                <button 
+                  disabled
+                  className="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed"
+                  title="Cannot edit after submission for approval"
+                >
+                  <Edit className="h-4 w-4 inline mr-1" />
+                  Edit (Disabled)
+                </button>
               )}
               {po.status === 'SENT' && (
                 <button 
@@ -423,45 +647,65 @@ export default function PurchaseOrderDetailPage() {
                 <div className="mt-6">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Approval Workflow</h4>
                   <div className="space-y-3">
-                    {[
-                      { status: 'DRAFT', label: 'Draft Created', icon: FileText },
-                      { status: 'APPROVED', label: 'Approved', icon: CheckCircle },
-                      { status: 'SENT', label: 'Sent to Vendor', icon: Mail },
-                      { status: 'ACKNOWLEDGED', label: 'Vendor Acknowledged', icon: CheckCircle },
-                      { status: 'PARTIAL', label: 'Partial Delivery', icon: Package },
-                      { status: 'COMPLETED', label: 'Completed', icon: CheckCircle }
-                    ].map((step, index) => {
-                      const isCompleted = ['DRAFT', 'APPROVED', 'SENT', 'ACKNOWLEDGED', 'PARTIAL', 'COMPLETED'].indexOf(po.status) >= index;
-                      const isCurrent = po.status === step.status;
+                    {(() => {
+                      const workflowSteps = [
+                        { status: 'DRAFT', label: 'Draft Created', icon: FileText },
+                        { status: 'SUBMITTED', label: 'Submitted for Approval', icon: Clock },
+                        { status: 'PENDING_APPROVAL', label: 'Pending Approval', icon: Clock },
+                        { status: 'APPROVED', label: 'Approved', icon: CheckCircle },
+                        { status: 'SENT', label: 'Sent to Vendor', icon: Mail },
+                        { status: 'ACKNOWLEDGED', label: 'Vendor Acknowledged', icon: CheckCircle },
+                        { status: 'COMPLETED', label: 'Completed', icon: CheckCircle }
+                      ];
                       
-                      return (
-                        <div key={step.status} className="flex items-center gap-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
-                            isCompleted 
-                              ? 'bg-green-500 border-green-500 text-white' 
-                              : isCurrent
-                              ? 'bg-wujha-primary border-wujha-primary text-white'
-                              : 'bg-gray-100 border-gray-300 text-gray-400'
-                          }`}>
-                            {isCompleted || isCurrent ? (
-                              <step.icon className="h-4 w-4" />
-                            ) : (
-                              <span className="text-sm font-medium">{index + 1}</span>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-medium ${
-                              isCompleted ? 'text-green-700' : isCurrent ? 'text-wujha-primary' : 'text-gray-500'
+                      // Define status order for completion check
+                      const statusOrder = ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'ACKNOWLEDGED', 'COMPLETED'];
+                      const currentStatusIndex = statusOrder.indexOf(po.status);
+                      
+                      return workflowSteps.map((step, index) => {
+                        const stepStatusIndex = statusOrder.indexOf(step.status);
+                        const isCompleted = currentStatusIndex >= stepStatusIndex && currentStatusIndex > -1;
+                        const isCurrent = po.status === step.status;
+                        const isRejected = po.status === 'REJECTED' && stepStatusIndex < currentStatusIndex;
+                        const isCancelled = po.status === 'CANCELLED';
+                        
+                        return (
+                          <div key={step.status} className="flex items-center gap-3">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                              isRejected || isCancelled
+                                ? 'bg-red-500 border-red-500 text-white'
+                                : isCompleted 
+                                ? 'bg-green-500 border-green-500 text-white' 
+                                : isCurrent
+                                ? 'bg-wujha-primary border-wujha-primary text-white'
+                                : 'bg-gray-100 border-gray-300 text-gray-400'
                             }`}>
-                              {step.label}
+                              {isCompleted || isCurrent ? (
+                                <step.icon className="h-4 w-4" />
+                              ) : (
+                                <span className="text-sm font-medium">{index + 1}</span>
+                              )}
                             </div>
-                            {isCurrent && (
-                              <div className="text-xs text-wujha-primary">Current Step</div>
-                            )}
+                            <div className="flex-1">
+                              <div className={`text-sm font-medium ${
+                                isRejected || isCancelled
+                                  ? 'text-red-700'
+                                  : isCompleted 
+                                  ? 'text-green-700' 
+                                  : isCurrent 
+                                  ? 'text-wujha-primary' 
+                                  : 'text-gray-500'
+                              }`}>
+                                {step.label}
+                              </div>
+                              {isCurrent && (
+                                <div className="text-xs text-wujha-primary">Current Step</div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
@@ -713,31 +957,82 @@ export default function PurchaseOrderDetailPage() {
 
           {activeTab === 'history' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Amendment History</h3>
-              {po.amendments.length > 0 ? (
-                <div className="space-y-4">
-                  {po.amendments.map((amendment) => (
-                    <div key={amendment.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h5 className="text-sm font-medium text-gray-900">{amendment.amendmentNumber}</h5>
-                          <p className="text-sm text-gray-500">
-                            Date: {new Date(amendment.amendmentDate).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            <strong>Reason:</strong> {amendment.reason}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <strong>Changes:</strong> {amendment.changes}
-                          </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Purchase Order History</h3>
+              
+              {/* Process Audit History */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-3">Activity History</h4>
+                {history.length > 0 ? (
+                  <div className="space-y-3">
+                    {history.map((item) => (
+                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              {item.action === 'SUBMITTED' && <Clock className="h-4 w-4 text-blue-500" />}
+                              {item.action === 'APPROVED' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                              {item.action === 'REJECTED' && <XCircle className="h-4 w-4 text-red-500" />}
+                              {item.action === 'CREATED' && <FileText className="h-4 w-4 text-gray-500" />}
+                              <span className="text-sm font-medium text-gray-900">{item.action}</span>
+                              <span className="text-xs text-gray-500">({item.processType})</span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Performed by: <span className="font-medium">{item.performedBy}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(item.performedAt).toLocaleString()}
+                            </p>
+                            {item.details && (
+                              <div className="mt-2 text-sm text-gray-600">
+                                {item.details.comments && (
+                                  <p className="mt-1"><strong>Comments:</strong> {item.details.comments}</p>
+                                )}
+                                {item.details.previousStatus && item.details.newStatus && (
+                                  <p className="mt-1">
+                                    Status: <span className="text-gray-500">{item.details.previousStatus}</span> → 
+                                    <span className="text-wujha-primary font-medium"> {item.details.newStatus}</span>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No amendments recorded.</p>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No activity history recorded.</p>
+                )}
+              </div>
+
+              {/* Amendments */}
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Amendment History</h4>
+                {po.amendments.length > 0 ? (
+                  <div className="space-y-4">
+                    {po.amendments.map((amendment) => (
+                      <div key={amendment.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="text-sm font-medium text-gray-900">{amendment.amendmentNumber}</h5>
+                            <p className="text-sm text-gray-500">
+                              Date: {new Date(amendment.amendmentDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              <strong>Reason:</strong> {amendment.reason}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              <strong>Changes:</strong> {amendment.changes}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No amendments recorded.</p>
+                )}
+              </div>
             </div>
           )}
         </div>

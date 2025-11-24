@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Helper function to generate unique vendor code
+async function generateUniqueVendorCode(): Promise<string> {
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    // Generate 8-digit random number
+    const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+    const vendorCode = `VEN-${randomNum}`;
+    
+    // Check if code already exists
+    const existing = await prisma.vendor.findUnique({
+      where: { vendorCode }
+    });
+    
+    if (!existing) {
+      return vendorCode;
+    }
+    
+    attempts++;
+  }
+  
+  // Fallback: use timestamp-based code if random generation fails
+  const timestamp = Date.now().toString().slice(-8);
+  return `VEN-${timestamp}`;
+}
+
 // GET /api/vendors - Get all vendors with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
@@ -80,33 +107,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to generate unique vendor code
-async function generateUniqueVendorCode(): Promise<string> {
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  while (attempts < maxAttempts) {
-    // Generate 8-digit random number
-    const randomNum = Math.floor(10000000 + Math.random() * 90000000);
-    const vendorCode = `VEN-${randomNum}`;
-    
-    // Check if code already exists
-    const existing = await prisma.vendor.findUnique({
-      where: { vendorCode }
-    });
-    
-    if (!existing) {
-      return vendorCode;
-    }
-    
-    attempts++;
-  }
-  
-  // Fallback: use timestamp-based code if random generation fails
-  const timestamp = Date.now().toString().slice(-8);
-  return `VEN-${timestamp}`;
-}
-
 // POST /api/vendors - Create new vendor
 export async function POST(request: NextRequest) {
   try {
@@ -141,13 +141,20 @@ export async function POST(request: NextRequest) {
         primaryContactName: body.primaryContactName,
         email: body.email,
         mobile: body.mobile,
+        alternativePhone: body.alternativePhone,
+        website: body.website,
         address: body.address,
+        bankName: body.bankName,
+        bankAccount: body.bankAccount,
+        iban: body.iban,
+        contactEmail: body.contactEmail,
+        contactPhone: body.contactPhone,
         businessType: body.businessType,
         yearEstablished: body.yearEstablished,
         numberOfEmployees: body.numberOfEmployees,
         omanizationPercentage: body.omanizationPercentage,
         status: body.status || 'PENDING',
-        performanceScore: body.performanceScore,
+        performanceScore: body.performanceScore ?? 0,
         categories: {
           create: body.categories?.map((cat: any) => ({
             categoryId: cat.categoryId,

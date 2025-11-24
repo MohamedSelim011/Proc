@@ -30,7 +30,7 @@ interface RFQ {
   };
   issueDate: string;
   submissionDeadline: string;
-  status: 'DRAFT' | 'ISSUED' | 'UNDER_EVALUATION' | 'COMPLETED' | 'CANCELLED';
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ISSUED' | 'UNDER_EVALUATION' | 'COMPLETED' | 'CANCELLED';
   totalEstimatedValue: number;
   currency: string;
   responseCount: number;
@@ -144,7 +144,10 @@ export default function RFQPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      case 'ISSUED': return 'bg-blue-100 text-blue-800';
+      case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-800';
+      case 'APPROVED': return 'bg-green-100 text-green-800';
+      case 'REJECTED': return 'bg-red-100 text-red-800';
+      case 'ISSUED': return 'bg-wujha-primary/10 text-wujha-primary';
       case 'UNDER_EVALUATION': return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
@@ -167,6 +170,9 @@ export default function RFQPage() {
   const mapRFQStatus = (dbStatus: string): string => {
     switch (dbStatus) {
       case 'DRAFT': return 'DRAFT';
+      case 'PENDING_APPROVAL': return 'PENDING_APPROVAL';
+      case 'APPROVED': return 'APPROVED';
+      case 'REJECTED': return 'REJECTED';
       case 'PUBLISHED': return 'ISSUED';
       case 'CLOSED': return 'UNDER_EVALUATION';
       case 'EVALUATED': return 'UNDER_EVALUATION';
@@ -203,7 +209,7 @@ export default function RFQPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -218,9 +224,9 @@ export default function RFQPage() {
         </div>
         <Link
           href="/procurement/rfq/new"
-          className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium"
+          className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
         >
-          <Plus className="h-4 w-4 inline mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           New RFQ
         </Link>
       </div>
@@ -229,36 +235,36 @@ export default function RFQPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <FileText className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total RFQs</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-900 truncate">{stats.total}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Send className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <Send className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Issued</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.issued}</p>
+              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.issued}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <Clock className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Under Evaluation</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.underEvaluation}</p>
+              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.underEvaluation}</p>
             </div>
           </div>
         </div>
@@ -268,22 +274,22 @@ export default function RFQPage() {
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+              <p className="text-2xl font-bold text-green-600 truncate">{stats.completed}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Calendar className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <Calendar className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-xl font-bold text-purple-600 truncate">
-                   {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}
+              <p className="text-lg font-bold text-wujha-primary truncate" title={stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}>
+                {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}
               </p>
             </div>
           </div>
@@ -291,12 +297,12 @@ export default function RFQPage() {
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Users className="h-6 w-6 text-indigo-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <Users className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Avg Responses</p>
-              <p className="text-2xl font-bold text-indigo-600">{stats.avgResponseRate.toFixed(1)}</p>
+              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.avgResponseRate.toFixed(1)}</p>
             </div>
           </div>
         </div>
@@ -309,19 +315,22 @@ export default function RFQPage() {
             <input
               type="text"
               placeholder="Search RFQs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
             >
               <option value="">All Status</option>
               <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
               <option value="ISSUED">Issued</option>
               <option value="UNDER_EVALUATION">Under Evaluation</option>
               <option value="COMPLETED">Completed</option>
@@ -330,7 +339,7 @@ export default function RFQPage() {
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
               value={filters.itemType}
               onChange={(e) => setFilters(prev => ({ ...prev, itemType: e.target.value }))}
             >
@@ -410,13 +419,13 @@ export default function RFQPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate" title={`${rfq.totalEstimatedValue.toLocaleString()} ${rfq.currency}`}>
                         {rfq.totalEstimatedValue.toLocaleString()} {rfq.currency}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {rfq.responseCount} responses
+                      <div className="text-sm text-gray-500 truncate">
+                        {rfq.responseCount} response{rfq.responseCount !== 1 ? 's' : ''}
                       </div>
                     </div>
                   </td>
@@ -425,21 +434,25 @@ export default function RFQPage() {
                       {rfq.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Link
-                      href={`/procurement/rfq/${rfq.id}`}
-                      className="text-orange-600 hover:text-orange-900"
-                    >
-                      <Eye className="h-4 w-4 inline" />
-                    </Link>
-                    {rfq.status === 'DRAFT' && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-3">
                       <Link
-                        href={`/procurement/rfq/${rfq.id}/edit`}
-                        className="text-blue-600 hover:text-blue-900"
+                        href={`/procurement/rfq/${rfq.id}`}
+                        className="text-wujha-primary hover:text-wujha-primary-hover"
+                        title="View Details"
                       >
-                        <Edit className="h-4 w-4 inline" />
+                        <Eye className="h-4 w-4" />
                       </Link>
-                    )}
+                      {rfq.status === 'DRAFT' && (
+                        <Link
+                          href={`/procurement/rfq/${rfq.id}/edit`}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -506,7 +519,7 @@ export default function RFQPage() {
           <div className="mt-6">
             <Link
               href="/procurement/rfq/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+              className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
             >
               <Plus className="h-4 w-4 mr-2" />
               New RFQ

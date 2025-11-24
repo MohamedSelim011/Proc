@@ -24,6 +24,8 @@ interface PurchaseRequisition {
   estimatedCost: number;
   status: string;
   justification?: string;
+  hasRFQ?: boolean;
+  rfqNumber?: string;
   items: {
     id: string;
     item: {
@@ -93,7 +95,7 @@ export default function NewRFQPage() {
 
   const fetchPurchaseRequisitions = async () => {
     try {
-      const response = await fetch('/api/purchase-requisitions?status=APPROVED');
+      const response = await fetch('/api/purchase-requisitions?status=APPROVED&includeRFQ=true');
       if (response.ok) {
         const data = await response.json();
         setPrs(data.requisitions || []);
@@ -158,6 +160,10 @@ export default function NewRFQPage() {
     try {
       setLoading(true);
 
+      // Get user data from localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const createdBy = userData.employeeId || userData.id || '';
+
       const rfqData = {
         prId: formData.prId,
         title: formData.title,
@@ -166,7 +172,8 @@ export default function NewRFQPage() {
         status: formData.status,
         evaluationCriteria: JSON.stringify(formData.evaluationCriteria),
         termsAndConditions: formData.termsAndConditions,
-        vendorIds: formData.selectedVendors.map(v => v.id)
+        vendorIds: formData.selectedVendors.map(v => v.id),
+        createdBy: createdBy
       };
 
       const response = await fetch('/api/rfq', {
@@ -239,9 +246,15 @@ export default function NewRFQPage() {
                 required
               >
                 <option value="">Select a PR</option>
-                                {prs.map((pr) => (
-                  <option key={pr.id} value={pr.id}>
+                {prs.map((pr) => (
+                  <option 
+                    key={pr.id} 
+                    value={pr.id}
+                    disabled={pr.hasRFQ}
+                    style={pr.hasRFQ ? { color: '#999', fontStyle: 'italic' } : {}}
+                  >
                     {pr.prNumber} - {pr.itemType} Items
+                    {pr.hasRFQ ? ` (RFQ Already Created: ${pr.rfqNumber})` : ''}
                   </option>
                 ))}
                 {/* Debug info */}

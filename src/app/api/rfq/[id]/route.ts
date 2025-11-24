@@ -41,6 +41,16 @@ export async function GET(
             { totalAmount: 'asc' },
             { technicalScore: 'desc' }
           ]
+        },
+        approvals: {
+          orderBy: {
+            level: 'asc'
+          }
+        },
+        invitedVendors: {
+          include: {
+            vendor: true
+          }
         }
       }
     });
@@ -106,20 +116,23 @@ export async function PUT(
       );
     }
 
-    // Check if RFQ can be edited
-    if (!['DRAFT'].includes(existingRFQ.status)) {
+    // Check if RFQ can be edited (only DRAFT, not approved or pending approval)
+    if (!['DRAFT'].includes(existingRFQ.status) || existingRFQ.status === 'APPROVED' || existingRFQ.status === 'PENDING_APPROVAL') {
       return NextResponse.json(
-        { error: 'Cannot edit RFQ in current status' },
+        { error: 'Cannot edit RFQ in current status. Only draft RFQs can be edited.' },
         { status: 400 }
       );
     }
 
+    // Update RFQ basic fields
     const rfq = await prisma.rFQ.update({
       where: { id: params.id },
       data: {
         title: body.title || existingRFQ.title,
         description: body.description || existingRFQ.description,
         closingDate: body.closingDate ? new Date(body.closingDate) : existingRFQ.closingDate,
+        evaluationCriteria: body.evaluationCriteria || existingRFQ.evaluationCriteria,
+        termsAndConditions: body.termsAndConditions || existingRFQ.termsAndConditions,
         updatedAt: new Date()
       },
       include: {
@@ -136,9 +149,33 @@ export async function PUT(
           include: {
             vendor: true
           }
+        },
+        invitedVendors: {
+          include: {
+            vendor: true
+          }
         }
       }
     });
+
+    // Update invited vendors if provided
+    if (body.vendorIds && Array.isArray(body.vendorIds)) {
+      // Delete existing invitations
+      await prisma.rFQVendor.deleteMany({
+        where: { rfqId: params.id }
+      });
+
+      // Create new invitations
+      if (body.vendorIds.length > 0) {
+        await prisma.rFQVendor.createMany({
+          data: body.vendorIds.map((vendorId: string) => ({
+            rfqId: params.id,
+            vendorId: vendorId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
 
     return NextResponse.json(rfq);
   } catch (error) {

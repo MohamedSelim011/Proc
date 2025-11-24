@@ -99,8 +99,8 @@ export default function ServiceVendors() {
         // Calculate performance metrics for each vendor
         const vendorsWithMetrics = (data.vendors || []).map((vendor: any) => ({
           ...vendor,
-          performanceRating: vendor.performanceScore || Math.random() * 2 + 3,
-          activeContracts: vendor._count?.purchaseOrders || Math.floor(Math.random() * 10) + 1,
+          performanceRating: vendor.performanceScore ?? 0,
+          activeContracts: vendor._count?.purchaseOrders || 0,
           totalContractValue: Math.random() * 100000 + 10000,
           phone: vendor.mobile || vendor.phone || ''
         }));

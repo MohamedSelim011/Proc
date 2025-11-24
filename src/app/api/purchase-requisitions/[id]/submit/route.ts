@@ -68,7 +68,7 @@ export async function POST(
     const updatedPR = await prisma.$transaction([
       prisma.purchaseRequisition.update({
         where: { id },
-        data: { status: 'SUBMITTED' }
+        data: { status: 'PENDING_APPROVAL' }
       }),
       ...approvals
     ]);
