@@ -116,7 +116,7 @@ export default function ServiceReceipts() {
       'PENDING': 'bg-yellow-100 text-yellow-800',
       'ACCEPTED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
-      'CONDITIONAL': 'bg-blue-100 text-blue-800'
+      'CONDITIONAL': 'bg-wujha-primary/10 text-wujha-primary'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -155,7 +155,7 @@ export default function ServiceReceipts() {
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading service receipts...</p>
           </div>
         </div>

@@ -251,7 +251,7 @@ function EditInvoiceContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -274,7 +274,7 @@ function EditInvoiceContent() {
         <p className="mt-2 text-gray-600">Only draft invoices can be edited. This invoice has status: {invoice.status}</p>
         <button
           onClick={() => router.push(`/procurement/invoices/${invoiceId}`)}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="mt-4 px-4 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover"
         >
           View Invoice
         </button>
@@ -316,7 +316,7 @@ function EditInvoiceContent() {
                 </label>
                 <input
                   type="text"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.invoiceNumber ? 'border-red-300' : ''
                   }`}
                   value={formData.invoiceNumber}
@@ -332,7 +332,7 @@ function EditInvoiceContent() {
                   Currency
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.currency}
                   onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                 >
@@ -348,7 +348,7 @@ function EditInvoiceContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.invoiceDate ? 'border-red-300' : ''
                   }`}
                   value={formData.invoiceDate}
@@ -365,7 +365,7 @@ function EditInvoiceContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.dueDate ? 'border-red-300' : ''
                   }`}
                   value={formData.dueDate}
@@ -459,7 +459,7 @@ function EditInvoiceContent() {
                             type="number"
                             min="0"
                             step="0.01"
-                            className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
                             value={item.quantity}
                             onChange={(e) => updateItemField(index, 'quantity', parseFloat(e.target.value) || 0)}
                           />
@@ -473,7 +473,7 @@ function EditInvoiceContent() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
                               value={item.unitPrice}
                               onChange={(e) => updateItemField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                             />
@@ -508,7 +508,7 @@ function EditInvoiceContent() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.taxRate}
                     onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
                   />
@@ -526,7 +526,7 @@ function EditInvoiceContent() {
                       type="number"
                       min="0"
                       step="0.01"
-                      className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                       value={formData.discountAmount}
                       onChange={(e) => setFormData(prev => ({ ...prev, discountAmount: parseFloat(e.target.value) || 0 }))}
                     />
@@ -571,7 +571,7 @@ function EditInvoiceContent() {
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
           <button
             onClick={() => router.push(`/procurement/invoices/${invoiceId}`)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Cancel
@@ -580,7 +580,7 @@ function EditInvoiceContent() {
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -594,7 +594,7 @@ export default function EditInvoice() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <EditInvoiceContent />

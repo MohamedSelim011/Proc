@@ -633,8 +633,8 @@ export default function RFQDetailPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">PR Value</p>
-              <p className="text-2xl font-bold text-gray-900 truncate" title={`${rfq.pr.estimatedCost.toLocaleString()} OMR`}>
-                {rfq.pr.estimatedCost.toLocaleString()} OMR
+              <p className="text-2xl font-bold text-gray-900 truncate" title={rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}>
+                {rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}
               </p>
             </div>
           </div>

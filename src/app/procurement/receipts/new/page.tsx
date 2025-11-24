@@ -350,22 +350,22 @@ function NewGoodsReceiptContent() {
               <li key={step.id} className="relative flex-1">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   {stepIdx < 4 && (
-                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
                 <div className="relative flex flex-col items-center">
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-blue-600 bg-white shadow-lg' 
+                        ? 'border-wujha-primary bg-white shadow-lg' 
                         : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -373,7 +373,7 @@ function NewGoodsReceiptContent() {
                   </div>
                   <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
-                      step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                     }`}>
                       {step.name}
                     </span>
@@ -396,18 +396,18 @@ function NewGoodsReceiptContent() {
               
               {poId ? (
                 selectedPO && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-blue-900">{selectedPO.poNumber}</h4>
-                        <p className="text-sm text-blue-700">
+                        <h4 className="text-sm font-medium text-wujha-primary">{selectedPO.poNumber}</h4>
+                        <p className="text-sm text-wujha-primary/80">
                           {selectedPO.vendor.nameEn}
                         </p>
-                        <p className="text-sm text-blue-700">
+                        <p className="text-sm text-wujha-primary/80">
                           {selectedPO.items.length} items • Delivery: {formatDate(selectedPO.deliveryDate)}
                         </p>
                       </div>
-                      <CheckCircle className="h-5 w-5 text-blue-600" />
+                      <CheckCircle className="h-5 w-5 text-wujha-primary" />
                     </div>
                   </div>
                 )
@@ -419,7 +419,7 @@ function NewGoodsReceiptContent() {
                       <input
                         type="text"
                         placeholder="Search purchase orders..."
-                        className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                         value={searchPO}
                         onChange={(e) => setSearchPO(e.target.value)}
                       />
@@ -432,7 +432,7 @@ function NewGoodsReceiptContent() {
                         key={po.id}
                         className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                           formData.poId === po.id
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-wujha-primary bg-wujha-primary/10'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => handlePOSelection(po)}
@@ -446,7 +446,7 @@ function NewGoodsReceiptContent() {
                             </p>
                           </div>
                           {formData.poId === po.id && (
-                            <CheckCircle className="h-5 w-5 text-blue-600" />
+                            <CheckCircle className="h-5 w-5 text-wujha-primary" />
                           )}
                         </div>
                       </div>
@@ -473,7 +473,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                       errors.receivedDate ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedDate}
@@ -491,7 +491,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                       errors.receivedBy ? 'border-red-300' : ''
                     }`}
                     value={formData.receivedBy}
@@ -508,7 +508,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.deliveryNote || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, deliveryNote: e.target.value }))}
                     placeholder="Delivery note reference"
@@ -521,7 +521,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.storageLocation || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, storageLocation: e.target.value }))}
                     placeholder="Warehouse location, bin number..."
@@ -536,7 +536,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.transportDetails || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, transportDetails: e.target.value }))}
                     placeholder="Vehicle details, driver info, condition on arrival..."
@@ -549,7 +549,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Any special handling requirements..."
@@ -622,7 +622,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={poItem.quantity}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                                 errors[`item_${index}_received`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.receivedQuantity || 0}
@@ -637,7 +637,7 @@ function NewGoodsReceiptContent() {
                               type="number"
                               min="0"
                               max={grItem?.receivedQuantity || 0}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                                 errors[`item_${index}_accepted`] ? 'border-red-300' : ''
                               }`}
                               value={grItem?.acceptedQuantity || 0}
@@ -653,7 +653,7 @@ function NewGoodsReceiptContent() {
                                 type="number"
                                 min="0"
                                 max={grItem?.receivedQuantity || 0}
-                                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm ${
                                   errors[`item_${index}_rejected`] ? 'border-red-300' : ''
                                 }`}
                                 value={grItem?.rejectedQuantity || 0}
@@ -663,7 +663,7 @@ function NewGoodsReceiptContent() {
                                 <input
                                   type="text"
                                   placeholder="Reason"
-                                  className={`block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                                  className={`block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm ${
                                     errors[`item_${index}_reason`] ? 'border-red-300' : ''
                                   }`}
                                   value={grItem?.rejectionReason || ''}
@@ -684,7 +684,7 @@ function NewGoodsReceiptContent() {
                           <td className="px-6 py-4">
                             <textarea
                               rows={1}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                               placeholder="Inspection notes..."
                               value={grItem?.inspectionNotes || ''}
                               onChange={(e) => updateItemField(index, 'inspectionNotes', e.target.value)}
@@ -711,7 +711,7 @@ function NewGoodsReceiptContent() {
                         </div>
                         <div>
                           <dt className="text-xs text-gray-500">Total Received</dt>
-                          <dd className="text-sm font-medium text-blue-600">{stats.totalReceived}</dd>
+                          <dd className="text-sm font-medium text-wujha-primary">{stats.totalReceived}</dd>
                         </div>
                         <div>
                           <dt className="text-xs text-gray-500">Total Accepted</dt>
@@ -739,7 +739,7 @@ function NewGoodsReceiptContent() {
                   <input
                     id="quality-check"
                     type="checkbox"
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                     checked={formData.qualityChecked}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityChecked: e.target.checked }))}
                   />
@@ -756,7 +756,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <input
                         type="text"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm ${
                           errors.qualityInspector ? 'border-red-300' : ''
                         }`}
                         value={formData.qualityInspector || ''}
@@ -774,7 +774,7 @@ function NewGoodsReceiptContent() {
                       </label>
                       <textarea
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                         value={formData.qualityComments || ''}
                         onChange={(e) => setFormData(prev => ({ ...prev, qualityComments: e.target.value }))}
                         placeholder="Quality inspection results, defects found, compliance notes..."
@@ -789,7 +789,7 @@ function NewGoodsReceiptContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.specialHandling || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialHandling: e.target.value }))}
                     placeholder="Special storage requirements, handling instructions..."
@@ -845,7 +845,7 @@ function NewGoodsReceiptContent() {
                           <div className="text-xs text-gray-500">Ordered</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-blue-600">{stats.totalReceived}</div>
+                          <div className="text-lg font-bold text-wujha-primary">{stats.totalReceived}</div>
                           <div className="text-xs text-gray-500">Received</div>
                         </div>
                         <div className="text-center">
@@ -881,7 +881,7 @@ function NewGoodsReceiptContent() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -890,7 +890,7 @@ function NewGoodsReceiptContent() {
           <button
             onClick={handleNext}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               'Creating...'
@@ -913,7 +913,7 @@ export default function NewGoodsReceipt() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewGoodsReceiptContent />

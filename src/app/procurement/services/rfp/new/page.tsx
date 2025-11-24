@@ -34,7 +34,6 @@ interface SelectedVendor {
 
 interface ServiceRFPFormData {
   // Step 1: RFP Details
-  rfpType: 'RFP' | 'RFQ' | 'DIRECT_AWARD';
   title: string;
   description: string;
   serviceRequisitionId?: string;
@@ -65,7 +64,6 @@ function NewServiceRFPContent() {
   const [serviceRequisitions, setServiceRequisitions] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<ServiceRFPFormData>({
-    rfpType: 'RFP',
     title: '',
     description: '',
     scopeOfWork: '',
@@ -96,14 +94,81 @@ function NewServiceRFPContent() {
   useEffect(() => {
     fetchInitialData();
     
-    // Pre-fill from URL params if coming from a specific PR or vendor
+    // Pre-fill from URL params if coming from a specific PR
     const prId = searchParams.get('prId');
-    const vendorId = searchParams.get('vendorId');
     
     if (prId) {
       setFormData(prev => ({ ...prev, serviceRequisitionId: prId }));
+      // Fetch the service requisition to get preferred vendors
+      fetchServiceRequisitionVendors(prId);
     }
   }, [searchParams]);
+
+  const fetchServiceRequisitionVendors = async (prId: string) => {
+    try {
+      const response = await fetch(`/api/services/requisitions/${prId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Pre-populate RFP details from Service Requisition
+        setFormData(prev => ({
+          ...prev,
+          title: `Service RFP for ${data.prNumber}`,
+          description: data.servicePR?.serviceScope || data.justification || '',
+          scopeOfWork: data.servicePR?.serviceScope || '',
+          serviceRequisitionId: prId
+        }));
+
+        // Get preferred vendors if available
+        if (data.servicePR?.preferredVendors) {
+          try {
+            // preferredVendors is already parsed as JSON by Prisma (it's a Json field)
+            // It could be an array or a string, so handle both cases
+            let preferredVendorIds: string[] = [];
+            
+            if (Array.isArray(data.servicePR.preferredVendors)) {
+              preferredVendorIds = data.servicePR.preferredVendors;
+            } else if (typeof data.servicePR.preferredVendors === 'string') {
+              // If it's a string, try to parse it
+              try {
+                preferredVendorIds = JSON.parse(data.servicePR.preferredVendors);
+              } catch (e) {
+                // If parsing fails, treat it as a single ID
+                preferredVendorIds = [data.servicePR.preferredVendors];
+              }
+            }
+            
+            // Fetch vendor details for these IDs
+            const vendorsResponse = await fetch('/api/vendors?status=ACTIVE');
+            const vendorsData = await vendorsResponse.json();
+            
+            if (vendorsResponse.ok && preferredVendorIds.length > 0) {
+              // Filter vendors to only those in preferred list
+              const preferred = vendorsData.vendors.filter((v: any) => 
+                preferredVendorIds.includes(v.id)
+              );
+              
+              // Auto-select preferred vendors
+              setFormData(prev => ({
+                ...prev,
+                selectedVendors: preferred.map((v: any) => ({
+                  id: v.id,
+                  nameEn: v.nameEn,
+                  email: v.email,
+                  phone: v.mobile,
+                  status: v.status
+                }))
+              }));
+            }
+          } catch (parseError) {
+            console.error('Error parsing preferred vendors:', parseError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching service requisition vendors:', error);
+    }
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -209,50 +274,63 @@ function NewServiceRFPContent() {
     try {
       setLoading(true);
 
-      // Convert RFP to RFQ format for API
-      const rfqData = {
-        rfqNumber: `RFQ-${Date.now()}`, // Auto-generate
-        title: formData.title,
-        description: formData.description,
-        purchaseRequisitionId: formData.serviceRequisitionId,
-        issueDate: new Date().toISOString(),
-        submissionDeadline: formData.submissionDeadline,
-        status: 'ISSUED',
-        evaluationCriteria: JSON.stringify(formData.evaluationCriteria),
-        termsAndConditions: JSON.stringify({
-          serviceLevelAgreements: formData.serviceLevelAgreements,
-          penaltyClause: formData.penaltyClause,
-          insuranceRequirements: formData.insuranceRequirements,
-          liabilityTerms: formData.liabilityTerms,
-          confidentialityClause: formData.confidentialityClause,
-          paymentTerms: formData.paymentTerms,
-          contractDuration: formData.contractDuration
-        }),
-        // Create RFQ responses for selected vendors
-        responses: formData.selectedVendors.map(vendor => ({
-          vendorId: vendor.id,
-          status: 'PENDING'
-        }))
-      };
+      // Convert datetime-local string to ISO date string
+      const submissionDeadline = formData.submissionDeadline 
+        ? new Date(formData.submissionDeadline).toISOString()
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default to 7 days from now
 
-      const response = await fetch('/api/rfq', {
+      // Create Service RFP
+      const response = await fetch('/api/services/rfp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(rfqData),
+        body: JSON.stringify({
+          prId: formData.serviceRequisitionId,
+          title: formData.title,
+          description: formData.description,
+          submissionDeadline: submissionDeadline,
+          evaluationCriteria: formData.evaluationCriteria,
+          termsAndConditions: {
+            serviceLevelAgreements: formData.serviceLevelAgreements,
+            penaltyClause: formData.penaltyClause,
+            insuranceRequirements: formData.insuranceRequirements,
+            liabilityTerms: formData.liabilityTerms,
+            confidentialityClause: formData.confidentialityClause,
+            paymentTerms: formData.paymentTerms,
+            contractDuration: formData.contractDuration,
+            scopeOfWork: formData.scopeOfWork
+          },
+          invitedVendors: formData.selectedVendors.map(vendor => vendor.id),
+          createdBy: 'SYSTEM'
+        }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
+        // Send invitations to vendors
+        try {
+          await fetch(`/api/services/rfp/${result.id}/send-invitations`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sentBy: 'SYSTEM'
+            }),
+          });
+        } catch (emailError) {
+          console.error('Error sending invitations:', emailError);
+        }
+
         router.push(`/procurement/services/rfp/${result.id}`);
       } else {
-        setErrors({ submit: result.error || 'Failed to create RFP' });
+        setErrors({ submit: result.error || 'Failed to create Service RFP' });
       }
     } catch (error) {
-      console.error('Error creating RFP:', error);
-      setErrors({ submit: 'Failed to create RFP' });
+      console.error('Error creating Service RFP:', error);
+      setErrors({ submit: 'Failed to create Service RFP' });
     } finally {
       setLoading(false);
     }
@@ -262,9 +340,9 @@ function NewServiceRFPContent() {
     <div className="space-y-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Issue Service RFP/RFQ</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Issue Service RFP</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Create a Request for Proposal or Quotation for service requirements
+          Create a Request for Proposal for service requirements
         </p>
       </div>
 
@@ -277,16 +355,16 @@ function NewServiceRFPContent() {
                 <div className="flex items-center">
                   <div className={`relative flex h-8 w-8 items-center justify-center rounded-full ${
                     step.id < currentStep 
-                      ? 'bg-blue-600' 
+                      ? 'bg-wujha-primary' 
                       : step.id === currentStep 
-                        ? 'border-2 border-blue-600 bg-white' 
+                        ? 'border-2 border-wujha-primary bg-white' 
                         : 'border-2 border-gray-300 bg-white'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -295,7 +373,7 @@ function NewServiceRFPContent() {
                 </div>
                 <div className="mt-2">
                   <span className={`text-sm font-medium ${
-                    step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                    step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                   }`}>
                     {step.name}
                   </span>
@@ -317,35 +395,31 @@ function NewServiceRFPContent() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  RFP Type *
+                  Service Requisition {searchParams.get('prId') ? '*' : ''}
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                  value={formData.rfpType}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rfpType: e.target.value as any }))}
-                >
-                  <option value="RFP">Request for Proposal (RFP)</option>
-                  <option value="RFQ">Request for Quotation (RFQ)</option>
-                  <option value="DIRECT_AWARD">Direct Award</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Service Requisition
-                </label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.serviceRequisitionId || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, serviceRequisitionId: e.target.value }))}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, serviceRequisitionId: e.target.value }));
+                    if (e.target.value) {
+                      fetchServiceRequisitionVendors(e.target.value);
+                    }
+                  }}
+                  disabled={!!searchParams.get('prId')}
                 >
                   <option value="">Select Service Requisition (Optional)</option>
                   {serviceRequisitions.map(pr => (
                     <option key={pr.id} value={pr.id}>
-                      {pr.prNumber} - {pr.departmentId}
+                      {pr.prNumber} - {pr.servicePR?.serviceScope?.substring(0, 50) || pr.departmentId}
                     </option>
                   ))}
                 </select>
+                {searchParams.get('prId') && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Linked from Service Requisition
+                  </p>
+                )}
               </div>
             </div>
 
@@ -355,7 +429,7 @@ function NewServiceRFPContent() {
               </label>
               <input
                 type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Enter RFP title"
@@ -371,7 +445,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Brief description of the RFP purpose and objectives"
@@ -387,7 +461,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={5}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.scopeOfWork}
                 onChange={(e) => setFormData(prev => ({ ...prev, scopeOfWork: e.target.value }))}
                 placeholder="Detailed scope of work, requirements, deliverables, and expectations..."
@@ -403,9 +477,10 @@ function NewServiceRFPContent() {
               </label>
               <input
                 type="datetime-local"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.submissionDeadline}
                 onChange={(e) => setFormData(prev => ({ ...prev, submissionDeadline: e.target.value }))}
+                min={new Date().toISOString().slice(0, 16)}
               />
               {errors.submissionDeadline && (
                 <p className="mt-1 text-sm text-red-600">{errors.submissionDeadline}</p>
@@ -418,7 +493,7 @@ function NewServiceRFPContent() {
                 <h4 className="text-md font-medium text-gray-900">Evaluation Criteria</h4>
                 <button
                   onClick={addEvaluationCriteria}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Criteria
@@ -444,7 +519,7 @@ function NewServiceRFPContent() {
                       </label>
                       <input
                         type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                         value={criteria.name}
                         onChange={(e) => updateEvaluationCriteria(index, 'name', e.target.value)}
                         placeholder="e.g., Technical Compliance"
@@ -459,7 +534,7 @@ function NewServiceRFPContent() {
                         type="number"
                         min="0"
                         max="100"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                         value={criteria.weight}
                         onChange={(e) => updateEvaluationCriteria(index, 'weight', parseInt(e.target.value) || 0)}
                         placeholder="0"
@@ -472,7 +547,7 @@ function NewServiceRFPContent() {
                       </label>
                       <input
                         type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                         value={criteria.description}
                         onChange={(e) => updateEvaluationCriteria(index, 'description', e.target.value)}
                         placeholder="Brief description"
@@ -506,12 +581,12 @@ function NewServiceRFPContent() {
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">Vendor Selection</h3>
             
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-wujha-primary/10 p-4 rounded-lg">
               <div className="flex">
-                <Users className="h-5 w-5 text-blue-400 mt-0.5" />
+                <Users className="h-5 w-5 text-wujha-primary mt-0.5" />
                 <div className="ml-3">
-                  <h4 className="text-sm font-medium text-blue-800">Vendor Invitation</h4>
-                  <p className="mt-1 text-sm text-blue-700">
+                  <h4 className="text-sm font-medium text-wujha-primary">Vendor Invitation</h4>
+                  <p className="mt-1 text-sm text-wujha-primary/80">
                     Select qualified vendors to invite for this RFP. Only active vendors with relevant capabilities will be shown.
                   </p>
                 </div>
@@ -524,7 +599,7 @@ function NewServiceRFPContent() {
                   key={vendor.id}
                   className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                     formData.selectedVendors.find(v => v.id === vendor.id)
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-wujha-primary bg-wujha-primary/10'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => toggleVendorSelection(vendor)}
@@ -533,7 +608,7 @@ function NewServiceRFPContent() {
                     <div className="flex items-center">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                         checked={!!formData.selectedVendors.find(v => v.id === vendor.id)}
                         onChange={() => toggleVendorSelection(vendor)}
                       />
@@ -559,13 +634,13 @@ function NewServiceRFPContent() {
             </div>
 
             {formData.selectedVendors.length > 0 && (
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-green-800 mb-2">
+              <div className="bg-wujha-primary/10 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-wujha-primary mb-2">
                   Selected Vendors ({formData.selectedVendors.length})
                 </h4>
                 <div className="space-y-1">
                   {formData.selectedVendors.map(vendor => (
-                    <div key={vendor.id} className="text-sm text-green-700">
+                    <div key={vendor.id} className="text-sm text-wujha-primary/80">
                       • {vendor.nameEn}
                     </div>
                   ))}
@@ -590,7 +665,7 @@ function NewServiceRFPContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -609,7 +684,7 @@ function NewServiceRFPContent() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                   value={formData.contractDuration}
                   onChange={(e) => setFormData(prev => ({ ...prev, contractDuration: e.target.value }))}
                   placeholder="e.g., 12 months, 2 years"
@@ -623,7 +698,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.serviceLevelAgreements}
                 onChange={(e) => setFormData(prev => ({ ...prev, serviceLevelAgreements: e.target.value }))}
                 placeholder="Define service level requirements, response times, availability, etc."
@@ -639,7 +714,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.insuranceRequirements}
                 onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}
                 placeholder="Specify required insurance coverage, amounts, and validity periods"
@@ -655,7 +730,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.penaltyClause}
                 onChange={(e) => setFormData(prev => ({ ...prev, penaltyClause: e.target.value }))}
                 placeholder="Define penalties for non-compliance, delays, or quality issues"
@@ -668,7 +743,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.liabilityTerms}
                 onChange={(e) => setFormData(prev => ({ ...prev, liabilityTerms: e.target.value }))}
                 placeholder="Define liability limits and responsibilities"
@@ -681,7 +756,7 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={formData.confidentialityClause}
                 onChange={(e) => setFormData(prev => ({ ...prev, confidentialityClause: e.target.value }))}
                 placeholder="Define confidentiality and non-disclosure requirements"
@@ -759,7 +834,7 @@ function NewServiceRFPContent() {
           {currentStep < 4 ? (
             <button
               onClick={handleNext}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               Next
               <ChevronRight className="h-4 w-4 ml-2" />
@@ -768,7 +843,7 @@ function NewServiceRFPContent() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -793,7 +868,7 @@ export default function NewServiceRFP() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewServiceRFPContent />

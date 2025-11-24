@@ -85,6 +85,22 @@ export async function GET(
 
     deliveryStats.totalPending = deliveryStats.totalOrdered - deliveryStats.totalReceived - deliveryStats.totalRejected;
 
+    // Transform goods receipts to match frontend interface
+    const transformedGoodsReceipts = order.goodsReceipts.map(gr => {
+      const totalReceived = gr.items.reduce((sum, item) => sum + item.receivedQuantity, 0);
+      const totalAccepted = gr.items.reduce((sum, item) => sum + item.acceptedQuantity, 0);
+      const totalRejected = gr.items.reduce((sum, item) => sum + item.rejectedQuantity, 0);
+      
+      return {
+        id: gr.id,
+        grnNumber: gr.grNumber, // Map grNumber to grnNumber for frontend
+        receiptDate: gr.receivedDate.toISOString(), // Map receivedDate to receiptDate
+        status: gr.status,
+        totalReceived: totalAccepted, // Use accepted quantity as "received"
+        totalRejected: totalRejected
+      };
+    });
+
     // Calculate payment statistics
     const paymentStats = {
       totalInvoiced: order.invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0),
@@ -95,6 +111,8 @@ export async function GET(
 
     return NextResponse.json({
       ...order,
+      goodsReceipts: transformedGoodsReceipts,
+      deliveryStats: deliveryStats,
       statistics: {
         delivery: deliveryStats,
         payment: paymentStats

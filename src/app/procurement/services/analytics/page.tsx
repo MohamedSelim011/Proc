@@ -374,8 +374,8 @@ export default function ServiceAnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <FileText className="h-6 w-6 text-wujha-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Contracts</p>
@@ -703,7 +703,7 @@ export default function ServiceAnalyticsPage() {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full ${
-                      index === 0 ? 'bg-blue-600' :
+                      index === 0 ? 'bg-wujha-primary' :
                       index === 1 ? 'bg-green-600' :
                       index === 2 ? 'bg-yellow-600' :
                       index === 3 ? 'bg-purple-600' :

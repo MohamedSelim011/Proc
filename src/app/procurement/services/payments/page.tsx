@@ -260,7 +260,7 @@ export default function ServicePaymentsPage() {
     switch (status) {
       case 'PAID': return 'bg-purple-100 text-purple-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
+      case 'IN_PROGRESS': return 'bg-wujha-primary/10 text-wujha-primary';
       case 'PENDING': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -412,8 +412,8 @@ export default function ServicePaymentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <CreditCard className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <CreditCard className="h-6 w-6 text-wujha-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Payments</p>

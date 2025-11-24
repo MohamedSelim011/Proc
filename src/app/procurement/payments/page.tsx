@@ -285,7 +285,7 @@ function PaymentsPageContent() {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
       case 'PROCESSED':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-wujha-primary/10 text-wujha-primary';
       case 'APPROVED':
         return 'bg-yellow-100 text-yellow-800';
       default:
@@ -336,7 +336,7 @@ function PaymentsPageContent() {
           <button
             onClick={() => setShowPaymentForm(true)}
             disabled={filteredInvoices.length === 0}
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CreditCard className="h-4 w-4 mr-2" />
             Process Payment
@@ -422,7 +422,7 @@ function PaymentsPageContent() {
             onClick={() => setActiveTab('pending')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'pending'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-wujha-primary text-wujha-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -432,7 +432,7 @@ function PaymentsPageContent() {
             onClick={() => setActiveTab('payments')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'payments'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-wujha-primary text-wujha-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -442,7 +442,7 @@ function PaymentsPageContent() {
             onClick={() => setActiveTab('batches')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'batches'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-wujha-primary text-wujha-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -461,7 +461,7 @@ function PaymentsPageContent() {
                 <input
                   type="text"
                   placeholder="Search invoices..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder-gray-400"
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                 />
@@ -469,7 +469,7 @@ function PaymentsPageContent() {
 
               <div>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={filters.currency}
                   onChange={(e) => setFilters(prev => ({ ...prev, currency: e.target.value }))}
                 >
@@ -484,7 +484,7 @@ function PaymentsPageContent() {
                 <input
                   type="text"
                   placeholder="Vendor ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder-gray-400"
                   value={filters.vendorId}
                   onChange={(e) => setFilters(prev => ({ ...prev, vendorId: e.target.value }))}
                 />
@@ -505,20 +505,20 @@ function PaymentsPageContent() {
 
           {/* Invoice Selection */}
           {paymentForm.selectedInvoices.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-blue-900">
+                  <h4 className="text-sm font-medium text-wujha-primary">
                     {paymentForm.selectedInvoices.length} invoice(s) selected
                   </h4>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-wujha-primary/80">
                     Total amount: {formatCurrency(paymentForm.totalAmount)}
                   </p>
                 </div>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => setShowPaymentForm(true)}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     Process Payment
@@ -546,7 +546,7 @@ function PaymentsPageContent() {
                     <input
                       id="select-all"
                       type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                       checked={paymentForm.selectedInvoices.length === filteredInvoices.length && filteredInvoices.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                     />
@@ -604,11 +604,11 @@ function PaymentsPageContent() {
                       const isSelected = paymentForm.selectedInvoices.includes(invoice.id);
                       
                       return (
-                        <tr key={invoice.id} className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                        <tr key={invoice.id} className={`hover:bg-gray-50 ${isSelected ? 'bg-wujha-primary/5' : ''}`}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                               checked={isSelected}
                               onChange={(e) => handleInvoiceSelection(invoice.id, e.target.checked)}
                             />
@@ -624,7 +624,7 @@ function PaymentsPageContent() {
                                   {formatDate(invoice.invoiceDate)}
                                 </div>
                                 {invoice.po && (
-                                  <div className="text-xs text-blue-600">
+                                  <div className="text-xs text-wujha-primary">
                                     PO: {invoice.po.poNumber}
                                   </div>
                                 )}
@@ -673,7 +673,7 @@ function PaymentsPageContent() {
                                 onClick={() => handleInvoiceSelection(invoice.id, !isSelected)}
                                 className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded ${
                                   isSelected 
-                                    ? 'text-blue-700 bg-blue-100 hover:bg-blue-200' 
+                                    ? 'text-wujha-primary bg-wujha-primary/10 hover:bg-wujha-primary/20' 
                                     : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
                                 }`}
                               >
@@ -752,7 +752,7 @@ function PaymentsPageContent() {
                             {formatDate(payment.invoiceDate)}
                           </div>
                           {payment.po && (
-                            <div className="text-xs text-blue-600">
+                            <div className="text-xs text-wujha-primary">
                               PO: {payment.po.poNumber}
                             </div>
                           )}
@@ -786,7 +786,7 @@ function PaymentsPageContent() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Link
                         href={`/procurement/invoices/${payment.id}`}
-                        className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                        className="text-wujha-primary hover:text-wujha-primary-hover inline-flex items-center"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View
@@ -881,7 +881,7 @@ function PaymentsPageContent() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Link
                         href={`/procurement/payments/batch/${batch.id}`}
-                        className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                        className="text-wujha-primary hover:text-wujha-primary-hover inline-flex items-center"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View
@@ -911,7 +911,7 @@ function PaymentsPageContent() {
             {/* Modal Content */}
             <div className="relative inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all w-full max-w-md z-10 border border-gray-100">
               {/* Header */}
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 px-4 py-3">
+              <div className="bg-wujha-primary px-4 py-3">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 backdrop-blur-sm">
                     <CreditCard className="h-4 w-4 text-white" />
@@ -932,7 +932,7 @@ function PaymentsPageContent() {
                         Payment Method *
                       </label>
                       <select
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 appearance-none bg-white text-sm"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 appearance-none bg-white text-sm"
                         value={paymentForm.paymentMethod}
                         onChange={(e) => setPaymentForm(prev => ({ 
                           ...prev, 
@@ -953,7 +953,7 @@ function PaymentsPageContent() {
                         </label>
                         <input
                           type="date"
-                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 text-sm ${
                             errors.paymentDate ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                           }`}
                           value={paymentForm.paymentDate}
@@ -970,7 +970,7 @@ function PaymentsPageContent() {
                         </label>
                         <input
                           type="text"
-                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 text-sm ${
                             errors.reference ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                           }`}
                           value={paymentForm.reference}
@@ -989,7 +989,7 @@ function PaymentsPageContent() {
                         </label>
                         <input
                           type="text"
-                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 text-sm ${
+                          className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 text-sm ${
                             errors.bankAccount ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                           }`}
                           value={paymentForm.bankAccount || ''}
@@ -1008,7 +1008,7 @@ function PaymentsPageContent() {
                       </label>
                       <textarea
                         rows={2}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all duration-200 resize-none text-sm"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 resize-none text-sm"
                         value={paymentForm.description || ''}
                         onChange={(e) => setPaymentForm(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="Payment notes..."
@@ -1016,14 +1016,14 @@ function PaymentsPageContent() {
                     </div>
 
                     {/* Payment Summary Card */}
-                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-3 border border-orange-100">
+                    <div className="bg-wujha-primary/10 rounded-lg p-3 border border-wujha-primary/30">
                       <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
                         <span>Selected Invoices:</span>
                         <span>{paymentForm.selectedInvoices.length} invoice(s)</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-                        <span className="text-lg font-bold text-orange-600">
+                        <span className="text-lg font-bold text-wujha-primary">
                           {formatCurrency(paymentForm.totalAmount)}
                         </span>
                       </div>
@@ -1057,14 +1057,14 @@ function PaymentsPageContent() {
                       setErrors({});
                     }}
                     disabled={processing}
-                    className="px-4 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="px-4 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleProcessPayment}
                     disabled={processing}
-                    className="px-5 py-2 border border-transparent shadow-sm text-xs font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="px-5 py-2 border border-transparent shadow-sm text-xs font-medium rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-1 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {processing ? (
                       <>
@@ -1092,7 +1092,7 @@ export default function PaymentsPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <PaymentsPageContent />

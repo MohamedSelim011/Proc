@@ -88,13 +88,13 @@ interface ServiceContract {
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
   ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-blue-100 text-blue-800',
+  COMPLETED: 'bg-wujha-primary/10 text-wujha-primary',
   TERMINATED: 'bg-red-100 text-red-800',
   SUSPENDED: 'bg-yellow-100 text-yellow-800'
 };
 
 const contractTypeColors = {
-  SERVICE_AGREEMENT: 'bg-blue-100 text-blue-800',
+  SERVICE_AGREEMENT: 'bg-wujha-primary/10 text-wujha-primary',
   CONSULTING_CONTRACT: 'bg-purple-100 text-purple-800',
   MAINTENANCE_CONTRACT: 'bg-green-100 text-green-800',
   SUPPORT_CONTRACT: 'bg-orange-100 text-orange-800'
@@ -500,7 +500,7 @@ export default function ServiceContractDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -514,7 +514,7 @@ export default function ServiceContractDetail() {
         <div className="mt-6">
           <button
             onClick={() => router.push('/procurement/services/contracts')}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Service Contracts
@@ -747,9 +747,9 @@ export default function ServiceContractDetail() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Contract Terms</h3>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               {contract.slaTerms && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">SLA Terms</h4>
-                  <p className="text-sm text-blue-800">{contract.slaTerms}</p>
+                <div className="bg-wujha-primary/10 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-wujha-primary mb-2">SLA Terms</h4>
+                  <p className="text-sm text-wujha-primary/80">{contract.slaTerms}</p>
                 </div>
               )}
               
@@ -841,7 +841,7 @@ export default function ServiceContractDetail() {
           <div className="flex space-x-3">
             <button
               onClick={() => router.push(`/procurement/services/milestones/new?contractId=${contract.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <Clock className="h-4 w-4 mr-2" />
               Create Milestones

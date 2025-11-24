@@ -204,7 +204,7 @@ function NewServiceReceiptContent() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900">Contract ID Required</h1>
             <p className="mt-2 text-gray-600">Please provide a contract ID to create a service receipt.</p>
-            <Link href="/procurement/services/contracts" className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            <Link href="/procurement/services/contracts" className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Contracts
             </Link>
@@ -221,7 +221,7 @@ function NewServiceReceiptContent() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <Link href={`/procurement/services/contracts/${contractId}`} className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500 mb-2">
+              <Link href={`/procurement/services/contracts/${contractId}`} className="inline-flex items-center text-sm text-wujha-primary hover:text-wujha-primary-hover mb-2">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back to Contract
               </Link>
@@ -518,7 +518,7 @@ export default function NewServiceReceipt() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewServiceReceiptContent />

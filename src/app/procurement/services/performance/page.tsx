@@ -129,7 +129,7 @@ export default function ServicePerformance() {
     const colors = {
       'ON_TRACK': 'bg-green-100 text-green-800',
       'DELAYED': 'bg-yellow-100 text-yellow-800',
-      'COMPLETED': 'bg-blue-100 text-blue-800',
+      'COMPLETED': 'bg-wujha-primary/10 text-wujha-primary',
       'AT_RISK': 'bg-red-100 text-red-800'
     };
     return colors[status];
@@ -137,14 +137,14 @@ export default function ServicePerformance() {
 
   const getPerformanceColor = (score: number) => {
     if (score >= 4.5) return 'text-green-600';
-    if (score >= 4.0) return 'text-blue-600';
+    if (score >= 4.0) return 'text-wujha-primary';
     if (score >= 3.5) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getSLAColor = (compliance: number) => {
     if (compliance >= 95) return 'text-green-600';
-    if (compliance >= 90) return 'text-blue-600';
+    if (compliance >= 90) return 'text-wujha-primary';
     if (compliance >= 80) return 'text-yellow-600';
     return 'text-red-600';
   };
@@ -189,7 +189,7 @@ export default function ServicePerformance() {
         </div>
         <Link
           href="/procurement/services/performance/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Performance Report
@@ -202,7 +202,7 @@ export default function ServicePerformance() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Activity className="h-6 w-6 text-blue-400" />
+                <Activity className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -296,7 +296,7 @@ export default function ServicePerformance() {
               <input
                 type="text"
                 placeholder="Search contracts..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -403,7 +403,7 @@ export default function ServicePerformance() {
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center">
                   <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-wujha-primary"></div>
                     <span className="ml-2 text-sm text-gray-500">Loading...</span>
                   </div>
                 </td>
@@ -413,7 +413,7 @@ export default function ServicePerformance() {
                 <tr key={performance.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <FileText className="h-8 w-8 text-blue-500 mr-3" />
+                      <FileText className="h-8 w-8 text-wujha-primary mr-3" />
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {performance.contractNumber}
@@ -476,7 +476,7 @@ export default function ServicePerformance() {
                     <div className="flex items-center space-x-2">
                       <Link
                         href={`/procurement/services/performance/${performance.id}`}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-wujha-primary hover:text-wujha-primary-hover"
                         title="View Performance Details"
                       >
                         <Eye className="h-4 w-4" />

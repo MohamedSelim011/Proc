@@ -382,7 +382,7 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      case 'SUBMITTED': return 'bg-blue-100 text-blue-800';
+      case 'SUBMITTED': return 'bg-wujha-primary/10 text-wujha-primary';
       case 'UNDER_REVIEW': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
@@ -453,7 +453,7 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
             <>
               <Link
                 href={`/procurement/services/invoices/${invoice.id}/edit`}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 px-4 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover"
               >
                 <Edit className="h-4 w-4" />
                 Edit

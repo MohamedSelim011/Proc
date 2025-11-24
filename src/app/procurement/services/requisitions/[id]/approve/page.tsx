@@ -13,10 +13,10 @@ import {
   AlertCircle,
   DollarSign,
   Calendar,
-  MessageSquare,
-  X
+  MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceRequisition {
   id: string;
@@ -58,7 +58,7 @@ interface ApprovalForm {
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
-  SUBMITTED: 'bg-blue-100 text-blue-800',
+  SUBMITTED: 'bg-wujha-primary/10 text-wujha-primary',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   CANCELLED: 'bg-gray-100 text-gray-800'
@@ -66,7 +66,7 @@ const statusColors = {
 
 const priorityColors = {
   LOW: 'bg-green-100 text-green-800',
-  NORMAL: 'bg-blue-100 text-blue-800',
+  NORMAL: 'bg-wujha-primary/10 text-wujha-primary',
   HIGH: 'bg-yellow-100 text-yellow-800',
   URGENT: 'bg-red-100 text-red-800'
 };
@@ -74,18 +74,10 @@ const priorityColors = {
 export default function ServiceRequisitionApproval() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [sr, setSr] = useState<ServiceRequisition | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{
-    show: boolean;
-    type: 'success' | 'error';
-    message: string;
-  }>({
-    show: false,
-    type: 'success',
-    message: ''
-  });
 
   const [approvalForm, setApprovalForm] = useState<ApprovalForm>({
     action: 'APPROVE',
@@ -110,17 +102,6 @@ export default function ServiceRequisitionApproval() {
     });
   };
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ show: true, type, message });
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 5000);
-  };
-
-  const hideToast = () => {
-    setToast(prev => ({ ...prev, show: false }));
-  };
 
   useEffect(() => {
     fetchServiceRequisition();
@@ -200,7 +181,7 @@ export default function ServiceRequisitionApproval() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -214,7 +195,7 @@ export default function ServiceRequisitionApproval() {
         <div className="mt-6">
           <Link
             href="/procurement/services/requisitions"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Service Requisitions
@@ -255,57 +236,6 @@ export default function ServiceRequisitionApproval() {
         </div>
       </div>
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
-          <div className={`rounded-xl shadow-2xl border max-w-sm w-full ${
-            toast.type === 'success' 
-              ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200' 
-              : 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
-          }`}>
-            <div className="p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  {toast.type === 'success' ? (
-                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-orange-100">
-                      <CheckCircle className="h-5 w-5 text-orange-600" />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-100">
-                      <XCircle className="h-5 w-5 text-red-600" />
-                    </div>
-                  )}
-                </div>
-                <div className="ml-3 w-0 flex-1">
-                  <p className={`text-sm font-medium ${
-                    toast.type === 'success' ? 'text-orange-800' : 'text-red-800'
-                  }`}>
-                    {toast.type === 'success' ? 'Success!' : 'Error!'}
-                  </p>
-                  <p className={`mt-1 text-sm ${
-                    toast.type === 'success' ? 'text-orange-700' : 'text-red-700'
-                  }`}>
-                    {toast.message}
-                  </p>
-                </div>
-                <div className="ml-4 flex-shrink-0 flex">
-                  <button
-                    className={`rounded-md inline-flex ${
-                      toast.type === 'success' 
-                        ? 'text-orange-400 hover:text-orange-600 focus:ring-orange-600' 
-                        : 'text-red-400 hover:text-red-600 focus:ring-red-600'
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                    onClick={hideToast}
-                  >
-                    <span className="sr-only">Close</span>
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
@@ -460,7 +390,7 @@ export default function ServiceRequisitionApproval() {
                   <select
                     value={approvalForm.action}
                     onChange={(e) => setApprovalForm({...approvalForm, action: e.target.value as any})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-wujha-primary focus:border-wujha-primary"
                     disabled={submitting}
                   >
                     {canSubmit && <option value="SUBMIT">Submit for Approval</option>}
@@ -477,7 +407,7 @@ export default function ServiceRequisitionApproval() {
                     type="text"
                     value={approvalForm.approverId}
                     onChange={(e) => setApprovalForm({...approvalForm, approverId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-wujha-primary focus:border-wujha-primary"
                     placeholder="Enter approver ID"
                     disabled={submitting}
                   />
@@ -491,7 +421,7 @@ export default function ServiceRequisitionApproval() {
                     value={approvalForm.comments}
                     onChange={(e) => setApprovalForm({...approvalForm, comments: e.target.value})}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-wujha-primary focus:border-wujha-primary"
                     placeholder="Enter approval comments..."
                     disabled={submitting}
                   />
@@ -506,7 +436,7 @@ export default function ServiceRequisitionApproval() {
                       type="number"
                       value={approvalForm.level}
                       onChange={(e) => setApprovalForm({...approvalForm, level: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-wujha-primary focus:border-wujha-primary"
                       min="1"
                       disabled={submitting}
                     />
@@ -521,7 +451,7 @@ export default function ServiceRequisitionApproval() {
                       ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-400' 
                       : approvalForm.action === 'APPROVE'
                       ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400'
-                      : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400'
+                      : 'bg-wujha-primary hover:bg-wujha-primary-hover disabled:bg-wujha-primary/50'
                   }`}
                 >
                   {submitting ? (

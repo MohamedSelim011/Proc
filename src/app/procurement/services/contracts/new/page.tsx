@@ -90,9 +90,12 @@ function NewServiceContractContent() {
   const prId = searchParams.get('prId');
 
   const [loading, setLoading] = useState(false);
+  const [loadingPR, setLoadingPR] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selectedPR, setSelectedPR] = useState<ServiceRequisition | null>(null);
   const [searchVendor, setSearchVendor] = useState('');
+  const [prs, setPRs] = useState<ServiceRequisition[]>([]);
+  const [searchPR, setSearchPR] = useState('');
 
   const [formData, setContractFormData] = useState<ContractFormData>({
     prId: prId || '',
@@ -116,6 +119,8 @@ function NewServiceContractContent() {
     fetchVendors();
     if (prId) {
       fetchPRDetails(prId);
+    } else {
+      fetchPRs();
     }
   }, [prId]);
 
@@ -131,8 +136,24 @@ function NewServiceContractContent() {
     }
   };
 
+  const fetchPRs = async () => {
+    try {
+      setLoadingPR(true);
+      const response = await fetch('/api/services/requisitions?status=APPROVED');
+      const data = await response.json();
+      if (response.ok) {
+        setPRs(data.serviceRequisitions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching PRs:', error);
+    } finally {
+      setLoadingPR(false);
+    }
+  };
+
   const fetchPRDetails = async (id: string) => {
     try {
+      setLoadingPR(true);
       const response = await fetch(`/api/services/requisitions/${id}`);
       const data = await response.json();
       if (response.ok) {
@@ -145,6 +166,8 @@ function NewServiceContractContent() {
       }
     } catch (error) {
       console.error('Error fetching PR details:', error);
+    } finally {
+      setLoadingPR(false);
     }
   };
 
@@ -208,10 +231,15 @@ function NewServiceContractContent() {
     vendor.vendorCode.toLowerCase().includes(searchVendor.toLowerCase())
   );
 
-  if (!selectedPR) {
+  const filteredPRs = prs.filter(pr =>
+    pr.prNumber.toLowerCase().includes(searchPR.toLowerCase()) ||
+    pr.servicePR?.serviceScope?.toLowerCase().includes(searchPR.toLowerCase())
+  );
+
+  if (loadingPR) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -239,34 +267,85 @@ function NewServiceContractContent() {
         </p>
       </div>
 
-      {/* Service Requisition Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-blue-900 mb-4">Service Requisition Details</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Requisition Number</dt>
-            <dd className="mt-1 text-sm text-blue-900">{selectedPR.prNumber}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Service Scope</dt>
-            <dd className="mt-1 text-sm text-blue-900">{selectedPR.servicePR?.serviceScope}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Duration</dt>
-            <dd className="mt-1 text-sm text-blue-900">
-              {selectedPR.servicePR?.duration} {selectedPR.servicePR?.durationUnit}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Total Value</dt>
-            <dd className="mt-1 text-lg font-bold text-blue-900">
-              {formatCurrency(parseFloat(selectedPR.estimatedCost))}
-            </dd>
+      {/* Service Requisition Selection */}
+      {!selectedPR ? (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Select Service Requisition</h3>
+          <input
+            type="text"
+            placeholder="Search requisitions..."
+            value={searchPR}
+            onChange={(e) => setSearchPR(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4"
+          />
+          
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {filteredPRs.map((pr) => (
+              <div
+                key={pr.id}
+                className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-wujha-primary/30 transition-colors"
+                onClick={() => fetchPRDetails(pr.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">{pr.prNumber}</h4>
+                    <p className="text-sm text-gray-500">{pr.servicePR?.serviceScope}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatCurrency(parseFloat(pr.estimatedCost))}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-wujha-primary" />
+                </div>
+              </div>
+            ))}
+            {filteredPRs.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No approved service requisitions found
+              </p>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-wujha-primary">Service Requisition Details</h3>
+            <button
+              onClick={() => {
+                setSelectedPR(null);
+                setContractFormData(prev => ({ ...prev, prId: '', totalValue: 0 }));
+              }}
+              className="text-sm text-wujha-primary hover:text-wujha-primary-hover"
+            >
+              Change Requisition
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-sm font-medium text-wujha-primary/80">Requisition Number</dt>
+              <dd className="mt-1 text-sm text-wujha-primary">{selectedPR.prNumber}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-wujha-primary/80">Service Scope</dt>
+              <dd className="mt-1 text-sm text-wujha-primary">{selectedPR.servicePR?.serviceScope}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-wujha-primary/80">Duration</dt>
+              <dd className="mt-1 text-sm text-wujha-primary">
+                {selectedPR.servicePR?.duration} {selectedPR.servicePR?.durationUnit}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-wujha-primary/80">Total Value</dt>
+              <dd className="mt-1 text-lg font-bold text-wujha-primary">
+                {formatCurrency(parseFloat(selectedPR.estimatedCost))}
+              </dd>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
+      {selectedPR && (
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-8">
           <div className="space-y-6">
@@ -280,7 +359,7 @@ function NewServiceContractContent() {
                 placeholder="Search vendors..."
                 value={searchVendor}
                 onChange={(e) => setSearchVendor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4"
               />
               
               <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -289,7 +368,7 @@ function NewServiceContractContent() {
                     key={vendor.id}
                     className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                       formData.vendorId === vendor.id
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-wujha-primary bg-wujha-primary/10'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setContractFormData(prev => ({ ...prev, vendorId: vendor.id }))}
@@ -301,7 +380,7 @@ function NewServiceContractContent() {
                         <p className="text-sm text-gray-500">{vendor.email}</p>
                       </div>
                       {formData.vendorId === vendor.id && (
-                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                        <CheckCircle className="h-5 w-5 text-wujha-primary" />
                       )}
                     </div>
                   </div>
@@ -319,7 +398,7 @@ function NewServiceContractContent() {
                   Contract Type
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.contractType}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, contractType: e.target.value }))}
                 >
@@ -335,7 +414,7 @@ function NewServiceContractContent() {
                   Currency
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.currency}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, currency: e.target.value }))}
                 >
@@ -351,7 +430,7 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.startDate ? 'border-red-300' : ''
                   }`}
                   value={formData.startDate}
@@ -369,7 +448,7 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.endDate ? 'border-red-300' : ''
                   }`}
                   value={formData.endDate}
@@ -389,7 +468,7 @@ function NewServiceContractContent() {
                   type="number"
                   step="0.01"
                   min="0"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.totalValue ? 'border-red-300' : ''
                   }`}
                   value={formData.totalValue}
@@ -405,7 +484,7 @@ function NewServiceContractContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
                   value={formData.paymentTerms}
@@ -431,7 +510,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   placeholder="Service Level Agreement terms..."
                   value={formData.slaTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, slaTerms: e.target.value }))}
@@ -444,7 +523,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   placeholder="Penalty terms for non-compliance..."
                   value={formData.penaltyClause}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, penaltyClause: e.target.value }))}
@@ -460,7 +539,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     placeholder="0.00"
                     value={formData.performanceBond}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, performanceBond: parseFloat(e.target.value) || 0 }))}
@@ -475,7 +554,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     placeholder="0.00"
                     value={formData.retentionAmount}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, retentionAmount: parseFloat(e.target.value) || 0 }))}
@@ -489,7 +568,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   placeholder="Insurance requirements and coverage..."
                   value={formData.insuranceRequirements}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}
@@ -514,7 +593,7 @@ function NewServiceContractContent() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -532,6 +611,7 @@ function NewServiceContractContent() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -540,7 +620,7 @@ export default function NewServiceContract() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewServiceContractContent />

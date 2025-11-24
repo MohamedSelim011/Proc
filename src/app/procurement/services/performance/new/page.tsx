@@ -174,7 +174,7 @@ function NewPerformanceReportContent() {
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600';
-    if (score >= 75) return 'text-blue-600';
+    if (score >= 75) return 'text-wujha-primary';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
@@ -460,7 +460,7 @@ function NewPerformanceReportContent() {
           </div>
 
           {/* Overall Score Display */}
-          <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4">
+          <div className="mt-6 bg-wujha-primary/10 border-2 border-wujha-primary/30 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overall Performance Score</p>
@@ -678,7 +678,7 @@ function NewPerformanceReportContent() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Creating...' : 'Create Performance Report'}
@@ -693,7 +693,7 @@ export default function NewPerformanceReport() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewPerformanceReportContent />

@@ -588,22 +588,22 @@ function NewInvoiceContent() {
               <li key={step.id} className="relative flex-1 pt-2">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   {stepIdx < 3 && (
-                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
                 <div className="relative flex flex-col items-center">
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-blue-600 bg-white shadow-lg' 
+                        ? 'border-wujha-primary bg-white shadow-lg' 
                         : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -611,7 +611,7 @@ function NewInvoiceContent() {
                   </div>
                   <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
-                      step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                     }`}>
                       {step.name}
                     </span>
@@ -647,7 +647,7 @@ function NewInvoiceContent() {
                     }}
                     className={`px-4 py-2 rounded-lg border transition-colors ${
                       formData.invoiceType === 'GOODS'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        ? 'border-wujha-primary bg-wujha-primary/10 text-wujha-primary'
                         : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                     }`}
                   >
@@ -662,7 +662,7 @@ function NewInvoiceContent() {
                     }}
                     className={`px-4 py-2 rounded-lg border transition-colors ${
                       formData.invoiceType === 'SERVICE'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        ? 'border-wujha-primary bg-wujha-primary/10 text-wujha-primary'
                         : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                     }`}
                   >
@@ -678,14 +678,14 @@ function NewInvoiceContent() {
                     Purchase Order *
                   </label>
                 {selectedPO ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-blue-900">{selectedPO.poNumber}</h4>
-                        <p className="text-sm text-blue-700">{selectedPO.vendor.nameEn}</p>
-                        <p className="text-sm text-blue-700">{selectedPO.items.length} items</p>
+                        <h4 className="text-sm font-medium text-wujha-primary">{selectedPO.poNumber}</h4>
+                        <p className="text-sm text-wujha-primary/80">{selectedPO.vendor.nameEn}</p>
+                        <p className="text-sm text-wujha-primary/80">{selectedPO.items.length} items</p>
                       </div>
-                      <CheckCircle className="h-5 w-5 text-blue-600" />
+                      <CheckCircle className="h-5 w-5 text-wujha-primary" />
                     </div>
                   </div>
                 ) : (
@@ -695,7 +695,7 @@ function NewInvoiceContent() {
                         key={po.id}
                         className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                           formData.poId === po.id
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-wujha-primary bg-wujha-primary/10'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => {
@@ -710,7 +710,7 @@ function NewInvoiceContent() {
                             <p className="text-sm text-gray-500">{po.items.length} items</p>
                           </div>
                           {formData.poId === po.id && (
-                            <CheckCircle className="h-5 w-5 text-blue-600" />
+                            <CheckCircle className="h-5 w-5 text-wujha-primary" />
                           )}
                         </div>
                       </div>
@@ -766,14 +766,14 @@ function NewInvoiceContent() {
                     Service Receipt *
                   </label>
                   {selectedServiceReceipt ? (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-medium text-blue-900">{selectedServiceReceipt.srnNumber}</h4>
-                          <p className="text-sm text-blue-700">{selectedServiceReceipt.contract.vendor.nameEn}</p>
-                          <p className="text-sm text-blue-700">{selectedServiceReceipt.serviceDescription}</p>
+                          <h4 className="text-sm font-medium text-wujha-primary">{selectedServiceReceipt.srnNumber}</h4>
+                          <p className="text-sm text-wujha-primary/80">{selectedServiceReceipt.contract.vendor.nameEn}</p>
+                          <p className="text-sm text-wujha-primary/80">{selectedServiceReceipt.serviceDescription}</p>
                         </div>
-                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                        <CheckCircle className="h-5 w-5 text-wujha-primary" />
                       </div>
                     </div>
                   ) : (
@@ -783,7 +783,7 @@ function NewInvoiceContent() {
                           key={receipt.id}
                           className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                             formData.serviceReceiptId === receipt.id
-                              ? 'border-blue-500 bg-blue-50'
+                              ? 'border-wujha-primary bg-wujha-primary/10'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                           onClick={() => {
@@ -824,7 +824,7 @@ function NewInvoiceContent() {
                               )}
                             </div>
                             {formData.serviceReceiptId === receipt.id && (
-                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                              <CheckCircle className="h-5 w-5 text-wujha-primary" />
                             )}
                           </div>
                         </div>
@@ -851,7 +851,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="text"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                       errors.invoiceNumber ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceNumber}
@@ -868,7 +868,7 @@ function NewInvoiceContent() {
                     Currency
                   </label>
                   <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   >
@@ -884,7 +884,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                       errors.invoiceDate ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceDate}
@@ -902,7 +902,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
                       errors.dueDate ? 'border-red-300' : ''
                     }`}
                     value={formData.dueDate}
@@ -938,7 +938,7 @@ function NewInvoiceContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.description || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Invoice description or notes..."
@@ -1018,7 +1018,7 @@ function NewInvoiceContent() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
                               value={invoiceItem?.invoiceQuantity || 0}
                               onChange={(e) => updateItemField(index, 'invoiceQuantity', parseFloat(e.target.value) || 0)}
                             />
@@ -1032,7 +1032,7 @@ function NewInvoiceContent() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
                                 value={invoiceItem?.invoiceUnitPrice || 0}
                                 onChange={(e) => updateItemField(index, 'invoiceUnitPrice', parseFloat(e.target.value) || 0)}
                               />
@@ -1119,7 +1119,7 @@ function NewInvoiceContent() {
                       min="0"
                       max="100"
                       step="0.1"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                       value={formData.taxRate}
                       onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
                     />
@@ -1137,7 +1137,7 @@ function NewInvoiceContent() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                         value={formData.discountAmount}
                         onChange={(e) => setFormData(prev => ({ ...prev, discountAmount: parseFloat(e.target.value) || 0 }))}
                       />
@@ -1375,7 +1375,7 @@ function NewInvoiceContent() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -1384,7 +1384,7 @@ function NewInvoiceContent() {
           <button
             onClick={handleNext}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               'Creating...'
@@ -1407,7 +1407,7 @@ export default function NewInvoice() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewInvoiceContent />

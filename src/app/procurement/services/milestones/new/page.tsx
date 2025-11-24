@@ -9,7 +9,8 @@ import {
   Calendar,
   DollarSign,
   Clock,
-  CheckCircle
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -31,6 +32,11 @@ interface ServiceContract {
   endDate: string;
   vendor: {
     nameEn: string;
+  };
+  pr?: {
+    servicePR?: {
+      paymentSchedule?: string;
+    };
   };
 }
 
@@ -66,6 +72,12 @@ function NewMilestoneContent() {
       if (response.ok) {
         const data = await response.json();
         setContract(data);
+        
+        // Check payment schedule and show error if not MILESTONE
+        const paymentSchedule = data.pr?.servicePR?.paymentSchedule;
+        if (paymentSchedule && paymentSchedule !== 'MILESTONE') {
+          setError(`Cannot create milestones. Payment schedule is set to ${paymentSchedule}. Milestones can only be created when payment schedule is MILESTONE.`);
+        }
       }
     } catch (error) {
       console.error('Error fetching contract:', error);
@@ -171,7 +183,7 @@ function NewMilestoneContent() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900">Contract ID Required</h1>
             <p className="mt-2 text-gray-600">Please provide a contract ID to create milestones.</p>
-            <Link href="/procurement/services/contracts" className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            <Link href="/procurement/services/contracts" className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Contracts
             </Link>
@@ -221,6 +233,19 @@ function NewMilestoneContent() {
                 <span className="ml-2 font-medium">{contract.vendor.nameEn}</span>
               </div>
             </div>
+            {contract.pr?.servicePR?.paymentSchedule && contract.pr.servicePR.paymentSchedule !== 'MILESTONE' && (
+              <div className="mt-4 rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">
+                      Cannot create milestones. Payment schedule is set to {contract.pr.servicePR.paymentSchedule}. 
+                      Milestones can only be created when payment schedule is MILESTONE.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -254,7 +279,7 @@ function NewMilestoneContent() {
               <button
                 type="button"
                 onClick={addMilestone}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Milestone
@@ -287,7 +312,7 @@ function NewMilestoneContent() {
                       type="text"
                       value={milestone.title}
                       onChange={(e) => updateMilestone(index, 'title', e.target.value)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="e.g., Project Setup, Development Phase"
                       required
                     />
@@ -301,7 +326,7 @@ function NewMilestoneContent() {
                       type="date"
                       value={milestone.dueDate}
                       onChange={(e) => updateMilestone(index, 'dueDate', e.target.value)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       required
                     />
                   </div>
@@ -315,7 +340,7 @@ function NewMilestoneContent() {
                       step="0.001"
                       value={milestone.amount}
                       onChange={(e) => updateMilestone(index, 'amount', parseFloat(e.target.value) || 0)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="0.000"
                       required
                     />
@@ -330,7 +355,7 @@ function NewMilestoneContent() {
                       step="0.01"
                       value={milestone.percentage}
                       onChange={(e) => updateMilestone(index, 'percentage', parseFloat(e.target.value) || 0)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="0.00"
                       readOnly
                     />
@@ -344,7 +369,7 @@ function NewMilestoneContent() {
                       value={milestone.description}
                       onChange={(e) => updateMilestone(index, 'description', e.target.value)}
                       rows={3}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="Describe what will be delivered in this milestone..."
                       required
                     />
@@ -384,8 +409,8 @@ function NewMilestoneContent() {
             </Link>
             <button
               type="submit"
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || contract?.pr?.servicePR?.paymentSchedule !== 'MILESTONE'}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -407,7 +432,7 @@ export default function NewMilestone() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     }>
       <NewMilestoneContent />

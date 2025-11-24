@@ -890,15 +890,28 @@ export default function PurchaseOrderDetailPage() {
                           <div>
                             <h5 className="text-sm font-medium text-gray-900">{grn.grnNumber}</h5>
                             <p className="text-sm text-gray-500">
-                              Receipt Date: {new Date(grn.receiptDate).toLocaleDateString()}
+                              Receipt Date: {grn.receiptDate ? new Date(grn.receiptDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              }) : 'Not specified'}
                             </p>
                             <div className="flex gap-4 mt-2">
                               <span className="text-sm text-green-600">
-                                Received: {grn.totalReceived}
+                                Received: {grn.totalReceived || 0}
                               </span>
                               <span className="text-sm text-red-600">
-                                Rejected: {grn.totalRejected}
+                                Rejected: {grn.totalRejected || 0}
                               </span>
+                            </div>
+                            <div className="mt-2">
+                              <Link
+                                href={`/procurement/receipts/${grn.id}`}
+                                className="text-sm text-wujha-primary hover:text-wujha-primary-hover inline-flex items-center"
+                              >
+                                <FileText className="h-3 w-3 mr-1" />
+                                View Details
+                              </Link>
                             </div>
                           </div>
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(grn.status)}`}>

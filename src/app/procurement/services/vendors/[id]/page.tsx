@@ -114,7 +114,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
       'ACTIVE': 'bg-green-100 text-green-800',
       'INACTIVE': 'bg-gray-100 text-gray-800',
       'PENDING': 'bg-yellow-100 text-yellow-800',
-      'APPROVED': 'bg-blue-100 text-blue-800',
+      'APPROVED': 'bg-wujha-primary/10 text-wujha-primary',
       'BLACKLISTED': 'bg-red-100 text-red-800'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';

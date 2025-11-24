@@ -19,7 +19,10 @@ import {
   Clock,
   MessageSquare,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Briefcase,
+  ClipboardList,
+  Send
 } from 'lucide-react';
 
 export interface NavigationItem {
@@ -107,12 +110,12 @@ const navigation: NavigationItem[] = [
   {
     name: 'Services',
     href: '#', // Make it non-navigable - only expandable
-    icon: Settings,
+    icon: Briefcase,
     description: 'Service procurement',
     subItems: [
-      { name: 'Dashboard', href: '/procurement/services/dashboard', icon: LayoutDashboard },
+      { name: 'Service Requests', href: '/procurement/services/dashboard', icon: ClipboardList },
       { name: 'Requisitions', href: '/procurement/services/requisitions', icon: FileText },
-    //   { name: 'Vendors', href: '/procurement/services/vendors', icon: Users },
+      { name: 'RFPs', href: '/procurement/services/rfp', icon: Send },
       { name: 'Contracts', href: '/procurement/services/contracts', icon: CreditCard },
       { name: 'Receipts', href: '/procurement/services/receipts', icon: Receipt },
     //   { name: 'Delivery', href: '/procurement/services/delivery', icon: Truck },
@@ -122,12 +125,6 @@ const navigation: NavigationItem[] = [
     //   { name: 'Analytics', href: '/procurement/services/analytics', icon: BarChart3 }
     ],
     expandable: true // Mark as expandable
-  },
-  {
-    name: 'Automation',
-    href: '/procurement/automation',
-    icon: Settings,
-    description: 'Workflow automation'
   },
   {
     name: 'KPIs',

@@ -1,0 +1,1515 @@
+id,scenario,role,module,feature,steps,expected,status,comments
+UAT-001,N/A,All Users,Authentication,Login,"1. Navigate to /login
+2. Enter valid email (admin@wujha.om)
+3. Enter valid password
+4. Click 'Sign In' button","1. User authenticated successfully
+2. JWT token generated and stored in cookies
+3. Redirected to /procurement/dashboard
+4. User information displayed in header
+5. Navigation sidebar visible with role-based menu items",,
+UAT-002,N/A,All Users,Authentication,Password Change,"1. Login to system
+2. Click profile icon in header
+3. Select 'Change Password'
+4. Navigate to /change-password
+5. Enter current password
+6. Enter new password
+7. Confirm new password
+8. Click 'Change Password'","1. Password validation performed (min 8 chars, uppercase, lowercase, number)
+2. Password changed successfully
+3. Success message displayed
+4. User remains logged in
+5. Password history updated",,
+UAT-003,N/A,All Users,Authentication,Session Timeout,"1. Login to system
+2. Remain idle for extended period (8 hours)
+3. Attempt to access any protected page","1. Session expires after timeout
+2. User redirected to /login
+3. Message: 'Session expired, please login again'
+4. JWT token cleared from cookies",,
+UAT-004,N/A,All Users,Authentication,Role-Based Access Control,"1. Login with different roles (SUPER_ADMIN, ADMIN, FINANCE_MANAGER, PROCUREMENT_MANAGER, BUDGET_CONTROLLER, PROJECT_MANAGER, SITE_ENGINEER, WAREHOUSE_KEEPER, PROCUREMENT_OFFICER, APPROVER, VIEWER)
+2. Observe navigation menu options
+3. Attempt to access restricted pages
+4. Attempt to perform restricted actions","1. Menu items display based on role permissions
+2. Admin section visible only to ADMIN and SUPER_ADMIN
+3. Restricted pages show 403 Forbidden or redirect
+4. Action buttons visible/hidden based on permissions
+5. API requests validate role permissions",,
+UAT-005,1-A,ADMIN/SUPER_ADMIN,User Management,Create User,"1. Login as ADMIN/SUPER_ADMIN
+2. Navigate to /admin/users
+3. Click 'Add New User' button
+4. Fill in user details:
+   - Email
+   - Name
+   - Employee ID
+   - Department
+   - Role (select from dropdown)
+   - Approval Limit (if applicable)
+5. Set initial password
+6. Select 'Must Change Password' checkbox
+7. Click 'Create User'","1. New user created successfully
+2. User appears in users list
+3. User can login with provided credentials
+4. User prompted to change password on first login
+5. Audit log records user creation
+6. Role permissions applied correctly",,
+UAT-006,1-B,ADMIN/SUPER_ADMIN,User Management,Edit User,"1. Navigate to /admin/users
+2. Find desired user in list
+3. Click edit icon (pencil)
+4. Update user information:
+   - Name
+   - Department
+   - Role
+   - Approval Limit
+   - Active status
+5. Click 'Save Changes'","1. User details updated successfully
+2. Changes reflected immediately
+3. If role changed, permissions update
+4. Success message displayed
+5. Audit log records changes",,
+UAT-007,1-C,ADMIN/SUPER_ADMIN,User Management,Deactivate User,"1. Navigate to /admin/users
+2. Find active user
+3. Click deactivate icon (user-x)
+4. Confirm deactivation","1. User status changed to inactive
+2. User cannot login
+3. User removed from approval workflows
+4. Success message displayed
+5. Can be reactivated later",,
+UAT-008,1-D,ADMIN/SUPER_ADMIN,User Management,View User Details,"1. Navigate to /admin/users
+2. Search for specific user (by name, email, or employee ID)
+3. Click view icon (eye)
+4. View user details page","1. Complete user profile displayed
+2. Shows: email, name, department, role, approval limit
+3. Shows login history
+4. Shows audit trail of user actions
+5. Shows active status",,
+UAT-009,2-A,ADMIN/SUPER_ADMIN,User Management,Filter Users,"1. Navigate to /admin/users
+2. Use search box to filter by name/email/employeeId
+3. Use role filter dropdown
+4. Use department filter dropdown
+5. Use status filter (active/inactive)","1. User list filters in real-time
+2. Multiple filters can be combined
+3. Count of filtered users displayed
+4. Clear filters option available",,
+UAT-010,3-A,PROCUREMENT_OFFICER/PROCUREMENT_MANAGER,Vendor Management,Register Vendor,"1. Navigate to /procurement/services/vendors
+2. Click 'Add New Vendor' button
+3. Fill Basic Information:
+   - Name (English and Arabic)
+   - CR Number
+   - Tax ID
+   - VAT Number
+   - Business Type
+   - Year Established
+   - Number of Employees
+   - Omanization Percentage
+4. Fill Contact Information:
+   - Primary Contact Name
+   - Email
+   - Mobile
+   - Address (building, street, city, governorate, postal code, country)
+5. Fill Banking Information:
+   - Bank Name
+   - Account Number
+   - IBAN
+6. Select Categories (multiple selection)
+7. Click 'Register Vendor'","1. Vendor registered with PENDING status
+2. Unique vendor code auto-generated
+3. Vendor appears in vendors list
+4. Can upload documents next
+5. Success message with vendor code displayed",,
+UAT-011,3-B,PROCUREMENT_OFFICER/PROCUREMENT_MANAGER,Vendor Management,Upload Vendor Documents,"1. Navigate to vendor details page
+2. Go to 'Documents' tab
+3. Click 'Upload Document'
+4. Select document type:
+   - Commercial Registration
+   - Tax Certificate
+   - Insurance Certificate
+   - ISO Certificate
+   - Bank Details
+5. Choose file
+6. Set expiry date (if applicable)
+7. Click 'Upload'","1. Document uploaded successfully
+2. Document appears in list with type and expiry
+3. File stored securely
+4. Document name and upload date shown
+5. Can download/view document",,
+UAT-012,3-C,PROCUREMENT_MANAGER,Vendor Management,Approve Vendor,"1. Navigate to /procurement/services/vendors
+2. Filter by status: PENDING
+3. Click on vendor to view details
+4. Review all information and documents
+5. Click 'Approve Vendor' button
+6. Confirm approval","1. Vendor status changes: PENDING → APPROVED → ACTIVE
+2. Vendor available for selection in PRs and RFQs
+3. Approval recorded with date and approver
+4. Notification sent to vendor (if configured)
+5. Vendor can now receive RFQs/RFPs",,
+UAT-013,3-D,PROCUREMENT_MANAGER,Vendor Management,Evaluate Vendor,"1. Navigate to vendor details
+2. Go to 'Evaluations' tab
+3. Click 'Add Evaluation'
+4. Rate vendor on criteria (1-5 scale):
+   - Quality Score
+   - Delivery Score
+   - Price Score
+   - Service Score
+5. Add comments
+6. Enter evaluator name
+7. Click 'Submit Evaluation'","1. Evaluation recorded
+2. Overall score calculated (average of 4 criteria)
+3. Vendor's performance score updated
+4. Evaluation appears in history
+5. Can export evaluation report",,
+UAT-014,3-E,All Users,Vendor Management,View Vendor Performance,"1. Navigate to /procurement/services/vendors
+2. View vendors list with performance scores
+3. Sort by performance score
+4. Click on vendor to view:
+   - Evaluation history
+   - Average scores by criteria
+   - Performance trends
+   - Related POs and contracts","1. Performance metrics displayed accurately
+2. Trend charts show improvement/decline
+3. Comparison with other vendors possible
+4. Detailed evaluation history available",,
+UAT-015,4-A (Stock Items),PROCUREMENT_OFFICER,Purchase Requisition,Create Stock Item PR,"1. Navigate to /procurement/requisitions
+2. Click 'Create New Requisition'
+3. Step 1 - Basic Information:
+   - Select Item Type: STOCK
+   - Select Department
+   - Select Project (optional)
+   - Enter BOQ Reference (optional)
+   - Select Priority (LOW, NORMAL, HIGH, URGENT)
+   - Set Required By Date
+   - Enter Justification
+4. Click 'Next'
+5. Step 2 - Add Items:
+   - Click 'Add Item'
+   - Search and select stock items from catalog
+   - Enter quantity
+   - Enter estimated price
+   - Add specifications (optional)
+   - Set required date per item
+   - Repeat for multiple items
+6. Click 'Next'
+7. Step 3 - Budget:
+   - Enter Budget Code
+   - Enter Cost Center (optional)
+   - Review total estimated cost
+8. Click 'Submit as Draft' or 'Submit for Approval'","1. PR created with unique PR Number (format: PR-YYYY-####)
+2. All items saved with specifications
+3. Status: DRAFT or SUBMITTED
+4. Total cost calculated automatically
+5. If SUBMITTED: approval workflow initiated
+6. Creator can view PR in requisitions list
+7. Approvers receive notifications (if submitted)",,
+UAT-016,4-B (Non-Stock Items),PROCUREMENT_OFFICER,Purchase Requisition,Create Non-Stock Item PR,"1. Navigate to /procurement/requisitions
+2. Click 'Create New Requisition'
+3. Step 1 - Select Item Type: NON_STOCK
+4. Fill basic information (department, priority, dates, justification)
+5. Step 2 - Add Items:
+   - Click 'Add Non-Stock Item'
+   - Enter item description (no pre-defined catalog)
+   - Enter quantity and unit
+   - Enter estimated price
+   - Add detailed specifications
+6. Step 3 - Budget validation
+7. Submit for approval","1. Non-stock PR created
+2. Items created ad-hoc (not from catalog)
+3. No inventory tracking applied
+4. Same approval workflow as stock items
+5. Can proceed to RFQ and PO
+6. GRN created without inventory update",,
+UAT-017,4-C (Services),PROCUREMENT_OFFICER,Service Requisition,Create Service Requisition,"1. Navigate to /procurement/services/requisitions
+2. Click 'New Service Request'
+3. Step 1 - Service Details:
+   - Select Service Category (Subcontractors, Equipment Rental, Professional Services, etc.)
+   - Select Service Type (based on category)
+   - Select Department
+   - Select Project (optional)
+   - Set Priority
+   - Enter Requestor name
+4. Click 'Next'
+5. Step 2 - Scope Definition:
+   - Enter Detailed Scope of Work
+   - Add Technical Specifications
+   - Define Service Items:
+     * Description
+     * Service Type
+     * Quantity
+     * Unit
+     * Estimated Rate
+     * Duration and Duration Unit
+     * Deliverables (list)
+     * Performance Metrics (list)
+   - Define Milestones:
+     * Description
+     * Due Date
+     * Payment Percentage
+     * Acceptance Criteria
+6. Click 'Next'
+7. Step 3 - Commercial Details:
+   - Enter Estimated Total Cost
+   - Select Payment Terms (NET_30, NET_60, etc.)
+   - Select Payment Schedule (LUMPSUM, MILESTONE, MONTHLY, TIME_MATERIAL)
+   - Select Preferred Vendors (optional, multiple)
+8. Click 'Next'
+9. Step 4 - Compliance & Budget:
+   - Enter Budget Code
+   - Enter Cost Center
+   - Set Required By Date
+   - Check if Insurance Required
+   - Add Safety Requirements
+   - Add Quality Standards
+   - Enter Justification
+10. Click 'Next'
+11. Step 5 - Review & Submit:
+   - Review all details
+   - Click 'Submit for Approval'","1. Service PR created with unique number
+2. All service items and milestones saved
+3. Different approval workflow than stock items
+4. Status: SUBMITTED
+5. Technical approval may be required
+6. Legal approval may be required (for high-value)
+7. Approvers notified
+8. Can proceed to RFP (not RFQ) after approval",,
+UAT-018,5-A,PROCUREMENT_OFFICER,Purchase Requisition,View PR List,"1. Navigate to /procurement/requisitions
+2. View list of all PRs
+3. Use filters:
+   - Status (DRAFT, SUBMITTED, APPROVED, REJECTED)
+   - Item Type (STOCK, NON_STOCK, SERVICE)
+   - Date Range
+   - Department
+4. Use search by PR Number
+5. Sort by columns (PR#, Date, Status, Amount)","1. PRs displayed in table format
+2. Shows: PR Number, Date, Requester, Department, Item Type, Total Cost, Status
+3. Status badges color-coded:
+   - DRAFT: Gray
+   - SUBMITTED: Yellow
+   - APPROVED: Green
+   - REJECTED: Red
+4. Filters work correctly
+5. Search is instant
+6. Pagination if many records",,
+UAT-019,5-B,APPROVER/PROCUREMENT_MANAGER,Purchase Requisition,Submit PR for Approval,"1. Navigate to /procurement/requisitions
+2. Find DRAFT PR
+3. Method 1 - Quick Submit:
+   - Click green checkmark icon in Actions column
+   - Confirm submission
+4. Method 2 - From Detail Page:
+   - Click eye icon to view PR
+   - Click 'Submit for Approval' button
+   - Confirm submission","1. PR status changes: DRAFT → SUBMITTED
+2. Approval workflow initiated automatically
+3. System selects approval rule based on:
+   - Document type (PR)
+   - Amount
+   - Department
+   - Item type
+4. Approval records created for each level
+5. Level 1 approver receives notification
+6. Subsequent levels wait for previous approval
+7. Success message displayed",,
+UAT-020,5-C,APPROVER/PROCUREMENT_MANAGER,Purchase Requisition,Approve PR,"1. Login as approver
+2. Navigate to /approvals
+3. View pending PRs assigned to you
+4. Click on PR to review details:
+   - Basic information
+   - All line items
+   - Budget information
+   - Justification
+5. Review thoroughly
+6. Click 'Approve' button
+7. Add comments (optional)
+8. Click 'Confirm Approval'","1. Approval status recorded
+2. If not final level: next approver notified
+3. If final level: PR status changes to APPROVED
+4. Requester notified of approval
+5. PR can now be converted to RFQ or PO
+6. Approval history shows approver, date, comments
+7. Cannot be undone (must reject and resubmit)",,
+UAT-021,5-D,APPROVER/PROCUREMENT_MANAGER,Purchase Requisition,Reject PR,"1. Navigate to /approvals
+2. Click on PR to review
+3. Identify issue (budget, specs, etc.)
+4. Click 'Reject' button
+5. Enter rejection reason (mandatory)
+6. Click 'Confirm Rejection'","1. PR status changes to REJECTED
+2. Requester receives notification with reason
+3. Approval workflow stops
+4. Requester can:
+   - Edit PR
+   - Address concerns
+   - Resubmit for approval (starts new workflow)
+5. Rejection history maintained",,
+UAT-022,6-A (Stock Items),PROCUREMENT_OFFICER,RFQ Management,Create RFQ from PR,"1. Navigate to /procurement/requisitions
+2. Find APPROVED stock/non-stock PR
+3. Click 'Create RFQ' button
+4. Or navigate to /procurement/rfq/new
+5. Fill RFQ Details:
+   - Select PR (dropdown of approved PRs)
+   - PR details auto-populate
+   - Set RFQ Title
+   - Enter Description
+   - Set Closing Date & Time
+   - Enter Terms and Conditions
+6. Select Vendors (multiple):
+   - Search vendors by name
+   - Filter by category
+   - Check vendors to invite (minimum 1)
+   - Selected count displayed
+7. Define Evaluation Criteria:
+   - Technical Score weight (default 40%)
+   - Commercial Score weight (default 30%)
+   - Delivery Score weight (default 20%)
+   - Experience Score weight (default 10%)
+   - Total must equal 100%
+8. Click 'Create RFQ'","1. RFQ created with unique number (format: RFQ-YYYY-####)
+2. Status: DRAFT
+3. Selected vendors saved to RFQVendor table
+4. Cannot create duplicate RFQ for same PR (validation)
+5. RFQ appears in list
+6. Can edit before publishing",,
+UAT-023,6-B,PROCUREMENT_OFFICER,RFQ Management,Publish RFQ and Send Invitations,"1. Navigate to /procurement/rfq
+2. Find DRAFT RFQ
+3. Click on RFQ to view details
+4. Review all information
+5. Click 'Publish RFQ' button
+6. Confirm publication
+7. Click 'Send Invitations' button
+8. Confirm sending","1. RFQ status changes: DRAFT → PUBLISHED
+2. Email invitations sent to all selected vendors
+3. Each vendor receives:
+   - RFQ details
+   - Submission deadline
+   - Submission link: /rfq/submit/[rfqId]
+   - PDF attachment (if configured)
+4. Invitation timestamps recorded
+5. Cannot edit RFQ after publishing
+6. Vendors can now submit proposals",,
+UAT-024,6-C,VENDOR (External),RFQ Management,Submit RFQ Response,"1. Receive RFQ invitation email
+2. Click submission link
+3. Review RFQ details and requirements
+4. Fill in Proposal:
+   - Enter Quoted Price
+   - Upload Proposal Document (PDF/DOC)
+   - Enter Delivery Lead Time (days)
+   - Add Technical Notes
+   - Add Commercial Notes
+   - Enter Contact Person
+5. Review submission
+6. Click 'Submit Proposal'
+7. Confirm submission","1. Proposal submitted successfully
+2. Vendor receives confirmation email
+3. Submission timestamp recorded
+4. Cannot edit after submission (contact procurement if needed)
+5. RFQResponse record created with status: SUBMITTED
+6. Procurement can view submission",,
+UAT-025,6-D,PROCUREMENT_OFFICER/PROCUREMENT_MANAGER,RFQ Management,Evaluate RFQ Responses,"1. Login as procurement user
+2. Navigate to /procurement/rfq
+3. Find RFQ with status: PUBLISHED (after closing date)
+4. Click on RFQ to view details
+5. Go to 'Responses' tab
+6. View all submitted proposals
+7. For each response:
+   - Click 'Evaluate' button
+   - Review proposal document
+   - Enter scores (0-100 for each criterion):
+     * Technical Score (max based on weight)
+     * Commercial Score (max based on weight)
+     * Delivery Score (max based on weight)
+     * Experience Score (max based on weight)
+   - System calculates Overall Weighted Score
+   - Add Evaluation Comments
+   - Click 'Save Evaluation'
+8. Repeat for all responses","1. Individual scores saved separately
+2. Overall score calculated automatically using weights
+3. Response status changes: SUBMITTED → EVALUATED
+4. After all evaluated, RFQ status changes to EVALUATED
+5. Scores visible in responses table
+6. Can sort by overall score
+7. Top-scored vendor highlighted",,
+UAT-026,6-E,PROCUREMENT_MANAGER,RFQ Management,Award RFQ,"1. Navigate to RFQ with EVALUATED status
+2. Review all evaluated responses
+3. Identify highest-scoring vendor
+4. Click 'Select as Winner' button on that response
+5. Confirm selection
+6. Dialog: 'Would you like to create a Purchase Order?'
+7. Click 'Yes'","1. Selected response marked as: SELECTED
+2. Other responses marked as: REJECTED
+3. RFQ status changes to: AWARDED
+4. Award notification sent to winning vendor
+5. Rejection notifications sent to other vendors
+6. Award details recorded with date and awarder
+7. Redirected to /procurement/purchase-orders/new?rfqId=[id]&vendorId=[vendorId]
+8. PO creation page pre-populated with RFQ data",,
+UAT-027,7-A (Stock Items),PROCUREMENT_OFFICER,Purchase Order,Create PO from RFQ,"1. After awarding RFQ, click 'Yes' to create PO
+2. Or navigate to /procurement/purchase-orders/new?rfqId=[id]
+3. Step 1 - PR & Vendor Selection:
+   - PR auto-selected from RFQ
+   - Vendor auto-selected (winning vendor)
+   - Review details
+4. Click 'Next'
+5. Step 2 - PO Details:
+   - Set Delivery Date
+   - Enter Delivery Address:
+     * Building
+     * Street
+     * City
+     * Governorate
+     * Postal Code
+     * Country
+   - Select Payment Terms (Net 30, Net 60, Advance, etc.)
+   - Select Currency (default: OMR)
+6. Click 'Next'
+7. Step 3 - Items & Pricing:
+   - Items auto-populated from PR
+   - Enter Unit Price (from RFQ quote)
+   - System calculates Total Price per item
+   - Set delivery date per item (optional)
+   - System calculates Total PO Amount
+8. Click 'Next'
+9. Step 4 - Terms & Conditions:
+   - Enter Special Conditions
+   - Enter Warranty Requirements
+   - Enter Quality Standards
+10. Click 'Submit' or 'Save as Draft'","1. PO created with unique PO Number (format: PO-YYYY-####)
+2. Status: DRAFT or APPROVED (depends on approval rules)
+3. If requires approval: workflow initiated
+4. If auto-approved: status APPROVED
+5. Acknowledgment token generated for vendor
+6. PO visible in list
+7. Linked to PR and RFQ (if applicable)",,
+UAT-028,7-B (Services),PROCUREMENT_OFFICER,Service Contract,Create Service Contract from Service PR,"1. Navigate to /procurement/services/contracts
+2. Click 'New Contract'
+3. Select Approved Service PR
+4. Fill Contract Details:
+   - Select Vendor
+   - Enter Contract Number (auto-generated option)
+   - Select Contract Type (SERVICE_AGREEMENT, MAINTENANCE, RENTAL, CONSULTANCY)
+   - Set Start Date
+   - Set End Date
+   - Enter Total Value
+   - Select Currency
+   - Enter Payment Terms
+   - Define SLA Terms (JSON structure)
+   - Enter Penalty Clause
+   - Enter Performance Bond amount
+   - Enter Retention Amount
+   - Define Insurance Requirements
+5. Add Milestones (from Service PR or new):
+   - Milestone Number
+   - Name
+   - Description
+   - Target Date
+   - Completion Criteria
+   - Payment Percentage
+   - Amount (calculated from percentage)
+6. Review all details
+7. Click 'Create Contract'","1. Service Contract created with unique number
+2. Status: DRAFT
+3. All milestones saved
+4. Total milestone payments = Total contract value
+5. Can submit for approval
+6. After approval and signing: status SIGNED
+7. Can be activated: status ACTIVE
+8. Vendor can view contract terms",,
+UAT-029,8-A,PROCUREMENT_OFFICER,Purchase Order,Send PO to Vendor,"1. Navigate to /procurement/purchase-orders
+2. Find APPROVED PO
+3. Click on PO to view details
+4. Review all information
+5. Click 'Send to Vendor' button
+6. Confirm sending","1. PO status changes: APPROVED → SENT
+2. Email sent to vendor with:
+   - PO details
+   - Line items
+   - Delivery address
+   - Payment terms
+   - Acknowledgment link: /po/acknowledge/[id]/[token]
+   - PDF attachment
+3. Sent timestamp recorded
+4. Vendor can now acknowledge PO",,
+UAT-030,8-B,VENDOR (External),Purchase Order,Acknowledge PO,"1. Receive PO email
+2. Click acknowledgment link
+3. Review complete PO details
+4. Confirm ability to deliver
+5. Click 'Acknowledge Purchase Order' button
+6. Enter acknowledgment comments (optional)
+7. Click 'Confirm'","1. PO status changes: SENT → ACKNOWLEDGED
+2. Acknowledgment timestamp recorded
+3. Acknowledgment details saved (date, comments)
+4. Procurement receives notification
+5. Vendor receives confirmation email
+6. PO ready for delivery",,
+UAT-031,9-A (Stock Items),WAREHOUSE_KEEPER/SITE_ENGINEER,Goods Receipt,Create GRN,"1. Login as WAREHOUSE_KEEPER or SITE_ENGINEER
+2. Navigate to /procurement/receipts
+3. Click 'New Goods Receipt'
+4. Step 1 - Select PO:
+   - Search for ACKNOWLEDGED PO
+   - Select PO
+   - PO details and items displayed
+5. Click 'Next'
+6. Step 2 - Receipt Details:
+   - Received Date (auto-filled, can edit)
+   - Received By (auto-filled from user)
+   - Enter Delivery Note number
+   - Enter Transport Details
+7. Click 'Next'
+8. Step 3 - Items Inspection:
+   - For each item:
+     * Ordered Quantity shown
+     * Enter Received Quantity
+     * Enter Accepted Quantity
+     * Enter Rejected Quantity (if any)
+     * If rejected: Enter Rejection Reason
+     * Add Inspection Notes
+   - System validates: Received = Accepted + Rejected
+9. Click 'Next'
+10. Step 4 - Quality Check:
+   - Check 'Quality Checked' checkbox
+   - Enter Quality Comments
+   - Enter Quality Inspector name
+   - Enter Storage Location
+   - Enter Special Handling notes
+11. Click 'Submit'","1. GRN created with unique GR Number (format: GRN-YYYY-####)
+2. GRN items created for each PO item
+3. If stock items: Inventory updated with accepted quantities
+4. If non-stock items: No inventory update
+5. PO status updates:
+   - If partial receipt: PARTIAL
+   - If fully received: COMPLETED
+6. Three-way match can be triggered
+7. Quality issues flagged if rejections
+8. Procurement notified of receipt
+9. Can create invoice now",,
+UAT-032,9-B (Services),PROJECT_MANAGER/SITE_ENGINEER,Service Receipt,Create Service Receipt (SRN),"1. Navigate to /procurement/services/receipts
+2. Click 'New Service Receipt'
+3. Select Active Service Contract
+4. Fill SRN Details:
+   - SRN Number (auto-generated)
+   - Receipt Date
+   - Select Milestone (if milestone-based)
+   - Enter Service Description
+   - Define Deliverables (list of completed deliverables)
+   - Enter Quality Rating (1-5 or 1-100)
+   - Enter Performance Rating (1-5 or 1-100)
+   - Enter Completion Percentage
+   - Set Acceptance Status (PENDING by default)
+   - Add Notes
+   - Upload Attachments (photos, reports, etc.)
+5. Review details
+6. Click 'Submit for Acceptance'","1. SRN created with unique number
+2. Status: PENDING acceptance
+3. Milestone status updated if linked
+4. Acceptance required before payment
+5. Quality and performance scores recorded
+6. Service performance tracking updated
+7. Can approve/reject SRN
+8. If approved: can create invoice",,
+UAT-033,9-C,PROJECT_MANAGER,Service Receipt,Accept/Reject Service Receipt,"1. Navigate to /procurement/services/receipts
+2. Find SRN with status PENDING
+3. Click on SRN to review
+4. Review:
+   - Service description
+   - Deliverables checklist
+   - Quality rating
+   - Performance rating
+   - Attachments
+5. If satisfactory:
+   - Click 'Accept' button
+   - Enter acceptance comments
+   - Confirm acceptance
+6. If unsatisfactory:
+   - Click 'Reject' button
+   - Enter rejection reason (mandatory)
+   - Request corrective action","1. If ACCEPTED:
+   - SRN status: ACCEPTED
+   - Milestone marked COMPLETED (if linked)
+   - Acceptance timestamp recorded
+   - Can proceed to invoice
+   - Vendor notified
+2. If REJECTED:
+   - SRN status: REJECTED
+   - Vendor must address issues
+   - New SRN may be required
+   - Milestone remains IN_PROGRESS",,
+UAT-034,10-A (Stock/Non-Stock),PROCUREMENT_OFFICER,Invoice Management,Create Invoice from GRN,"1. Navigate to /procurement/invoices
+2. Click 'New Invoice'
+3. Step 1 - PO & GR Selection:
+   - Select Invoice Type: GOODS
+   - Select PO (dropdown of received POs)
+   - Select GRN (dropdown of GRs for selected PO)
+   - Vendor auto-populated
+4. Click 'Next'
+5. Step 2 - Invoice Details:
+   - Enter Invoice Number (from vendor)
+   - Set Invoice Date
+   - Set Due Date (auto-calculated based on payment terms)
+   - Currency (from PO)
+6. Click 'Next'
+7. Step 3 - Line Items & Three-Way Matching:
+   - Items auto-populated from GRN
+   - For each item:
+     * PO Quantity shown
+     * GRN Quantity shown
+     * PO Unit Price shown
+     * Enter Invoice Quantity
+     * Enter Invoice Unit Price
+     * System calculates Invoice Total
+   - System performs automatic matching:
+     * Quantity Variance = Invoice Qty - GRN Qty
+     * Price Variance = Invoice Price - PO Price
+     * Total Variance = Invoice Total - (GRN Qty × PO Price)
+     * Variance Percentage calculated
+     * Matching Status determined:
+       - MATCHED: variances within tolerance
+       - QUANTITY_VARIANCE: qty mismatch
+       - PRICE_VARIANCE: price mismatch
+       - BOTH_VARIANCE: both mismatches
+   - Overall matching result shown:
+     * MATCHED: Green - can auto-approve
+     * DISCREPANCY: Red - requires review
+8. Click 'Next'
+9. Step 4 - Totals & Taxes:
+   - Subtotal auto-calculated
+   - Enter Tax Rate (%)
+   - Tax Amount auto-calculated
+   - Enter Discount Amount (if any)
+   - Total Amount auto-calculated
+   - Enter Payment Terms
+   - Add Description/Notes
+10. Review three-way match results
+11. Click 'Submit'","1. Invoice created with unique Invoice Number
+2. Three-way match performed automatically
+3. If MATCHED:
+   - Invoice status: VERIFIED
+   - threeWayMatched: true
+   - Ready for payment approval
+4. If DISCREPANCY:
+   - Invoice status: PENDING
+   - threeWayMatched: false
+   - Discrepancies documented
+   - Requires procurement review
+   - Must resolve discrepancies:
+     * Contact vendor for credit note
+     * Adjust quantities
+     * Approve exception
+5. Match result includes:
+   - PO amount vs Invoice amount
+   - GRN amount vs Invoice amount
+   - Variance details per item
+   - Overall match percentage
+6. Invoice linked to PO and GRN
+7. Matching comments recorded",,
+UAT-035,10-B (Services),PROCUREMENT_OFFICER,Invoice Management,Create Service Invoice from SRN,"1. Navigate to /procurement/invoices
+2. Click 'New Invoice'
+3. Step 1 - Select Invoice Type: SERVICE
+4. Select Service Receipt (ACCEPTED status)
+5. Service Contract and Milestone auto-populated
+6. Step 2 - Invoice Details:
+   - Enter Vendor Invoice Number
+   - Set Invoice Date
+   - Set Due Date
+7. Step 3 - Service Items:
+   - Milestone amount shown
+   - Completion percentage from SRN
+   - Calculate invoice amount:
+     * If milestone-based: use milestone amount
+     * If percentage-based: calculate proportional amount
+   - Quality and performance ratings shown
+8. Step 4 - Totals:
+   - Calculate subtotal
+   - Apply retention (if applicable)
+   - Add taxes
+   - Calculate net payable
+9. Submit invoice","1. Service invoice created
+2. Linked to Service Contract, Milestone, and SRN
+3. Retention amount deducted if specified
+4. Payment released after approval
+5. Milestone payment recorded
+6. Contract progress updated",,
+UAT-036,11-A,PROCUREMENT_MANAGER/FINANCE_MANAGER,Invoice Management,Approve Invoice,"1. Navigate to /procurement/invoices
+2. Filter by status: VERIFIED (three-way matched)
+3. Click on invoice to review
+4. Review:
+   - Three-way match results (all green)
+   - Invoice details
+   - Supporting documents
+   - Budget availability
+5. Click 'Approve' button
+6. Add approval comments
+7. Confirm approval","1. Invoice status: VERIFIED → APPROVED
+2. Approval recorded with timestamp and approver
+3. Invoice ready for payment processing
+4. Finance receives notification
+5. Payment can be scheduled
+6. Approval cannot be undone (must reject if error)",,
+UAT-037,11-B,FINANCE_MANAGER,Payment Management,Process Payment,"1. Navigate to /procurement/payments
+2. Click 'New Payment'
+3. Select Approved Invoice(s)
+4. Fill Payment Details:
+   - Payment Date
+   - Payment Method (Bank Transfer, Cheque, etc.)
+   - Payment Reference
+   - Amount (from invoice, can be partial)
+   - Bank Account (vendor)
+5. Review payment summary
+6. Click 'Process Payment' or 'Submit for Approval'","1. Payment record created
+2. If auto-approved: Payment status COMPLETED
+3. If requires approval: Payment status PENDING_APPROVAL
+4. Payment linked to invoice
+5. Invoice payment status updated
+6. Vendor payment history updated
+7. Budget consumption recorded
+8. Payment confirmation can be sent to vendor",,
+UAT-038,12-A,All Users,Dashboard,View Procurement Dashboard,"1. Login to system
+2. Navigate to /procurement/dashboard
+3. View dashboard sections:
+   - KPI Cards (top row)
+   - Charts and Graphs
+   - Recent Activity
+   - Pending Actions
+   - Budget Overview
+   - Vendor Performance
+4. Interact with filters:
+   - Date Range
+   - Department
+   - Project
+5. Click on KPI cards to drill down
+6. Export data or charts","1. Dashboard loads within 3 seconds
+2. All data accurate and real-time
+3. KPI cards show:
+   - Total PRs (count and trend)
+   - Total POs (value and trend)
+   - Pending Approvals (count)
+   - Active Vendors (count)
+   - Budget Utilization (percentage)
+   - On-time Delivery Rate (percentage)
+4. Charts display correctly:
+   - PR status distribution (pie)
+   - PO value by month (bar)
+   - Vendor spend (bar)
+   - Budget vs Actual (line)
+5. Recent activity shows latest actions
+6. Pending actions personalized to user role
+7. Responsive design on all devices",,
+UAT-039,12-B,All Users,Dashboard,View KPI Dashboard,"1. Navigate to /procurement/kpis
+2. Select Period:
+   - Weekly
+   - Monthly
+   - Quarterly
+3. Set custom date range (optional)
+4. View KPI cards (13 KPIs total):
+   - Procurement Cycle Time
+   - Requisition Approval Time
+   - Budget Compliance Rate
+   - On-Time Delivery Rate
+   - Vendor Compliance Rate
+   - Three-Way Match Success Rate
+   - Cost Savings Percentage
+   - Contract Adherence Rate
+   - Stock Item Delivery Accuracy
+   - Service Quality Rating
+   - Inventory Turnover Rate
+   - Dashboard Update Timeliness
+   - Top Vendor Spend Contribution
+5. Each KPI card shows:
+   - Current value
+   - Target value
+   - Status indicator (green/red/gray)
+   - Trend arrow
+   - Supporting metrics
+6. Click 'Export CSV' to download
+7. Click 'Refresh' for latest data","1. All KPIs calculated from real data
+2. Color-coded status:
+   - Green: Meeting/exceeding target
+   - Red: Below target
+   - Gray: No target or neutral
+3. Calculations accurate:
+   - Cycle Time: days from PR creation to GR
+   - Approval Time: days from submission to approval
+   - Budget Compliance: (actual ÷ budget) × 100
+   - On-Time Delivery: (on-time deliveries ÷ total) × 100
+   - And so on for all 13 KPIs
+4. Supporting details shown (counts, totals)
+5. Filters by stock/non-stock/service
+6. Export includes all data
+7. Performance under 5 seconds",,
+UAT-040,12-C,ADMIN/PROCUREMENT_MANAGER,Reporting,Generate Custom Report,"1. Navigate to /procurement/reports/advanced
+2. Select Report Type:
+   - Purchase Requisition Report
+   - Purchase Order Report
+   - Vendor Performance Report
+   - Budget Utilization Report
+   - Etc.
+3. Select Table (for advanced):
+   - From dropdown of available tables
+4. Select Columns:
+   - Check desired columns
+   - Include related table columns
+5. Apply Filters:
+   - Date range
+   - Status
+   - Department
+   - Custom filters
+6. Preview Report
+7. Export Format:
+   - Excel
+   - CSV
+   - PDF-ready
+8. Click 'Generate Report'","1. Report generated successfully
+2. Preview shows correct data
+3. Export downloads file
+4. Excel format includes:
+   - Headers
+   - Data rows
+   - Formatting
+   - Formulas (if applicable)
+5. Large datasets handled (thousands of rows)
+6. Related data included correctly
+7. Filters applied accurately",,
+UAT-041,13-A,All Users,Notifications,View Notifications,"1. Login to system
+2. Observe notification bell icon in header
+3. Red badge shows unread count
+4. Click notification bell
+5. Dropdown shows:
+   - Recent notifications (latest 10)
+   - Notification type icon
+   - Message text
+   - Time ago
+   - Read/unread indicator
+6. Click 'View All' for full list
+7. Click notification to:
+   - Mark as read
+   - Navigate to related item","1. Notifications displayed correctly
+2. Count updates in real-time
+3. Types include:
+   - Approval requests
+   - Approval results
+   - RFQ invitations
+   - PO sent
+   - Invoice received
+   - Payment completed
+4. Click navigates to correct page
+5. Mark as read works
+6. Notifications persist until read
+7. Old notifications can be archived",,
+UAT-042,13-B,APPROVER,Approvals,View Approval Queue,"1. Login as approver
+2. Navigate to /approvals
+3. View pending approvals:
+   - PRs awaiting approval
+   - POs awaiting approval
+   - Invoices awaiting approval
+   - Service contracts awaiting approval
+4. Filter by document type
+5. Sort by date, amount, priority
+6. Click on item to review
+7. Approve or reject from list","1. All pending approvals for logged-in user shown
+2. Grouped by document type
+3. Shows key info:
+   - Document number
+   - Type
+   - Amount
+   - Requester
+   - Date submitted
+   - Priority
+   - Approval level
+4. Quick approve/reject buttons
+5. Count of pending items
+6. Highlighting for urgent items
+7. Delegation option (if supported)",,
+UAT-043,14-A (Stock Items),All Users,End-to-End Flow,Complete Stock Item Procurement Cycle,"1. Create Stock Item PR (/procurement/requisitions/new)
+   - Select Item Type: STOCK
+   - Add items from catalog
+   - Enter quantities and specs
+   - Submit for approval
+2. Approve PR (/approvals)
+   - Level 1: Department Manager approves
+   - Level 2: Budget Controller approves
+   - Status: APPROVED
+3. Create RFQ (/procurement/rfq/new)
+   - Link to PR
+   - Select 3 vendors
+   - Set closing date
+   - Publish and send invitations
+4. Vendors Submit Responses (external link)
+   - 3 vendors submit quotes
+5. Evaluate RFQ (/procurement/rfq/[id])
+   - Score each response
+   - Award to best vendor
+6. Create PO (/procurement/purchase-orders/new)
+   - Auto-populated from RFQ
+   - Enter delivery details
+   - Submit PO
+7. Send PO to Vendor
+   - Email sent with PO
+8. Vendor Acknowledges PO (external link)
+   - Status: ACKNOWLEDGED
+9. Create GRN (/procurement/receipts/new)
+   - Receive goods at warehouse
+   - Inspect and accept
+   - Update inventory
+10. Create Invoice (/procurement/invoices/new)
+    - Link to PO and GRN
+    - Three-way match performed
+    - Status: VERIFIED
+11. Approve Invoice
+    - Finance approves
+    - Status: APPROVED
+12. Process Payment (/procurement/payments)
+    - Create payment record
+    - Execute payment","1. Complete P2P cycle executed successfully
+2. All statuses updated correctly:
+   - PR: DRAFT → SUBMITTED → APPROVED
+   - RFQ: DRAFT → PUBLISHED → EVALUATED → AWARDED
+   - PO: DRAFT → APPROVED → SENT → ACKNOWLEDGED → COMPLETED
+   - GRN: Created with accepted quantities
+   - Invoice: PENDING → VERIFIED → APPROVED → PAID
+   - Payment: COMPLETED
+3. All documents linked correctly:
+   - PR → RFQ → PO → GRN → Invoice → Payment
+4. Budget tracked at each stage
+5. Inventory updated at GRN
+6. Vendor performance recorded
+7. Approval history maintained
+8. Notifications sent at each stage
+9. Audit trail complete
+10. Timeline reasonable:
+    - PR to PO: 5-7 days
+    - PO to GRN: 15-30 days
+    - GRN to Payment: 30-60 days
+    - Total cycle: 50-97 days",,
+UAT-044,14-B (Services),All Users,End-to-End Flow,Complete Service Procurement Cycle,"1. Create Service Requisition (/procurement/services/requisitions/new)
+   - Select Service Category
+   - Define detailed scope of work
+   - Add service items with specs
+   - Define milestones with payment schedule
+   - Submit for approval
+2. Approve Service PR
+   - Technical approval (if required)
+   - Budget approval
+   - Department approval
+   - Status: APPROVED
+3. Create RFP (/procurement/services/rfp/new)
+   - Link to Service PR
+   - Prepare detailed SoW
+   - Select qualified vendors
+   - Set submission deadline
+   - Publish and send invitations
+4. Vendors Submit Proposals (external)
+   - Vendors submit technical and commercial proposals
+5. Evaluate RFP (/procurement/services/rfp/[id])
+   - Technical evaluation
+   - Commercial evaluation
+   - Combined scoring
+   - Award to best vendor
+6. Create Service Contract (/procurement/services/contracts/new)
+   - Link to RFP winner
+   - Define contract terms
+   - Set SLA requirements
+   - Define milestones
+   - Insurance and bonds
+   - Sign contract
+7. Activate Contract
+   - Status: ACTIVE
+   - Service delivery begins
+8. Track Service Performance
+   - Monitor KPIs
+   - Track SLA compliance
+   - Record penalties/bonuses
+9. Complete Milestone
+   - Vendor completes deliverables
+   - Create SRN (/procurement/services/receipts/new)
+   - Rate quality and performance
+   - Accept milestone
+10. Create Service Invoice (/procurement/invoices/new)
+    - Link to SRN and milestone
+    - Calculate payment (with retention)
+    - Submit for approval
+11. Approve Invoice
+    - Finance approves
+12. Process Milestone Payment
+    - Create payment
+    - Execute payment
+13. Repeat steps 9-12 for each milestone
+14. Complete Contract
+    - All milestones completed
+    - Final performance evaluation
+    - Release retention
+    - Close contract","1. Complete service P2P cycle executed
+2. Service workflow different from stock:
+   - RFP instead of RFQ
+   - Contract instead of PO
+   - SRN instead of GRN
+   - Milestone payments instead of lumpsum
+3. All statuses tracked:
+   - Service PR: DRAFT → SUBMITTED → APPROVED
+   - RFP: DRAFT → PUBLISHED → EVALUATED → AWARDED
+   - Contract: DRAFT → APPROVED → SIGNED → ACTIVE → COMPLETED
+   - SRN: PENDING → ACCEPTED
+   - Invoice: Per milestone
+   - Payments: Multiple milestone payments
+4. Performance tracking throughout:
+   - Quality ratings per milestone
+   - SLA compliance monitoring
+   - Penalty/bonus calculations
+5. Retention management:
+   - Retention held per payment
+   - Released at contract completion
+6. Timeline reasonable:
+   - Service PR to Contract: 10-15 days
+   - Contract duration: 30-365 days
+   - Milestone frequency: per contract
+   - Payment per milestone: 30-45 days
+7. No inventory impact
+8. Vendor performance heavily tracked",,
+UAT-045,15-A,PROCUREMENT_MANAGER,Vendor Management,Blacklist Vendor,"1. Navigate to /procurement/services/vendors
+2. Find vendor with poor performance
+3. Click on vendor details
+4. Review performance history:
+   - Evaluation scores
+   - Delivery issues
+   - Quality problems
+   - Contract breaches
+5. Click 'Blacklist Vendor' button
+6. Enter blacklist reason (mandatory)
+7. Set blacklist duration or permanent
+8. Confirm blacklisting","1. Vendor status changed to: BLACKLISTED
+2. Vendor cannot receive new RFQs/RFPs
+3. Active contracts remain valid
+4. New PRs cannot select blacklisted vendor
+5. Blacklist reason recorded
+6. Can be reversed by ADMIN
+7. Vendor receives notification (optional)",,
+UAT-046,15-B,All Users,Search and Filter,Global Search,"1. Use search functionality across modules:
+   - PR search by number, status, department
+   - PO search by number, vendor, status
+   - Invoice search by number, vendor, status
+   - Vendor search by name, code, category
+2. Use advanced filters:
+   - Date ranges
+   - Status combinations
+   - Amount ranges
+   - Multiple criteria
+3. Sort results
+4. Export filtered results","1. Search returns accurate results
+2. Instant search on typing
+3. Filters work correctly
+4. Multiple filters combine with AND logic
+5. Sort works on all columns
+6. Export includes only filtered data
+7. Performance good even with large datasets",,
+UAT-047,16-A,PROCUREMENT_MANAGER,Consultation,Request Consultation,"1. During approval workflow
+2. Click 'Request Consultation' on document
+3. Select users to consult (CONSULTED role)
+4. Enter consultation question
+5. Set response deadline
+6. Send consultation request","1. Consultation request created
+2. Selected users receive notification
+3. Request appears in their consultation queue
+4. Approval paused until responses received
+5. Can proceed after consulting",,
+UAT-048,16-B,CONSULTED User,Consultation,Respond to Consultation,"1. Receive consultation notification
+2. Navigate to /consultations
+3. View pending consultations
+4. Click on consultation request
+5. Review document details
+6. Enter consultation response/recommendation
+7. Submit response","1. Response recorded
+2. Requester receives notification
+3. Response visible in consultation history
+4. If all responses received: approval can proceed
+5. Consultation marked as completed",,
+UAT-049,17-A,All Users,Dynamic Dashboard,View Metabase Dashboard,"1. Navigate to /procurement/dynamic-dashboard
+2. Wait for embedded Metabase dashboard to load
+3. View live analytics:
+   - Interactive charts
+   - Real-time data
+   - Custom visualizations
+4. Filter data using Metabase controls
+5. Drill down into charts
+6. Export from Metabase","1. Dashboard loads successfully
+2. Data synchronized with procurement system
+3. Charts interactive and responsive
+4. Filters work correctly
+5. Real-time data updates
+6. Export functionality works
+7. Performance acceptable (<5 sec load)",,
+UAT-050,18-A,PROCUREMENT_OFFICER,Purchase Order,Amend Purchase Order,"1. Navigate to /procurement/purchase-orders
+2. Find ACKNOWLEDGED PO
+3. Click on PO details
+4. Click 'Create Amendment' button
+5. Modify:
+   - Quantities
+   - Prices
+   - Delivery dates
+   - Terms and conditions
+6. Enter amendment reason
+7. Submit amendment","1. PO Amendment created
+2. Amendment number generated
+3. Original PO retained (history)
+4. Vendor receives amendment notification
+5. Vendor must acknowledge amendment
+6. Amendment history maintained
+7. Linked to original PO",,
+UAT-051,19-A,All Users,Audit Trail,View Audit Logs,"1. Navigate to any document details page
+2. Find 'History' or 'Audit Trail' tab
+3. View complete audit log:
+   - All actions performed
+   - User who performed action
+   - Timestamp
+   - Before/after values (if applicable)
+   - IP address (if tracked)
+   - Comments
+4. Filter audit log by:
+   - Action type
+   - User
+   - Date range
+5. Export audit trail","1. Complete audit trail displayed
+2. Actions include:
+   - Created
+   - Updated
+   - Submitted
+   - Approved
+   - Rejected
+   - Sent
+   - Acknowledged
+   - Amended
+   - Etc.
+3. Chronological order
+4. Immutable records
+5. Detailed information
+6. Export to Excel/PDF
+7. Meets compliance requirements",,
+UAT-052,20-A,WAREHOUSE_KEEPER,Inventory Management,View Inventory Levels,"1. Navigate to inventory section (if available)
+2. Or view from dashboard
+3. See stock levels for all items:
+   - Current quantity
+   - Unit of measure
+   - Reorder point
+   - Min/max levels
+   - Storage location
+4. Filter by category
+5. Search by item code/name
+6. Identify low stock items (below reorder point)","1. Accurate inventory levels displayed
+2. Updated after each GRN
+3. Low stock items highlighted
+4. Reorder alerts triggered
+5. Can generate reorder PRs
+6. Stock movement history available",,
+UAT-053,21-A,PROCUREMENT_OFFICER,Document Management,Upload and Manage Documents,"1. Navigate to any document (PR, PO, Invoice, etc.)
+2. Go to 'Attachments' or 'Documents' section
+3. Click 'Upload Document'
+4. Select file (PDF, DOC, XLS, IMG)
+5. Add document description
+6. Set document type
+7. Upload
+8. View uploaded documents
+9. Download documents
+10. Delete documents (if authorized)","1. Document uploaded successfully
+2. File stored securely
+3. Document linked to parent record
+4. Metadata saved (name, type, date, uploader)
+5. Download works correctly
+6. Preview available (for supported types)
+7. Access controlled by permissions
+8. File size limits enforced
+9. Virus scanning (if configured)",,
+UAT-054,22-A,FINANCE_MANAGER,Payment Management,Create Payment Batch,"1. Navigate to /procurement/payments
+2. Click 'Create Payment Batch'
+3. Select multiple approved invoices
+4. Review total payment amount
+5. Set batch payment date
+6. Enter batch reference
+7. Select payment method
+8. Review summary
+9. Submit batch","1. Payment batch created
+2. All invoices linked to batch
+3. Batch total calculated
+4. If requires approval: submit for approval
+5. If auto-approved: ready for execution
+6. Can generate batch file for bank
+7. Track batch status",,
+UAT-055,23-A,All Users,Security,Password Policy Enforcement,"1. Attempt to set weak password
+2. System validates:
+   - Minimum 8 characters
+   - At least 1 uppercase
+   - At least 1 lowercase
+   - At least 1 number
+   - At least 1 special character
+3. Cannot reuse last 5 passwords
+4. Password expires after 90 days
+5. Must change password on first login","1. Weak passwords rejected
+2. Strong password requirements enforced
+3. Password history checked
+4. Expiry enforced
+5. Users prompted to change expired passwords
+6. Cannot bypass requirements",,
+UAT-056,24-A,All Users,Error Handling,System Error Handling,"1. Perform various actions
+2. Simulate errors:
+   - Network interruption
+   - Server error
+   - Invalid data
+   - Concurrent updates
+3. Observe error handling","1. Friendly error messages displayed
+2. Technical details hidden from users
+3. Errors logged for troubleshooting
+4. User can retry or cancel
+5. No data corruption
+6. Session maintained if possible
+7. User guided to resolution",,
+UAT-057,25-A,PROCUREMENT_OFFICER,RFP Management,Create RFP for Services,"1. Navigate to /procurement/services/rfp
+2. Click 'New RFP'
+3. Link to approved Service PR
+4. Fill RFP Details:
+   - Title
+   - Description
+   - Scope of Work (detailed)
+   - Technical Requirements
+   - Submission Deadline
+   - Evaluation Criteria
+   - Terms and Conditions
+5. Add Documents:
+   - SoW document
+   - Specification sheets
+   - Contract template
+6. Select Vendors
+7. Submit RFP","1. RFP created with unique number
+2. Status: DRAFT
+3. All documents attached
+4. Can publish when ready
+5. Linked to Service PR",,
+UAT-058,25-B,PROCUREMENT_MANAGER,RFP Management,Publish RFP,"1. Navigate to draft RFP
+2. Review all details
+3. Click 'Publish RFP'
+4. Confirm publication
+5. Send invitations to vendors","1. RFP status: DRAFT → PUBLISHED
+2. Vendor invitations sent via email
+3. Vendors receive:
+   - RFP details
+   - SoW documents
+   - Submission link
+   - Deadline
+4. Cannot edit after publishing",,
+UAT-059,25-C,VENDOR (External),RFP Management,Submit RFP Proposal,"1. Receive RFP invitation
+2. Click submission link
+3. Review RFP requirements
+4. Upload Technical Proposal
+5. Upload Commercial Proposal
+6. Upload Company Documents
+7. Fill in proposal form:
+   - Total Cost
+   - Delivery Timeline
+   - Key Personnel
+   - Technical Approach
+   - References
+8. Review and submit","1. Proposal submitted successfully
+2. Confirmation email sent
+3. Timestamp recorded
+4. Cannot edit after submission
+5. Procurement can view proposal",,
+UAT-060,25-D,PROCUREMENT_MANAGER,RFP Management,Evaluate RFP Proposals,"1. Navigate to published RFP
+2. After deadline, view all proposals
+3. For each proposal:
+   - Review technical proposal
+   - Review commercial proposal
+   - Score on criteria
+   - Add evaluation notes
+4. Compare proposals
+5. Select winner
+6. Award RFP","1. All proposals evaluated
+2. Scores recorded
+3. Winner selected
+4. Notifications sent
+5. Can create contract from winner",,
+UAT-061,26-A,PROJECT_MANAGER,Service Performance,Track Service Performance,"1. Navigate to active service contract
+2. Go to 'Performance' tab
+3. View performance metrics:
+   - Quality Score (by milestone)
+   - Timeliness Score
+   - SLA Compliance
+   - Overall Performance
+4. Add performance evaluation:
+   - Evaluation Period
+   - Scores for each criterion
+   - KPI Metrics
+   - SLA Compliance data
+   - Penalties (if any)
+   - Bonuses (if any)
+   - Comments
+5. Submit evaluation","1. Performance record created
+2. Scores calculated and stored
+3. Penalties/bonuses tracked
+4. Vendor performance history updated
+5. Affects future vendor selection
+6. Can generate performance reports",,
+UAT-062,27-A,All Users,System Performance,Load Time and Responsiveness,"1. Navigate to various pages
+2. Measure load times
+3. Perform bulk operations
+4. Test with multiple users
+5. Test with large datasets","1. Page load < 3 seconds
+2. API responses < 1 second
+3. Search results instant
+4. No lag in UI interactions
+5. Handles 50+ concurrent users
+6. Large reports generate within 30 seconds
+7. No crashes or freezes",,
+UAT-063,28-A,All Users,Mobile Responsiveness,Mobile Device Testing,"1. Access system on mobile device (phone, tablet)
+2. Test all major functions:
+   - Login
+   - View dashboards
+   - View lists
+   - View details
+   - Approve items
+3. Test different screen sizes
+4. Test different browsers","1. Responsive design works correctly
+2. All elements visible and usable
+3. Touch interactions work
+4. No horizontal scrolling
+5. Buttons and links easily tappable
+6. Forms usable on mobile
+7. Critical functions accessible",,
+UAT-064,29-A,PROCUREMENT_OFFICER,Data Import,Bulk Import PRs,"1. Navigate to PRs page
+2. Click 'Import' or 'Bulk Upload'
+3. Download template
+4. Fill template with PR data:
+   - Multiple PRs
+   - Multiple items per PR
+5. Upload filled template
+6. Review import preview
+7. Confirm import","1. Template downloads correctly
+2. Template has proper format
+3. Upload validates data
+4. Errors reported clearly
+5. Valid records imported
+6. Invalid records rejected with reasons
+7. Import summary displayed
+8. Imported PRs visible in list",,
+UAT-065,30-A,All Users,Data Export,Export Reports to Excel,"1. Navigate to any list page (PRs, POs, Invoices, etc.)
+2. Apply filters (optional)
+3. Click 'Export to Excel' or 'Download CSV'
+4. Wait for download
+5. Open exported file","1. File downloads successfully
+2. All visible columns included
+3. Filters applied to export
+4. Data formatted correctly
+5. Dates in proper format
+6. Numbers not corrupted
+7. File opens in Excel without errors
+8. All rows included (no limit for small datasets)",,
+UAT-066,31-A,All Users,Notifications,Email Notifications,"1. Perform actions that trigger emails:
+   - Submit PR (notify approvers)
+   - Approve PR (notify requester)
+   - Send RFQ (notify vendors)
+   - Send PO (notify vendor)
+   - Vendor acknowledges PO (notify procurement)
+2. Check email inbox
+3. Review email content","1. Emails delivered promptly (within 5 min)
+2. Email content accurate and complete
+3. Professional formatting
+4. Contains relevant links
+5. Includes necessary details
+6. From address recognizable
+7. Subject line clear
+8. No spam folder issues",,
+UAT-067,32-A,SUPER_ADMIN,System Configuration,Manage Approval Rules,"1. Access approval rules configuration (DB or admin panel)
+2. View existing approval rules
+3. Create new approval rule:
+   - Document Type (PR, PO, Invoice)
+   - Conditions (amount range, department)
+   - Approval Levels
+   - Approver Roles per level
+   - RACI assignments
+   - Timeout settings
+4. Test approval routing with new rule
+5. Modify existing rule
+6. Deactivate rule","1. Approval rules configurable
+2. New rules applied immediately
+3. Routing works as defined
+4. Multiple rules can exist
+5. Priority determines rule selection
+6. Can test rules without affecting production
+7. Changes logged in audit",,
+UAT-068,33-A,WAREHOUSE_KEEPER,Goods Receipt,Partial Goods Receipt,"1. Create GRN
+2. Select PO with multiple items
+3. Enter received quantities:
+   - Item 1: Full quantity
+   - Item 2: Partial quantity
+   - Item 3: Zero (not received yet)
+4. Submit GRN","1. GRN created with partial receipt
+2. PO status: PARTIAL
+3. Inventory updated for received items only
+4. Remaining items still tracked on PO
+5. Can create additional GRN later for remaining items
+6. PO status updates to COMPLETED when all received",,
+UAT-069,34-A,WAREHOUSE_KEEPER,Goods Receipt,Reject Goods,"1. Create GRN
+2. Inspect items
+3. Identify quality issues
+4. Enter:
+   - Received Quantity: 100
+   - Accepted Quantity: 90
+   - Rejected Quantity: 10
+   - Rejection Reason: 'Damaged packaging'
+5. Upload photos of damage
+6. Submit GRN","1. GRN created with rejections
+2. Only accepted quantity updates inventory
+3. Rejected quantity documented
+4. Procurement notified of rejection
+5. Can initiate return process
+6. Vendor debited for rejected items",,
+UAT-070,35-A,PROCUREMENT_OFFICER,Purchase Order,Cancel Purchase Order,"1. Navigate to PO (not yet acknowledged)
+2. Click 'Cancel PO' button
+3. Enter cancellation reason
+4. Confirm cancellation","1. PO status: CANCELLED
+2. Cancellation reason recorded
+3. Vendor notified (if PO was sent)
+4. Cannot create GRN for cancelled PO
+5. Cannot create invoice for cancelled PO
+6. Linked PR can be re-used for new PO",,
+UAT-071,36-A,PROCUREMENT_OFFICER,Invoice Management,Invoice with Discrepancy Resolution,"1. Create invoice with discrepancies
+2. Three-way match shows DISCREPANCY
+3. Contact vendor about discrepancies
+4. Vendor issues credit note
+5. Update invoice:
+   - Adjust quantities/prices
+   - Reference credit note
+   - Add resolution notes
+6. Re-run three-way match
+7. Submit for approval","1. Discrepancies documented
+2. Resolution process tracked
+3. Updated match shows MATCHED
+4. Invoice approved after resolution
+5. Credit note linked to invoice
+6. Full audit trail of resolution",,
+UAT-072,37-A,All Users,Service Contract,Service Contract Milestones,"1. View active service contract
+2. Go to 'Milestones' tab
+3. View all milestones:
+   - Number, Name, Description
+   - Target Date
+   - Completion Criteria
+   - Payment Percentage
+   - Amount
+   - Status (PENDING, IN_PROGRESS, COMPLETED, OVERDUE)
+4. Track milestone progress
+5. Mark milestone IN_PROGRESS
+6. Complete milestone (via SRN)
+7. View milestone payment history","1. All milestones visible
+2. Status tracked accurately
+3. Overdue milestones highlighted
+4. Progress visualization (progress bar)
+5. Payment amounts calculated correctly
+6. Total milestone payments = Contract value
+7. Cannot complete milestone without SRN",,
+UAT-073,38-A,PROCUREMENT_MANAGER,Vendor Management,Vendor Categories and Classification,"1. Navigate to vendor registration
+2. Select multiple categories for vendor:
+   - Primary category (only one)
+   - Secondary categories (multiple)
+3. Categories include:
+   - Construction Materials
+   - Equipment Rental
+   - Professional Services
+   - IT Services
+   - Maintenance
+   - Etc.
+4. Save vendor with categories
+5. Filter vendors by category
+6. View vendor categories in details","1. Vendor can have multiple categories
+2. Primary category clearly marked
+3. Categories affect RFQ/RFP invitations
+4. Filters work by category
+5. Can update categories later
+6. Category-based vendor selection in PRs",,

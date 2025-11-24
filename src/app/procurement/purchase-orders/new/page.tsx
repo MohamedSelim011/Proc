@@ -138,8 +138,13 @@ function NewPurchaseOrderContent() {
     if (prId) {
       fetchPRDetails(prId);
     }
+    // Check for both RFQ and RFP
     if (rfqId) {
       fetchRFQDetails(rfqId);
+    }
+    const rfpId = searchParams.get('rfpId');
+    if (rfpId) {
+      fetchRFPDetails(rfpId);
     }
     if (vendorIdFromUrl) {
       setWinningVendorId(vendorIdFromUrl);
@@ -168,6 +173,32 @@ function NewPurchaseOrderContent() {
       }
     } catch (error) {
       console.error('Error fetching approved PRs:', error);
+    }
+  };
+
+  const fetchRFPDetails = async (id: string) => {
+    try {
+      const response = await fetch(`/api/services/rfp/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRfqData(data); // Reuse rfqData state for display purposes
+        
+        // Find the selected/winning vendor
+        const winningResponse = data.responses?.find((r: any) => r.status === 'SELECTED');
+        if (winningResponse) {
+          const winnerId = winningResponse.vendor.id;
+          setWinningVendorId(winnerId);
+          setFormData(prev => ({ ...prev, vendorId: winnerId }));
+          
+          // Also set the PR ID if not already set
+          if (data.prId && !formData.prId) {
+            setFormData(prev => ({ ...prev, prId: data.prId }));
+            fetchPRDetails(data.prId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching RFP details:', error);
     }
   };
 
@@ -247,8 +278,8 @@ function NewPurchaseOrderContent() {
 
   const checkRFQForPR = async (prId: string) => {
     try {
-      // Fetch RFQs for this PR
-      const response = await fetch(`/api/rfq?prId=${prId}`);
+      // First check for RFQ
+      let response = await fetch(`/api/rfq?prId=${prId}`);
       if (response.ok) {
         const data = await response.json();
         // Find RFQ with AWARDED status and SELECTED response
@@ -265,11 +296,34 @@ function NewPurchaseOrderContent() {
             setWinningVendorId(winnerId);
             setFormData(prev => ({ ...prev, vendorId: winnerId }));
             showToast('info', `Winning vendor from RFQ ${awardedRFQ.rfqNumber} has been pre-selected`);
+            return;
+          }
+        }
+      }
+
+      // Then check for RFP (Service RFP)
+      response = await fetch(`/api/services/rfp?prId=${prId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Find RFP with AWARDED status and SELECTED response
+        const awardedRFP = data.rfps?.find((rfp: any) => 
+          rfp.status === 'AWARDED' && 
+          rfp.responses?.some((r: any) => r.status === 'SELECTED')
+        );
+        
+        if (awardedRFP) {
+          const winningResponse = awardedRFP.responses.find((r: any) => r.status === 'SELECTED');
+          if (winningResponse) {
+            setRfqData(awardedRFP);
+            const winnerId = winningResponse.vendor.id;
+            setWinningVendorId(winnerId);
+            setFormData(prev => ({ ...prev, vendorId: winnerId }));
+            showToast('info', `Winning vendor from RFP ${awardedRFP.rfpNumber} has been pre-selected`);
           }
         }
       }
     } catch (error) {
-      console.error('Error checking RFQ for PR:', error);
+      console.error('Error checking RFQ/RFP for PR:', error);
     }
   };
 

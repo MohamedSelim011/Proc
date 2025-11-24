@@ -873,7 +873,7 @@ export default function InvoiceDetailPage() {
                 </div>
               ) : (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center">
+                  {/* <div className="flex items-center">
                     <Clock className="h-5 w-5 text-yellow-500" />
                     <div className="ml-3">
                       <h4 className="text-sm font-medium text-yellow-800">Matching Pending</h4>
@@ -881,7 +881,7 @@ export default function InvoiceDetailPage() {
                         This invoice requires three-way matching validation.
                       </p>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               )}
 

@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       safetyRequirements,
       paymentSchedule,
       retentionPercentage,
+      preferredVendors,
       items
     } = body;
 
@@ -151,7 +152,8 @@ export async function POST(request: NextRequest) {
           certificationRequired: certificationRequired || false,
           safetyRequirements: safetyRequirements || null,
           paymentSchedule: paymentSchedule || 'MILESTONE',
-          retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0
+          retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0,
+          preferredVendors: preferredVendors && preferredVendors.length > 0 ? preferredVendors : null
         }
       });
 
@@ -175,17 +177,27 @@ export async function POST(request: NextRequest) {
           });
           
           if (!serviceCategory) {
-            serviceCategory = await tx.serviceCategory.create({
-              data: {
-                code: 'CUSTOM',
-                nameEn: 'Custom Services',
-                nameAr: 'خدمات مخصصة',
-                description: 'Custom service items created during requisition',
-                requiresInsurance: false,
-                requiresCertification: false,
-                requiresPerformanceBond: false
-              }
+            // Check if CUSTOM already exists
+            const existingCustom = await tx.serviceCategory.findFirst({
+              where: { code: 'CUSTOM' }
             });
+            
+            if (existingCustom) {
+              serviceCategory = existingCustom;
+            } else {
+              // Create CUSTOM category only if it doesn't exist
+              serviceCategory = await tx.serviceCategory.create({
+                data: {
+                  code: 'CUSTOM',
+                  nameEn: 'Custom Services',
+                  nameAr: 'خدمات مخصصة',
+                  description: 'Custom service items created during requisition',
+                  requiresInsurance: false,
+                  requiresCertification: false,
+                  requiresPerformanceBond: false
+                }
+              });
+            }
           }
           
           // Generate a unique service code

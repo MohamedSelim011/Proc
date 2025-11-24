@@ -250,7 +250,7 @@ export default function EditGoodsReceipt() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading goods receipt...</p>
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function EditGoodsReceipt() {
           <p className="mt-2 text-gray-600">{error || 'Goods receipt not found'}</p>
           <button
             onClick={() => router.push('/procurement/receipts')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="mt-4 px-4 py-2 bg-wujha-primary text-white rounded-lg hover:bg-wujha-primary-hover"
           >
             Go Back
           </button>
@@ -309,7 +309,7 @@ export default function EditGoodsReceipt() {
                 <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover disabled:opacity-50"
                 >
                   <Save className="h-4 w-4 inline mr-1" />
                   {saving ? 'Saving...' : 'Save Changes'}
@@ -335,7 +335,7 @@ export default function EditGoodsReceipt() {
                   required
                   value={formData.receivedDate}
                   onChange={(e) => handleInputChange('receivedDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
               
@@ -348,7 +348,7 @@ export default function EditGoodsReceipt() {
                   required
                   value={formData.receivedBy}
                   onChange={(e) => handleInputChange('receivedBy', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
 
@@ -360,7 +360,7 @@ export default function EditGoodsReceipt() {
                   type="text"
                   value={formData.storageLocation}
                   onChange={(e) => handleInputChange('storageLocation', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
 
@@ -372,7 +372,7 @@ export default function EditGoodsReceipt() {
                   type="text"
                   value={formData.deliveryNote}
                   onChange={(e) => handleInputChange('deliveryNote', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
 
@@ -384,7 +384,7 @@ export default function EditGoodsReceipt() {
                   type="text"
                   value={formData.transportDetails}
                   onChange={(e) => handleInputChange('transportDetails', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
 
@@ -396,7 +396,7 @@ export default function EditGoodsReceipt() {
                   type="text"
                   value={formData.specialHandling}
                   onChange={(e) => handleInputChange('specialHandling', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
             </div>
@@ -412,7 +412,7 @@ export default function EditGoodsReceipt() {
                   id="qualityChecked"
                   checked={formData.qualityChecked}
                   onChange={(e) => handleInputChange('qualityChecked', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                 />
                 <label htmlFor="qualityChecked" className="ml-2 block text-sm text-gray-900">
                   Quality inspection performed
@@ -427,7 +427,7 @@ export default function EditGoodsReceipt() {
                   type="text"
                   value={formData.qualityInspector}
                   onChange={(e) => handleInputChange('qualityInspector', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
 
@@ -440,7 +440,7 @@ export default function EditGoodsReceipt() {
                   value={formData.qualityComments}
                   onChange={(e) => handleInputChange('qualityComments', e.target.value)}
                   placeholder="Quality inspection results, defects found, compliance notes..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                 />
               </div>
             </div>
@@ -500,7 +500,7 @@ export default function EditGoodsReceipt() {
                             max={originalItem.orderedQuantity}
                             value={item.receivedQuantity}
                             onChange={(e) => updateItemQuantity(item.id, 'receivedQuantity', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -510,7 +510,7 @@ export default function EditGoodsReceipt() {
                             max={item.receivedQuantity}
                             value={item.acceptedQuantity}
                             onChange={(e) => updateItemQuantity(item.id, 'acceptedQuantity', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -520,7 +520,7 @@ export default function EditGoodsReceipt() {
                             max={item.receivedQuantity}
                             value={item.rejectedQuantity}
                             onChange={(e) => updateItemQuantity(item.id, 'rejectedQuantity', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary"
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -565,7 +565,7 @@ export default function EditGoodsReceipt() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>

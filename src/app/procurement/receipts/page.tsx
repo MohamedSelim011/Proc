@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   Truck
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
+import * as XLSX from 'xlsx';
 
 interface GoodsReceipt {
   id: string;
@@ -55,6 +57,7 @@ interface PaginationInfo {
 }
 
 export default function GoodsReceiptsPage() {
+  const { showToast } = useToast();
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -163,6 +166,90 @@ export default function GoodsReceiptsPage() {
     };
   };
 
+  const handleExport = async () => {
+    try {
+      showToast('info', 'Preparing export...');
+      
+      // Build query params with current filters
+      const params = new URLSearchParams({
+        export: 'true',
+        ...(filters.status && { status: filters.status }),
+        ...(filters.poId && { poId: filters.poId })
+      });
+
+      const response = await fetch(`/api/goods-receipts?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast('error', 'Failed to export goods receipts');
+        return;
+      }
+
+      // Prepare data for Excel
+      const exportData = data.receipts.map((gr: GoodsReceipt) => {
+        const stats = calculateReceiptStats(gr);
+        return {
+          'GR Number': gr.grNumber,
+          'Received Date': formatDate(gr.receivedDate),
+          'Received By': gr.receivedBy,
+          'PO Number': gr.po.poNumber,
+          'Vendor Name': gr.po.vendor.nameEn,
+          'Vendor Email': gr.po.vendor.email,
+          'Status': gr.status,
+          'Quality Checked': gr.qualityChecked ? 'Yes' : 'No',
+          'Quality Comments': gr.qualityComments || 'N/A',
+          'Total Ordered': stats.totalOrdered,
+          'Total Received': stats.totalReceived,
+          'Total Accepted': stats.totalAccepted,
+          'Total Rejected': stats.totalRejected,
+          'Receipt Percentage': `${stats.receiptPercentage.toFixed(2)}%`,
+          'Acceptance Percentage': `${stats.acceptancePercentage.toFixed(2)}%`,
+          'Number of Items': gr.items?.length || 0,
+          'Created At': formatDate(gr.createdAt),
+          'Updated At': formatDate(gr.updatedAt)
+        };
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Goods Receipts');
+
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // GR Number
+        { wch: 18 }, // Received Date
+        { wch: 15 }, // Received By
+        { wch: 15 }, // PO Number
+        { wch: 20 }, // Vendor Name
+        { wch: 25 }, // Vendor Email
+        { wch: 12 }, // Status
+        { wch: 15 }, // Quality Checked
+        { wch: 30 }, // Quality Comments
+        { wch: 15 }, // Total Ordered
+        { wch: 15 }, // Total Received
+        { wch: 15 }, // Total Accepted
+        { wch: 15 }, // Total Rejected
+        { wch: 18 }, // Receipt Percentage
+        { wch: 20 }, // Acceptance Percentage
+        { wch: 15 }, // Number of Items
+        { wch: 18 }, // Created At
+        { wch: 18 }  // Updated At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Generate filename with timestamp
+      const filename = `Goods_Receipts_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      showToast('success', `Exported ${data.total} goods receipts successfully`);
+    } catch (error) {
+      console.error('Error exporting goods receipts:', error);
+      showToast('error', 'Failed to export goods receipts');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -176,7 +263,7 @@ export default function GoodsReceiptsPage() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <Link
             href="/procurement/receipts/new"
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Goods Receipt
@@ -224,7 +311,7 @@ export default function GoodsReceiptsPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Truck className="h-6 w-6 text-blue-400" />
+                <Truck className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -264,14 +351,14 @@ export default function GoodsReceiptsPage() {
             <input
               type="text"
               placeholder="Search receipts..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
@@ -286,7 +373,7 @@ export default function GoodsReceiptsPage() {
             <input
               type="text"
               placeholder="PO Number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
               value={filters.poId}
               onChange={(e) => handleFilterChange('poId', e.target.value)}
             />
@@ -309,7 +396,10 @@ export default function GoodsReceiptsPage() {
             <h3 className="text-lg font-medium text-gray-900">
               Goods Receipts ({pagination.total})
             </h3>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button 
+              onClick={handleExport}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>
@@ -399,7 +489,7 @@ export default function GoodsReceiptsPage() {
                         )}
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                            className="bg-wujha-primary h-2 rounded-full" 
                             style={{ width: `${Math.min(stats.receiptPercentage, 100)}%` }}
                           ></div>
                         </div>
@@ -430,7 +520,7 @@ export default function GoodsReceiptsPage() {
                         <div className="flex items-center justify-end space-x-2">
                           <Link
                             href={`/procurement/receipts/${gr.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-wujha-primary hover:text-wujha-primary-hover"
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
@@ -503,7 +593,7 @@ export default function GoodsReceiptsPage() {
                         onClick={() => handlePageChange(page)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           page === pagination.page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            ? 'z-10 bg-wujha-primary/10 border-wujha-primary text-wujha-primary'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                         }`}
                       >

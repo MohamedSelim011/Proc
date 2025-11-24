@@ -156,7 +156,7 @@ export default function ServiceRequisitions() {
   const getStatusColor = (status: string) => {
     const colors = {
       'DRAFT': 'bg-gray-100 text-gray-800',
-      'SUBMITTED': 'bg-blue-100 text-blue-800',
+      'SUBMITTED': 'bg-wujha-primary/10 text-wujha-primary',
       'APPROVED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
       'CANCELLED': 'bg-gray-100 text-gray-800'
@@ -167,11 +167,11 @@ export default function ServiceRequisitions() {
   const getPriorityColor = (priority: string) => {
     const colors = {
       'LOW': 'bg-green-100 text-green-800',
-      'NORMAL': 'bg-blue-100 text-blue-800',
+      'NORMAL': 'bg-wujha-primary/10 text-wujha-primary',
       'HIGH': 'bg-yellow-100 text-yellow-800',
       'URGENT': 'bg-red-100 text-red-800'
     };
-    return colors[priority as keyof typeof colors] || 'bg-blue-100 text-blue-800';
+    return colors[priority as keyof typeof colors] || 'bg-wujha-primary/10 text-wujha-primary';
   };
 
   const getStatusIcon = (status: string) => {
@@ -179,7 +179,7 @@ export default function ServiceRequisitions() {
       case 'APPROVED':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'SUBMITTED':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Clock className="h-4 w-4 text-wujha-primary" />;
       case 'REJECTED':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
@@ -207,7 +207,7 @@ export default function ServiceRequisitions() {
           </button>
           <Link
             href="/procurement/services/requisitions/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Service Request
@@ -226,7 +226,7 @@ export default function ServiceRequisitions() {
               <input
                 type="text"
                 placeholder="Search by PR number, department..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -354,7 +354,7 @@ export default function ServiceRequisitions() {
               <tr>
                 <td colSpan={8} className="px-6 py-4 text-center">
                   <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-wujha-primary"></div>
                     <span className="ml-2 text-sm text-gray-500">Loading...</span>
                   </div>
                 </td>
@@ -410,7 +410,7 @@ export default function ServiceRequisitions() {
                     <div className="flex items-center space-x-3">
                       <Link
                         href={`/procurement/services/requisitions/${requisition.id}`}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-700 transition-colors duration-200"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-wujha-primary/10 text-wujha-primary hover:bg-wujha-primary/20 hover:text-wujha-primary-hover transition-colors duration-200"
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
@@ -443,7 +443,7 @@ export default function ServiceRequisitions() {
                   No service requisitions found. 
                   <Link 
                     href="/procurement/services/requisitions/new"
-                    className="text-blue-600 hover:text-blue-500 ml-1"
+                    className="text-wujha-primary hover:text-wujha-primary-hover ml-1"
                   >
                     Create your first service request
                   </Link>

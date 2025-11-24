@@ -177,7 +177,7 @@ export default function BatchDetailsPage() {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
       case 'PROCESSED':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-wujha-primary/10 text-wujha-primary';
       case 'APPROVED':
         return 'bg-yellow-100 text-yellow-800';
       case 'DRAFT':
@@ -205,7 +205,7 @@ export default function BatchDetailsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -220,7 +220,7 @@ export default function BatchDetailsPage() {
           <div className="mt-6">
             <Link
               href="/procurement/payments"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Payments
@@ -277,7 +277,7 @@ export default function BatchDetailsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Banknote className="h-8 w-8 text-blue-500" />
+                  <Banknote className="h-8 w-8 text-wujha-primary" />
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -331,7 +331,7 @@ export default function BatchDetailsPage() {
                 onClick={() => setActiveTab('details')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'details'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-wujha-primary text-wujha-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -341,7 +341,7 @@ export default function BatchDetailsPage() {
                 onClick={() => setActiveTab('invoices')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'invoices'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-wujha-primary text-wujha-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -351,7 +351,7 @@ export default function BatchDetailsPage() {
                 onClick={() => setActiveTab('audit')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'audit'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-wujha-primary text-wujha-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -460,7 +460,7 @@ export default function BatchDetailsPage() {
                         <div className="relative pb-8">
                           <div className="relative flex space-x-3">
                             <div>
-                              <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
+                              <span className="h-8 w-8 rounded-full bg-wujha-primary flex items-center justify-center ring-8 ring-white">
                                 <Banknote className="h-4 w-4 text-white" />
                               </span>
                             </div>
@@ -566,7 +566,7 @@ export default function BatchDetailsPage() {
                                     {formatDateShort(invoice.invoiceDate)}
                                   </div>
                                   {invoice.po && (
-                                    <div className="text-xs text-blue-600">
+                                    <div className="text-xs text-wujha-primary">
                                       PO: {invoice.po.poNumber}
                                     </div>
                                   )}
@@ -595,7 +595,7 @@ export default function BatchDetailsPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <Link
                                 href={`/invoices/${invoice.id}`}
-                                className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                                className="text-wujha-primary hover:text-wujha-primary-hover inline-flex items-center"
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 View

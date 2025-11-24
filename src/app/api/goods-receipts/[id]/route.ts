@@ -126,8 +126,13 @@ export async function PUT(
         data: {
           receivedDate: body.receivedDate ? new Date(body.receivedDate) : existingGR.receivedDate,
           receivedBy: body.receivedBy || existingGR.receivedBy,
+          deliveryNote: body.deliveryNote !== undefined ? body.deliveryNote : existingGR.deliveryNote,
+          transportDetails: body.transportDetails !== undefined ? body.transportDetails : existingGR.transportDetails,
+          storageLocation: body.storageLocation !== undefined ? body.storageLocation : existingGR.storageLocation,
+          specialHandling: body.specialHandling !== undefined ? body.specialHandling : existingGR.specialHandling,
           qualityChecked: body.qualityChecked !== undefined ? body.qualityChecked : existingGR.qualityChecked,
-          qualityComments: body.qualityComments || existingGR.qualityComments,
+          qualityComments: body.qualityComments !== undefined ? body.qualityComments : existingGR.qualityComments,
+          qualityInspector: body.qualityInspector !== undefined ? body.qualityInspector : existingGR.qualityInspector,
           updatedAt: new Date()
         }
       });

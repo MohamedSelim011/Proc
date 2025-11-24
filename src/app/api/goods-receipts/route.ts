@@ -6,12 +6,13 @@ import { prisma } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const isExport = searchParams.get('export') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = isExport ? undefined : parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
     const poId = searchParams.get('poId') || '';
 
-    const skip = (page - 1) * limit;
+    const skip = isExport ? undefined : (page - 1) * limit!;
 
     const where: any = {};
     if (status) {
@@ -26,8 +27,8 @@ export async function GET(request: NextRequest) {
     const [receipts, total] = await Promise.all([
       prisma.goodsReceipt.findMany({
         where,
-        skip,
-        take: limit,
+        ...(skip !== undefined && { skip }),
+        ...(limit !== undefined && { take: limit }),
         include: {
           po: {
             include: {
@@ -47,13 +48,20 @@ export async function GET(request: NextRequest) {
       prisma.goodsReceipt.count({ where })
     ]);
 
+    if (isExport) {
+      return NextResponse.json({
+        receipts,
+        total
+      });
+    }
+
     return NextResponse.json({
       receipts,
       pagination: {
         page,
-        limit,
+        limit: limit!,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit!)
       }
     });
   } catch (error) {
@@ -93,10 +101,16 @@ export async function POST(request: NextRequest) {
       data: {
         grNumber,
         poId: body.poId,
+        receivedDate: body.receivedDate ? new Date(body.receivedDate) : new Date(),
         receivedBy: body.receivedBy,
+        deliveryNote: body.deliveryNote || null,
+        transportDetails: body.transportDetails || null,
+        storageLocation: body.storageLocation || null,
+        specialHandling: body.specialHandling || null,
         status: allFullyReceived ? 'COMPLETED' : 'PARTIAL',
         qualityChecked: body.qualityChecked || allItemsAccepted,
-        qualityComments: body.qualityComments,
+        qualityComments: body.qualityComments || null,
+        qualityInspector: body.qualityInspector || null,
         items: {
           create: body.items.map((item: any) => {
             const poItem = poItems.find(poi => poi.id === item.poItemId);
@@ -109,7 +123,7 @@ export async function POST(request: NextRequest) {
               receivedQuantity: item.receivedQuantity,
               acceptedQuantity: item.acceptedQuantity || item.receivedQuantity,
               rejectedQuantity: item.rejectedQuantity || 0,
-              rejectionReason: item.rejectionReason
+              rejectionReason: item.rejectionReason || null
             };
           })
         }

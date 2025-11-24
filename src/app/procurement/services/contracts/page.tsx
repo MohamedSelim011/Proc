@@ -147,10 +147,10 @@ export default function ServiceContracts() {
   const getStatusColor = (status: string) => {
     const colors = {
       'DRAFT': 'bg-gray-100 text-gray-800',
-      'ACTIVE': 'bg-green-100 text-green-800',
+      'ACTIVE': 'bg-wujha-primary/10 text-wujha-primary',
       'EXPIRING': 'bg-yellow-100 text-yellow-800',
       'EXPIRED': 'bg-red-100 text-red-800',
-      'COMPLETED': 'bg-blue-100 text-blue-800',
+      'COMPLETED': 'bg-wujha-primary/10 text-wujha-primary',
       'TERMINATED': 'bg-red-100 text-red-800'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
@@ -160,7 +160,7 @@ export default function ServiceContracts() {
     if (daysUntilExpiry < 0) return { status: 'EXPIRED', color: 'text-red-600', icon: AlertTriangle };
     if (daysUntilExpiry <= 30) return { status: 'EXPIRING', color: 'text-red-600', icon: AlertTriangle };
     if (daysUntilExpiry <= 90) return { status: 'EXPIRING SOON', color: 'text-yellow-600', icon: Clock };
-    return { status: 'ACTIVE', color: 'text-green-600', icon: CheckCircle };
+    return { status: 'ACTIVE', color: 'text-wujha-primary', icon: CheckCircle };
   };
 
   const getContractTypeIcon = (type: string) => {
@@ -188,7 +188,7 @@ export default function ServiceContracts() {
         </div>
         <Link
           href="/procurement/services/contracts/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Contract
@@ -201,7 +201,7 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircle className="h-6 w-6 text-green-400" />
+                <CheckCircle className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -241,7 +241,7 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <DollarSign className="h-6 w-6 text-blue-400" />
+                <DollarSign className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -261,7 +261,7 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FileText className="h-6 w-6 text-purple-400" />
+                <FileText className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -289,7 +289,7 @@ export default function ServiceContracts() {
               <input
                 type="text"
                 placeholder="Search contracts..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -302,7 +302,7 @@ export default function ServiceContracts() {
               Status
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
@@ -321,7 +321,7 @@ export default function ServiceContracts() {
               Contract Type
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
               value={filters.contractType}
               onChange={(e) => handleFilterChange('contractType', e.target.value)}
             >
@@ -340,7 +340,7 @@ export default function ServiceContracts() {
             <input
               type="text"
               placeholder="Vendor name"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
               value={filters.vendor}
               onChange={(e) => handleFilterChange('vendor', e.target.value)}
             />
@@ -350,7 +350,7 @@ export default function ServiceContracts() {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                 checked={filters.expiringOnly}
                 onChange={(e) => handleFilterChange('expiringOnly', e.target.checked)}
               />
@@ -411,7 +411,7 @@ export default function ServiceContracts() {
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center">
                   <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-wujha-primary"></div>
                     <span className="ml-2 text-sm text-gray-500">Loading...</span>
                   </div>
                 </td>
@@ -425,7 +425,7 @@ export default function ServiceContracts() {
                   <tr key={contract.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-blue-100 rounded">
+                        <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-wujha-primary/10 rounded">
                           {getContractTypeIcon(contract.contractType)}
                         </div>
                         <div className="ml-3">
@@ -470,7 +470,7 @@ export default function ServiceContracts() {
                           {contract.status}
                         </span>
                         {contract.autoRenewal && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-wujha-primary/10 text-wujha-primary">
                             Auto-Renewal
                           </span>
                         )}
@@ -480,7 +480,7 @@ export default function ServiceContracts() {
                       <div className="flex items-center space-x-3 min-w-[120px]">
                         <Link
                           href={`/procurement/services/contracts/${contract.id}`}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-700 transition-colors duration-200"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-wujha-primary/10 text-wujha-primary hover:bg-wujha-primary/20 hover:text-wujha-primary-hover transition-colors duration-200"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
@@ -488,7 +488,7 @@ export default function ServiceContracts() {
                         {contract.status === 'DRAFT' && (
                           <Link
                             href={`/procurement/services/contracts/${contract.id}/edit`}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-700 transition-colors duration-200"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-wujha-primary/10 text-wujha-primary hover:bg-wujha-primary/20 hover:text-wujha-primary-hover transition-colors duration-200"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
@@ -497,7 +497,7 @@ export default function ServiceContracts() {
                         {contract.daysUntilExpiry <= 90 && contract.daysUntilExpiry > 0 && (
                           <Link
                             href={`/procurement/services/contracts/${contract.id}/renew`}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 hover:text-purple-700 transition-colors duration-200"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-wujha-primary/10 text-wujha-primary hover:bg-wujha-primary/20 hover:text-wujha-primary-hover transition-colors duration-200"
                             title="Renew Contract"
                           >
                             <Calendar className="h-4 w-4" />
@@ -514,7 +514,7 @@ export default function ServiceContracts() {
                   No service contracts found. 
                   <Link 
                     href="/procurement/services/contracts/new"
-                    className="text-blue-600 hover:text-blue-500 ml-1"
+                    className="text-wujha-primary hover:text-wujha-primary-hover ml-1"
                   >
                     Create your first contract
                   </Link>

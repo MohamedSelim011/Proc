@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       rfqNumber,
       title: body.title,
       description: body.description,
-      closingDate: new Date(body.closingDate),
+      closingDate: body.closingDate ? new Date(body.closingDate) : (body.submissionDeadline ? new Date(body.submissionDeadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
       status: body.status || 'DRAFT',
       createdBy: body.createdBy || null
     };

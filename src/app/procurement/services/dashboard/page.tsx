@@ -145,7 +145,7 @@ export default function ServiceDashboard() {
   const getStatusColor = (status: string) => {
     const colors = {
       'DRAFT': 'bg-gray-100 text-gray-800',
-      'SUBMITTED': 'bg-blue-100 text-blue-800',
+      'SUBMITTED': 'bg-wujha-primary/10 text-wujha-primary',
       'APPROVED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
       'DELIVERED': 'bg-purple-100 text-purple-800'
@@ -156,17 +156,17 @@ export default function ServiceDashboard() {
   const getPriorityColor = (priority: string) => {
     const colors = {
       'LOW': 'bg-green-100 text-green-800',
-      'NORMAL': 'bg-blue-100 text-blue-800',
+      'NORMAL': 'bg-wujha-primary/10 text-wujha-primary',
       'HIGH': 'bg-yellow-100 text-yellow-800',
       'URGENT': 'bg-red-100 text-red-800'
     };
-    return colors[priority as keyof typeof colors] || 'bg-blue-100 text-blue-800';
+    return colors[priority as keyof typeof colors] || 'bg-wujha-primary/10 text-wujha-primary';
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -184,7 +184,7 @@ export default function ServiceDashboard() {
         <div className="flex space-x-3">
           <Link
             href="/procurement/services/requisitions/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Service Request
@@ -198,7 +198,7 @@ export default function ServiceDashboard() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FileText className="h-6 w-6 text-blue-400" />
+                <FileText className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -322,7 +322,7 @@ export default function ServiceDashboard() {
             <h3 className="text-lg font-medium text-gray-900">Recent Service Requests</h3>
             <Link
               href="/procurement/services/requisitions"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
+              className="text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
             >
               View all
             </Link>
@@ -382,7 +382,7 @@ export default function ServiceDashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link
                       href={`/procurement/services/requisitions/${request.id}`}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      className="text-wujha-primary hover:text-wujha-primary-hover mr-3"
                     >
                       <Eye className="h-4 w-4" />
                     </Link>
@@ -407,7 +407,7 @@ export default function ServiceDashboard() {
             <h3 className="text-lg font-medium text-gray-900">Contracts Expiring Soon</h3>
             <Link
               href="/procurement/services/contracts"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
+              className="text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
             >
               View all contracts
             </Link>

@@ -878,25 +878,25 @@ export default function NewServiceInvoicePage() {
                       <div key={index} className={`flex items-start p-3 rounded-lg ${
                         discrepancy.severity === 'HIGH' ? 'bg-red-100' :
                         discrepancy.severity === 'MEDIUM' ? 'bg-yellow-100' :
-                        'bg-blue-100'
+                        'bg-wujha-primary/10'
                       }`}>
                         <AlertTriangle className={`h-4 w-4 mt-0.5 mr-2 ${
                           discrepancy.severity === 'HIGH' ? 'text-red-600' :
                           discrepancy.severity === 'MEDIUM' ? 'text-yellow-600' :
-                          'text-blue-600'
+                          'text-wujha-primary'
                         }`} />
                         <div>
                           <p className={`text-sm font-medium ${
                             discrepancy.severity === 'HIGH' ? 'text-red-800' :
                             discrepancy.severity === 'MEDIUM' ? 'text-yellow-800' :
-                            'text-blue-800'
+                            'text-wujha-primary'
                           }`}>
                             {discrepancy.type} Issue ({discrepancy.severity})
                           </p>
                           <p className={`text-sm ${
                             discrepancy.severity === 'HIGH' ? 'text-red-700' :
                             discrepancy.severity === 'MEDIUM' ? 'text-yellow-700' :
-                            'text-blue-700'
+                            'text-wujha-primary/80'
                           }`}>
                             {discrepancy.description}
                           </p>

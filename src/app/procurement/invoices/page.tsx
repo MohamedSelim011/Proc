@@ -21,6 +21,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import * as XLSX from 'xlsx';
 
 interface Invoice {
   id: string;
@@ -250,6 +251,92 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      showToast('info', 'Preparing export...');
+      
+      // Build query params with current filters
+      const params = new URLSearchParams({
+        export: 'true',
+        ...(filters.status && { status: filters.status }),
+        ...(filters.paymentStatus && { paymentStatus: filters.paymentStatus }),
+        ...(filters.matchingStatus && { matchingStatus: filters.matchingStatus }),
+        ...(filters.vendorId && { vendorId: filters.vendorId })
+      });
+
+      const response = await fetch(`/api/invoices?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast('error', 'Failed to export invoices');
+        return;
+      }
+
+      // Prepare data for Excel
+      const exportData = data.invoices.map((invoice: Invoice) => {
+        const daysUntilDue = getDaysUntilDue(invoice.dueDate);
+        return {
+          'Invoice Number': invoice.invoiceNumber,
+          'Invoice Date': formatDate(invoice.invoiceDate),
+          'Due Date': formatDate(invoice.dueDate),
+          'Days Until Due': daysUntilDue,
+          'Vendor Name': invoice.vendor.nameEn,
+          'Vendor Email': invoice.vendor.email,
+          'PO Number': invoice.po?.poNumber || 'N/A',
+          'GR Number': invoice.gr?.grNumber || 'N/A',
+          'Status': invoice.status,
+          'Payment Status': invoice.paymentStatus,
+          'Matching Status': invoice.matchingStatus,
+          'Total Amount (OMR)': Number(invoice.totalAmount).toFixed(3),
+          'Tax Amount (OMR)': invoice.taxAmount ? Number(invoice.taxAmount).toFixed(3) : '0.000',
+          'Discount Amount (OMR)': invoice.discountAmount ? Number(invoice.discountAmount).toFixed(3) : '0.000',
+          'Net Amount (OMR)': Number(invoice.netAmount).toFixed(3),
+          'Currency': invoice.currency,
+          'Created At': formatDate(invoice.createdAt),
+          'Updated At': formatDate(invoice.updatedAt)
+        };
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+
+      // Set column widths
+      const colWidths = [
+        { wch: 18 }, // Invoice Number
+        { wch: 12 }, // Invoice Date
+        { wch: 12 }, // Due Date
+        { wch: 15 }, // Days Until Due
+        { wch: 20 }, // Vendor Name
+        { wch: 25 }, // Vendor Email
+        { wch: 15 }, // PO Number
+        { wch: 15 }, // GR Number
+        { wch: 12 }, // Status
+        { wch: 15 }, // Payment Status
+        { wch: 15 }, // Matching Status
+        { wch: 18 }, // Total Amount
+        { wch: 15 }, // Tax Amount
+        { wch: 18 }, // Discount Amount
+        { wch: 18 }, // Net Amount
+        { wch: 10 }, // Currency
+        { wch: 12 }, // Created At
+        { wch: 12 }  // Updated At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Generate filename with timestamp
+      const filename = `Invoices_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      showToast('success', `Exported ${data.total} invoices successfully`);
+    } catch (error) {
+      console.error('Error exporting invoices:', error);
+      showToast('error', 'Failed to export invoices');
+    }
+  };
+
   const calculateTotalsByStatus = () => {
     const totals = {
       draft: { count: 0, amount: 0 },
@@ -438,7 +525,10 @@ export default function InvoicesPage() {
             <h3 className="text-lg font-medium text-gray-900">
               Invoices ({pagination.total})
             </h3>
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button 
+              onClick={handleExport}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>

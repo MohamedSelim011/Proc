@@ -255,26 +255,52 @@ export default function GoodsReceiptView() {
                   <span class="info-label">Received By:</span>
                   <span class="info-value">${receipt.receivedBy}</span>
                 </div>
+                <div class="info-item">
+                  <span class="info-label">Storage Location:</span>
+                  <span class="info-value">${receipt.storageLocation || 'Not specified'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Delivery Note:</span>
+                  <span class="info-value">${receipt.deliveryNote || 'Not specified'}</span>
+                </div>
               </div>
               <div>
                 <div class="info-item">
                   <span class="info-label">PO Number:</span>
-                  <span class="info-value">${receipt.purchaseOrder?.poNumber || 'N/A'}</span>
+                  <span class="info-value">${receipt.po?.poNumber || 'N/A'}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Vendor:</span>
-                  <span class="info-value">${receipt.purchaseOrder?.vendor?.nameEn || 'N/A'}</span>
+                  <span class="info-value">${receipt.po?.vendor?.nameEn || 'N/A'}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Quality Check:</span>
                   <span class="info-value">${receipt.qualityChecked ? 'Checked' : 'Pending'}</span>
                 </div>
+                ${receipt.qualityInspector ? `
                 <div class="info-item">
-                  <span class="info-label">Storage Location:</span>
-                  <span class="info-value">${receipt.storageLocation || 'Not specified'}</span>
+                  <span class="info-label">Quality Inspector:</span>
+                  <span class="info-value">${receipt.qualityInspector}</span>
+                </div>
+                ` : ''}
+                <div class="info-item">
+                  <span class="info-label">Transport Details:</span>
+                  <span class="info-value">${receipt.transportDetails || 'Not specified'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Special Handling:</span>
+                  <span class="info-value">${receipt.specialHandling || 'None'}</span>
                 </div>
               </div>
             </div>
+            ${receipt.qualityComments ? `
+            <div style="margin-top: 15px;">
+              <div class="info-label">Quality Comments:</div>
+              <div style="padding: 10px; background: #f9f9f9; border: 1px solid #ddd; margin-top: 5px;">
+                ${receipt.qualityComments}
+              </div>
+            </div>
+            ` : ''}
           </div>
 
           <div class="info-section">
@@ -346,50 +372,67 @@ export default function GoodsReceiptView() {
   };
 
   const handlePrint = () => {
+    if (!receipt) return;
+    
     // Create a new window for print preview
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      alert('Please allow pop-ups to print this document');
+      return;
+    }
 
     const htmlContent = generateProfessionalDocument();
-    const htmlWithPrintScript = htmlContent.replace(
-      '</body>',
-      `
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
-      </body>`
-    );
-
-    printWindow.document.write(htmlWithPrintScript);
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
     printWindow.document.close();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   const handleExport = () => {
+    if (!receipt) return;
+    
     // Create a new window for PDF export (download)
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      alert('Please allow pop-ups to export this document');
+      return;
+    }
 
     const htmlContent = generateProfessionalDocument();
-    const htmlWithDownloadScript = htmlContent.replace(
-      '</body>',
-      `
-        <script>
-          window.onload = function() {
-            // Trigger print dialog which allows saving as PDF
-            window.print();
-            // Auto-close after a delay to improve UX
-            setTimeout(function() {
-              window.close();
-            }, 1000);
-          };
-        </script>
-      </body>`
-    );
-
-    printWindow.document.write(htmlWithDownloadScript);
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
     printWindow.document.close();
+    
+    // Wait for content to load, then trigger print dialog (user can save as PDF)
+    setTimeout(() => {
+      printWindow.print();
+      // Auto-close after a delay to improve UX
+      setTimeout(() => {
+        printWindow.close();
+      }, 1000);
+    }, 250);
+  };
+
+  const handleGenerateReport = () => {
+    if (!receipt) return;
+    
+    // Generate a comprehensive report with all details
+    const reportContent = generateProfessionalDocument();
+    
+    // Create a blob and download
+    const blob = new Blob([reportContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `GR-Report-${receipt.grNumber}-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusColor = (status: string) => {
@@ -570,32 +613,37 @@ export default function GoodsReceiptView() {
             </div>
 
             {/* Quality Check */}
-            {receipt.qualityChecked && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Quality Check</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm text-gray-500">Quality Inspector</p>
-                    <p className="font-medium text-gray-900">{receipt.qualityInspector || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Quality Status</p>
-                    <div className="mt-1">
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Quality Check</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500">Quality Inspector</p>
+                  <p className="font-medium text-gray-900">{receipt.qualityInspector || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Quality Status</p>
+                  <div className="mt-1">
+                    {receipt.qualityChecked ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Passed
                       </span>
-                    </div>
+                    ) : (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Pending
+                      </span>
+                    )}
                   </div>
                 </div>
-                {receipt.qualityComments && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">Comments</p>
-                    <p className="mt-1 text-gray-900">{receipt.qualityComments}</p>
-                  </div>
-                )}
               </div>
-            )}
+              {receipt.qualityComments && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500">Comments</p>
+                  <p className="mt-1 text-gray-900">{receipt.qualityComments}</p>
+                </div>
+              )}
+            </div>
 
             {/* Items */}
             <div className="bg-white shadow rounded-lg p-6">
@@ -735,7 +783,10 @@ export default function GoodsReceiptView() {
                   <Eye className="h-4 w-4 inline mr-2" />
                   View PO Details
                 </button>
-                <button className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100">
+                <button 
+                  onClick={handleGenerateReport}
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
                   <FileText className="h-4 w-4 inline mr-2" />
                   Generate Report
                 </button>

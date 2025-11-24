@@ -13,7 +13,10 @@ import {
   FileText,
   Users,
   Calendar,
-  DollarSign
+  DollarSign,
+  X,
+  ChevronDown,
+  Search
 } from 'lucide-react';
 
 interface ServiceItem {
@@ -69,11 +72,23 @@ interface ServicePRFormData {
   justification: string;
 }
 
+interface Vendor {
+  id: string;
+  vendorCode: string;
+  nameEn: string;
+  nameAr: string;
+  email: string;
+}
+
 export default function NewServiceRequisition() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [vendorSearchTerm, setVendorSearchTerm] = useState('');
 
   const [formData, setFormData] = useState<ServicePRFormData>({
     serviceCategory: '',
@@ -280,6 +295,7 @@ export default function NewServiceRequisition() {
         safetyRequirements: formData.safetyRequirements,
         paymentSchedule: formData.paymentSchedule,
         retentionPercentage: 10,
+        preferredVendors: formData.preferredVendors,
         items: formData.items.map(item => ({
           quantity: item.quantity,
           estimatedRate: item.estimatedRate,
@@ -315,11 +331,31 @@ export default function NewServiceRequisition() {
     }
   };
 
+  // Fetch vendors on component mount
+  useEffect(() => {
+    fetchVendors();
+  }, []);
+
   // Auto-calculate estimated cost when items change
   useEffect(() => {
     const totalCost = calculateTotalCost();
     setFormData(prev => ({ ...prev, estimatedCost: totalCost }));
   }, [formData.items]);
+
+  const fetchVendors = async () => {
+    try {
+      setLoadingVendors(true);
+      const response = await fetch('/api/vendors?limit=1000');
+      const data = await response.json();
+      if (response.ok && data.vendors) {
+        setVendors(data.vendors);
+      }
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
   return (
     <div className="max-w-8xl mx-auto">
@@ -339,22 +375,22 @@ export default function NewServiceRequisition() {
               <li key={step.id} className="relative flex-1 pt-2">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   {stepIdx < steps.length  && (
-                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
                 <div className="relative flex flex-col items-center">
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-blue-600 border-blue-600 scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-blue-600 bg-white shadow-lg' 
+                        ? 'border-wujha-primary bg-white shadow-lg' 
                         : 'border-gray-300 bg-white hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
                       <span className={`text-sm font-medium ${
-                        step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                        step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                       }`}>
                         {step.id}
                       </span>
@@ -362,7 +398,7 @@ export default function NewServiceRequisition() {
                   </div>
                   <div className="mt-3 text-center">
                     <span className={`text-sm font-medium ${
-                      step.id === currentStep ? 'text-blue-600' : 'text-gray-500'
+                      step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                     }`}>
                       {step.name}
                     </span>
@@ -389,7 +425,7 @@ export default function NewServiceRequisition() {
                   Service Category *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -412,7 +448,7 @@ export default function NewServiceRequisition() {
                   Service Type *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value }))}
                   disabled={!formData.serviceCategory}
@@ -433,7 +469,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.departmentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
                   placeholder="Enter department ID"
@@ -449,7 +485,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.projectId || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                   placeholder="Optional project reference"
@@ -461,7 +497,7 @@ export default function NewServiceRequisition() {
                   Priority *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                 >
@@ -478,7 +514,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.requestor}
                   onChange={(e) => setFormData(prev => ({ ...prev, requestor: e.target.value }))}
                   placeholder="Enter requestor name"
@@ -502,7 +538,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.detailedScope}
                 onChange={(e) => setFormData(prev => ({ ...prev, detailedScope: e.target.value }))}
                 placeholder="Describe the detailed scope of work, requirements, and expectations..."
@@ -518,7 +554,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.technicalSpecifications || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, technicalSpecifications: e.target.value }))}
                 placeholder="Technical requirements, standards, compliance requirements..."
@@ -531,7 +567,7 @@ export default function NewServiceRequisition() {
                 <h4 className="text-md font-medium text-gray-900">Service Items</h4>
                 <button
                   onClick={addServiceItem}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Service Item
@@ -557,7 +593,7 @@ export default function NewServiceRequisition() {
                       </label>
                       <textarea
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                         value={item.description}
                         onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
                         placeholder="Describe the specific service or work to be performed..."
@@ -572,12 +608,12 @@ export default function NewServiceRequisition() {
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
                           onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
                         >
@@ -598,12 +634,12 @@ export default function NewServiceRequisition() {
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.duration}
                           onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.durationUnit}
                           onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
                         >
@@ -624,7 +660,7 @@ export default function NewServiceRequisition() {
                           type="number"
                           step="0.001"
                           min="0"
-                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.estimatedRate}
                           onChange={(e) => updateServiceItem(index, 'estimatedRate', parseFloat(e.target.value) || 0)}
                           placeholder="0.000"
@@ -653,7 +689,7 @@ export default function NewServiceRequisition() {
                   <div className="mt-6">
                     <button
                       onClick={addServiceItem}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Service Item
@@ -696,7 +732,7 @@ export default function NewServiceRequisition() {
                     type="number"
                     step="0.001"
                     min="0"
-                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                     value={formData.estimatedCost}
                     onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.000"
@@ -712,7 +748,7 @@ export default function NewServiceRequisition() {
                   Payment Terms *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -733,30 +769,136 @@ export default function NewServiceRequisition() {
                   Payment Schedule *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentSchedule: e.target.value as any }))}
                 >
                   <option value="LUMPSUM">Lump Sum</option>
                   <option value="MILESTONE">Milestone-based</option>
                   <option value="MONTHLY">Monthly</option>
-                  <option value="TIME_MATERIAL">Time & Material</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Preferred Vendors
                 </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="Enter vendor names (comma-separated)"
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    preferredVendors: e.target.value.split(',').map(v => v.trim()).filter(Boolean)
-                  }))}
-                />
+                
+                {/* Selected Vendors as Tags */}
+                {formData.preferredVendors.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2 p-2 border border-gray-200 rounded-lg bg-gray-50 min-h-[50px]">
+                    {formData.preferredVendors.map((vendorId) => {
+                      const vendor = vendors.find(v => v.id === vendorId);
+                      if (!vendor) return null;
+                      return (
+                        <span
+                          key={vendorId}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-wujha-primary text-white text-sm rounded-full"
+                        >
+                          <span>{vendor.nameEn} ({vendor.vendorCode})</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                preferredVendors: prev.preferredVendors.filter(id => id !== vendorId)
+                              }));
+                            }}
+                            className="ml-1 hover:bg-wujha-primary-hover rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Vendor Dropdown */}
+                <div className="relative" data-vendor-dropdown>
+                  <button
+                    type="button"
+                    onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
+                    disabled={loadingVendors}
+                    className="w-full px-3 py-2 text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary bg-white disabled:bg-gray-100 disabled:cursor-not-allowed flex items-center justify-between"
+                  >
+                    <span className="text-gray-500">
+                      {loadingVendors ? 'Loading vendors...' : 'Select vendors...'}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${vendorDropdownOpen ? 'transform rotate-180' : ''}`} />
+                  </button>
+
+                  {vendorDropdownOpen && !loadingVendors && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                      {/* Search Input */}
+                      <div className="p-2 border-b border-gray-200">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search vendors..."
+                            value={vendorSearchTerm}
+                            onChange={(e) => setVendorSearchTerm(e.target.value)}
+                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Vendor List */}
+                      <div className="overflow-y-auto max-h-48">
+                        {vendors.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-500 text-center">No vendors available</div>
+                        ) : (
+                          vendors
+                            .filter(vendor => 
+                              vendor.nameEn.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                              vendor.vendorCode.toLowerCase().includes(vendorSearchTerm.toLowerCase())
+                            )
+                            .map((vendor) => {
+                              const isSelected = formData.preferredVendors.includes(vendor.id);
+                              return (
+                                <button
+                                  key={vendor.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        preferredVendors: prev.preferredVendors.filter(id => id !== vendor.id)
+                                      }));
+                                    } else {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        preferredVendors: [...prev.preferredVendors, vendor.id]
+                                      }));
+                                    }
+                                  }}
+                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                    isSelected ? 'bg-wujha-primary/10 text-wujha-primary' : 'text-gray-700'
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                                    isSelected ? 'border-wujha-primary bg-wujha-primary' : 'border-gray-300'
+                                  }`}>
+                                    {isSelected && (
+                                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-medium">{vendor.nameEn}</div>
+                                    <div className="text-xs text-gray-500">{vendor.vendorCode}</div>
+                                  </div>
+                                </button>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -774,7 +916,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.budgetCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
                   placeholder="Enter budget code"
@@ -790,7 +932,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.costCenter || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
                   placeholder="Optional cost center"
@@ -803,7 +945,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.requiredByDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, requiredByDate: e.target.value }))}
                 />
@@ -815,7 +957,7 @@ export default function NewServiceRequisition() {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
                   checked={formData.insuranceRequired}
                   onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequired: e.target.checked }))}
                 />
@@ -831,7 +973,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.safetyRequirements || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
                 placeholder="Specify any safety requirements, certifications, or compliance needs..."
@@ -844,7 +986,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.qualityStandards || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                 placeholder="Quality standards, certifications, or performance requirements..."
@@ -857,7 +999,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.justification}
                 onChange={(e) => setFormData(prev => ({ ...prev, justification: e.target.value }))}
                 placeholder="Provide business justification for this service requirement..."
@@ -935,7 +1077,7 @@ export default function NewServiceRequisition() {
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -944,7 +1086,7 @@ export default function NewServiceRequisition() {
           {currentStep < 5 ? (
             <button
               onClick={handleNext}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
             >
               Next
               <ChevronRight className="h-4 w-4 ml-2" />

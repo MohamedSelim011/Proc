@@ -15,15 +15,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify contract exists
+    // Verify contract exists and get payment schedule
     const contract = await prisma.serviceContract.findUnique({
-      where: { id: contractId }
+      where: { id: contractId },
+      include: {
+        pr: {
+          include: {
+            servicePR: true
+          }
+        }
+      }
     });
 
     if (!contract) {
       return NextResponse.json(
         { error: 'Service contract not found' },
         { status: 404 }
+      );
+    }
+
+    // Check payment schedule - milestones can only be created if payment schedule is MILESTONE
+    const paymentSchedule = contract.pr?.servicePR?.paymentSchedule;
+    if (paymentSchedule !== 'MILESTONE') {
+      return NextResponse.json(
+        { error: `Cannot create milestones. Payment schedule is set to ${paymentSchedule}. Milestones can only be created when payment schedule is MILESTONE.` },
+        { status: 400 }
       );
     }
 

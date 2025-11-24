@@ -1,0 +1,397 @@
+id,scenario,role,module,feature,steps,expected,status,comments
+UAT-001,N/A,All Users,Authentication,Login,"1. Navigate to login page
+2. Enter valid email
+3. Enter valid password
+4. Click Login button","1. User authenticated successfully
+2. Redirected to dashboard
+3. JWT token generated and stored
+4. User information displayed correctly",,
+UAT-003,N/A,All Users,Authentication,Role-Based Access,"1. Login with different roles (ADMIN, PMO, PJM, FIN, PROC, ENG, SITE, QAQC, LEGAL, HR, IT, DIR)
+2. Observe navigation menu options
+3. Attempt to access restricted pages","1. Menu items display based on role permissions
+2. Restricted pages show 403 Forbidden
+",,
+UAT-004,1-A,PMO/ADMIN,EPS Management,Create EPS,"1. Go to 'EPS Management'
+2. Click 'Create New EPS'
+3. Fill in data (name, description)
+4. Choose desired level (1-5)
+5. Select parent if applicable (not for Level 1)
+6. Click Create EPS","1. New EPS created successfully
+2. Level 1 EPS has no parent
+3. Other levels linked to chosen parent
+4. EPS appears in EPS list",,
+UAT-005,1-B,PMO/ADMIN,EPS Management,Edit EPS,"1. Go to 'EPS Management'
+2. Find desired EPS
+3. Click edit icon
+4. Update data (name, description, etc.)
+5. Click Save Changes","1. EPS data updated successfully
+2. Success message displayed
+3. Changes reflected in EPS list",,
+UAT-006,1-C,All Users,EPS Management,View EPS Tree,"1. Go to 'EPS Tree View'
+2. View initial tree structure
+3. Expand nodes interactively
+4. Navigate through parent-child relationships","1. Tree-like structure displays parent-child EPS relationships
+2. Nodes expand/collapse correctly
+3. All EPS levels visible in hierarchy",,
+UAT-007,1 (Extended),PMO/ADMIN,EPS Management,Delete EPS,"1. Open EPS Management Page
+2. Select EPS with no children
+3. Click delete icon
+4. Confirm deletion","1. EPS deleted successfully
+2. Removed from EPS list and tree",,
+UAT-008,2-A,PMO/ADMIN,Portfolio Management,Create Portfolio,"1. Go to 'Portfolio Overview'
+2. Click 'Create Portfolio'
+3. Fill in portfolio data (name, description, strategic objectives, tags)
+4. Click Create Portfolio","1. New portfolio created successfully
+2. Portfolio listed in Portfolio Overview
+3. Strategic framework established
+4. Budget capacity defined",,
+UAT-009,2-B,PMO/ADMIN,Portfolio Management,Edit Portfolio,"1. Go to 'Portfolio Overview'
+2. Find desired Portfolio
+3. Click edit icon
+4. Update portfolio data
+5. Click Save Changes","1. Portfolio details updated successfully
+2. Changes reflected in portfolio list
+3. Success message displayed",,
+UAT-010,2-C,PMO/Portfolio Manager,Portfolio Management,Portfolio KPI Dashboard,"1. Go to 'Digital Transformation 2025' details page
+2. View stats panel (projects progress, budget, SPI, CPI, health index)
+3. Select project within portfolio
+4. Click view icon to navigate to project details","1. Dashboard displays real-time KPIs
+2. Project progress, budget, SPI, CPI, health index shown
+3. User navigated to project details page
+4. Real-time data aggregated correctly",,
+UAT-011,2,PMO/ADMIN,Portfolio Management,Delete Portfolio,"1. Go to Portfolio Overview
+2. Select portfolio
+3. Click delete
+4. Confirm deletion",1. Portfolio deleted successfully,,
+UAT-012,3-A,PROC/PJM,Project Scheduler,RFQ Creation,"1. Go to RFQ tab
+2. Click 'Add procurement request'
+3. Fill in data (Type, Description, Estimated cost)
+4. Click Add
+5. Click 'Request RFQ'
+6. Click 'View RFQ Results'","1. RFQ created successfully
+2. RFQs listed and ready for reference
+3. Available for use during WBS planning
+4. RFQ results viewable",,
+UAT-013,3-B,PJM/PMO/ADMIN,Project Scheduler,Create Scheduler,"1. Go to Project Scheduler tab
+2. Click 'Create Scheduler'
+3. Fill basic information (Name, dates, description, priority, estimated budget, notes)
+4. Click Create Scheduler
+5. Configure WBS
+6. Add tasks
+7. Assign team members and resources
+8. Set task dependencies","1. New project simulation created in draft mode
+2. WBS displayed in hierarchy/tree view
+3. Estimated costs shown
+4. Teams assigned
+5. Schedule ready for submission",,
+UAT-014,3 (Extended),FIN/PJM,Project Scheduler,Schedule Approval,"1. Navigate to schedule pending approval
+2. Review schedule information
+3. Approve or reject schedule
+4. Add approval comments","1. Schedule status updated (approved/rejected)
+2. Approval recorded with timestamp
+3. Approved schedules proceed to project",,
+UAT-015,4-A,PMO/PJM/ADMIN,Project Management,Project Creation,"1. Go to Project Management, click 'Create Project'
+2. Fill Basic Information (name, description, type for benchmark comparison)
+3. Fill Structure Information (EPS, Portfolio, Methodology, Department)
+4. Select Project Manager from system users
+5. Fill Governance Information
+6. Upload project-related documents
+7. Review all data
+8. Click Create Project","1. Project created in planning status
+2. Auto-generated project code (PROJ-{timestamp}-{eps_level_id}-{portfolio_id})
+3. Initial WBS structure created (Root + 5 phases)
+4. Project team member assigned (creator as PM)
+5. Initial budget record created",,
+UAT-016,4-B,PJM/PMO/ADMIN,Project Management,Project Setup,"1. Select previously created project
+2. Setup WBS manually or via Excel template
+3. Create project schedule by adding tasks to WBS
+4. Set task dependencies
+5. Add planned budget to WBS and tasks (manually or via Excel)
+6. Add team members and resources
+7. Add risks and mitigation plans
+8. View project plan performance vs benchmarks
+9. Request approvals (Admin, PM, Finance)","1. Project setup completed
+2. WBS structure established
+3. Schedule created with dependencies
+4. Budget allocated
+5. Team assigned
+6. Risks documented
+7. Status changed to 'Pending Approval'
+8. Approval requests sent",,
+UAT-017,4 (Extended),PJM/PMO/ADMIN,Project Management,Edit Project,"1. Go to Project Management
+2. Select project
+3. Click edit
+4. Update project information
+5. Save changes","1. Changes saved successfully
+2. Project data updated",,
+UAT-018,4 (Extended),PMO/ADMIN,Project Management,Archive Project,"1. Select project
+2. Click archive
+3. Confirm archival","1. Project archived successfully
+2. Moved to archived list",,
+UAT-019,5-A,PJM/PMO/ADMIN,Scheduling,Schedule Views,"1. Select previously created project
+2. Go to Schedule tab
+3. Choose desired view (Calendar, Phases, Milestones, Critical Path)
+4. Add tasks (one by one or Excel template)
+5. Update task data","1. Schedule displays in selected view format
+2. Critical path highlighted
+3. Tasks added successfully (manual or Excel)
+4. Task data updates saved",,
+UAT-020,5-B,PJM/PMO/ADMIN,Scheduling,Gantt Chart,"1. Select project
+2. Go to Gantt Chart tab
+3. View project progress table
+4. Go to Gantt Timeline tab
+5. View tasks in Gantt chart
+6. Export chart as Excel spreadsheet","1. Gantt chart displays correctly
+2. Critical path highlighted on Gantt
+3. Progress table shows current status
+4. Excel export successful with data integrity",,
+UAT-021,5 (Extended),PJM/PMO/ADMIN,Scheduling,Task Dependencies,"1. Navigate to scheduler
+2. Select predecessor task
+3. Define dependency type (finish-to-start, etc.)
+4. Set lag time if needed
+5. Create dependency link","1. Task dependency created correctly
+2. Dependency type enforced
+3. Schedule automatically recalculated
+4. Critical path updated",,
+UAT-022,5 (Extended),PJM/PMO/ADMIN,Scheduling,Critical Path Analysis,"1. Navigate to project scheduler
+2. View Gantt chart
+3. Identify critical path
+4. Analyze schedule impacts","1. Critical path highlighted in red
+2. Critical tasks identified correctly",,
+UAT-023,6-A,All Assigned Users,Progress Tracking,Task Update,"1. Select project
+2. Go to Tasks tab
+3. View assigned tasks
+4. Attempt to access task with unfinished predecessor (should be denied)
+5. Access valid task (no predecessor constraints)
+6. Add field data to update progress and budget","1. Project progress updated
+2. Project budget updated
+3. Access denied to tasks with unfinished predecessors
+4. Success message for valid updates",,
+UAT-024,6-B,FIN/PJM/PMO,Progress Tracking,Cost Management & EVM,"1. Select project
+2. Identify budget variances
+3. Go to Budget Tab
+4. View project budget linked to WBS and scheduled tasks","1. Budget automatically linked to WBS
+2. Variance analysis displayed
+3. Financial transparency maintained",,
+UAT-025,6-C,PJM/PMO/ADMIN,Progress Tracking,Risk Management,"1. Select project
+2. Go to Risks tab
+3. View all risks
+4. Select specific risk
+5. Add mitigation plan
+6. Assign mitigation to user","1. All risks displayed
+2. Mitigation plan created
+3. User assigned to mitigation
+4. Risk exposure visualization updated
+5. Risk dashboards show reduced exposure",,
+UAT-026,6-D,PROC,Progress Tracking,Procurement,"1. Select project
+2. Go to Procurement Tab
+3. Add new procurement request
+4. Request RFQ
+5. View results
+6. Award contract","1. Procurement request created
+2. RFQ workflow completed
+3. Contract awarded
+4. Resources added to inventory
+5. Resources available in resource pool",,
+UAT-027,6-E,All Users,Progress Tracking,Timesheets,"1. Click profile icon
+2. Select 'My Timesheets'
+3. Click 'Add new timesheet'
+4. Select user
+5. Select assigned project
+6. Select dates
+7. Add timesheet entries
+8. Submit for approval","1. Timesheet created with DRAFT status
+2. Time entries recorded
+3. Total hours calculated
+4. Timesheet submitted
+5. Status changed to SUBMITTED
+6. Notification sent to supervisor",,
+UAT-029,7-A,HR/PJM/PMO/ADMIN,Resource Management,Resource View,"1. Go to Resources tab
+2. View all available resources with utilization and availability status
+3. Select a resource
+4. View resource assignments, required skills, and performance data","1. All resources displayed with status
+2. Utilization and availability shown
+3. Resource details accessible
+4. Assignment history visible
+5. Performance data displayed",,
+UAT-030,7-B,HR/PMO/ADMIN,Resource Management,Add Resource,"1. Go to Resources tab
+2. Click 'Add new resource'
+3. Select resource type (Labor, Material, Equipment)
+4. Add availability and cost (for Equipment and Labor)
+5. Select amount from inventory (for Material)","1. New resource added successfully
+2. Resource available for project assignment
+3. Resource type properly categorized
+4. Cost and availability recorded",,
+UAT-032,7 (Extended),HR/PMO/ADMIN,Resource Management,Resource Deletion,"1. Go to resources page
+2. Select resource
+3. Click delete
+4. Confirm deletion",1. Resource deleted successfully,,
+UAT-033,8,PJM/PMO,Project Closure,Project Closure,"1. Select completed project
+2. Go to Closure Tab
+3. Schedule final inspection
+4. Create punch list
+5. Resolve punch list items
+6. Upload closure documents
+7. Complete project handover
+8. Obtain closure approvals
+9. Generate final report","1. Final inspection scheduled
+2. Punch list created and resolved
+3. Closure documents uploaded
+4. Project handover completed
+5. Closure approvals obtained
+6. Automated final closure report generated
+7. Stakeholder feedback report provided
+8. Project status updated to 'Closed'",,
+UAT-034,4-B (Extended),PJM/PMO/ADMIN,Project Management,WBS Management,"1. Navigate to project setup
+2. Click 'Create WBS'
+3. Add Level 0 (Root) WBS item
+4. Add Level 1 phase items
+5. Define budget allocations","1. WBS hierarchy created correctly
+2. WBS codes auto-generated
+3. Budget allocations within project budget
+4. Parent-child relationships established
+5. WBS setup flag updated",,
+UAT-035,Extended,PJM/PMO/ADMIN,Project Management,WBS Operations,"1. Add WBS to project
+2. Edit WBS details
+3. Delete WBS (if no dependencies)","1. WBS added/edited/deleted successfully
+2. Hierarchy maintained",,
+UAT-036,4-B (Extended),PMO/PJM/FIN,Project Approval,Approval Workflow,"1. Navigate to project approval page
+2. Select approvers (PMO, PJM, FIN)
+3. Submit approval request
+4. Each approver reviews and approves/rejects
+5. Track approval status","1. Approval requests created
+2. Notifications sent to approvers
+3. All approvals required before project proceeds
+4. Status tracked throughout process
+5. Project status updated upon completion",,
+UAT-037,Extended,FIN,Finance Management,Budget Monitoring,"1. Login as FIN user
+2. Navigate to budget dashboard
+3. Review budget vs actual costs
+4. Analyze variance reports
+5. Check budget alerts","1. Budget performance displayed accurately
+2. Variance calculations correct
+3. Budget alerts triggered for overruns
+4. Trend analysis available
+5. FIN-specific views accessible",,
+UAT-039,6-C (Extended),PJM/PMO/ADMIN,Risk Management,Risk Identification,"1. Navigate to risk management
+2. Click 'Add Risk'
+3. Fill risk details (name, description, category)
+4. Assess probability and impact
+5. Assign risk owner
+6. Define mitigation strategies","1. Risk record created with categorization
+2. Risk score calculated automatically
+3. Risk owner assigned
+4. Mitigation strategies documented
+5. Risk status set to 'identified'",,
+UAT-040,Extended,PJM/PMO/ADMIN,Risk Management,Risk Operations,"1. Add risk to project
+2. Edit risk details
+3. Delete risk","1. Risk operations successful
+2. Risk list updated",,
+UAT-041,3-A (Extended),PROC,Procurement,RFQ Management,"1. Navigate to RFQ management
+2. Generate RFQ from procurement
+3. Send RFQ to vendors
+4. Evaluate vendor responses","1. RFQ generated from procurement request
+2. RFQ sent to vendors
+3. Vendor responses tracked
+4. Evaluation tools functioning
+5. Award recommendations generated",,
+UAT-043,Extended,PROC,Procurement,Vendor Management,"1. Navigate to vendor management
+2. Register new vendor
+3. Update vendor information
+4. Rate vendor performance","1. Vendor registration successful
+2. Vendor database maintained
+3. Performance rating system working
+4. Vendor updates saved",,
+UAT-046,Extended,HR,Human Resources,Resource & Skills Management,"1. Login as HR user
+2. Navigate to resource management
+3. Manage team assignments
+4. Update skills database
+5. Track training requirements","1. HR dashboard shows resource metrics
+2. Team assignments managed
+3. Skills database updated
+4. Training requirements tracked
+5. Skill gap analysis available",,
+UAT-047,Extended,SITE,Site Management,Site Activities,"1. Login as SITE user
+2. Navigate to site dashboard
+3. View assigned site tasks
+4. Update task progress
+5. Report site issues
+6. Manage equipment logs","1. Site-specific tasks displayed
+2. Task progress updates saved
+3. Site issues logged
+4. Equipment usage tracked
+5. Site dashboard shows relevant metrics",,
+UAT-048,Extended,ENG,Engineering,Technical Documentation,"1. Login as ENG user
+2. Navigate to engineering dashboard
+3. View technical tasks
+4. Upload engineering drawings
+5. Update technical specifications","1. Engineering tasks displayed
+2. Technical documents uploaded
+3. Version control maintained
+4. Document approval workflow functioning
+5. Technical progress tracked",,
+UAT-051,Extended,All Users,Dashboard,Dashboard Views,"1. Login to system
+2. View dashboard
+3. Open KPI section
+4. Verify project status display
+5. Check charts and widgets","1. Dashboard loads successfully
+2. Data and charts display without error
+3. All project information visible
+4. KPI cards display correct values
+5. Performance acceptable (< 3 seconds)",,
+UAT-052,Extended,PJM/PMO/ADMIN,Dashboard,Mass Operations,"1. Select project
+2. Perform mass update on tasks
+3. Generate BOM (Bill of Materials)","1. All projects updated successfully
+2. BOM generated successfully",,
+UAT-053,Extended,PJM/PMO/ADMIN,Dashboard,Change Manager,"1. Select project
+2. Go to change manager
+3. Select change manager
+4. Submit changes",1. Manager changed successfully,,
+UAT-054,Extended,All Users,Dashboard,Data Import/Export,"1. Open project page
+2. Click 'Download template'
+3. Fill template with data
+4. Click 'Upload data'
+5. Select projects for bulk export
+6. Click 'Bulk Export'","1. Template download successful
+2. Data upload successful (all data in PDF)
+3. All selected projects archived successfully",,
+UAT-055,Extended,All Users,Dashboard,Filtering and Search,"1. Go to project page
+2. Enter search criteria (name/status)
+3. Click filter
+4. Select archived from project list
+5. Click 'View Archived'","1. Projects filtered as needed
+2. Archived projects display correctly",,
+UAT-056,Extended,All Users,Dynamic Dashboard,View and edit ,"1. Go to Dashboard
+2. Select Dynamic analytics
+3. View live data charts
+4. Click Edit dashboard
+5. Login with provided credentilas","1. View live data 
+2. Edit current charts and add new one as needed",,
+UAT-057,Extended,All Roles,Security,Access Control,"1. Login with each role (FIN, PROC, ENG, SITE, QAQC, LEGAL, HR, IT, DIR)
+2. Attempt to access role-specific features
+3. Try to access restricted functionalities
+4. Verify data access limitations","1. Each role accesses only authorized features
+2. Role-specific menus displayed
+3. Unauthorized access blocked with error messages
+4. Data filtering applied based on role",,
+UAT-058,Extended,All Users,Security,Session Management,"1. Login to system
+2. Remain idle for extended period
+3. Attempt to access protected resource
+4. Login again","1. Session expires after timeout
+2. Expired session redirects to login
+3. New login creates new session
+4. JWT token expiration enforced",,
+UAT-064,Extended,All Users,System,Data Export,"1. Navigate to data views
+2. Select export option
+3. Choose format (CSV, Excel, PDF)
+4. Download exported file","1. Export generates correct format
+2. All data included
+3. File downloads successfully
+4. Data integrity maintained",,
+UAT-065,Extended,All Users,System,Notifications,"1. Perform actions triggering notifications
+2. Check notification center
+3. Mark notifications as read
+4. Configure notification preferences","1. Notifications generated for events
+2. Notifications display in center
+3. Read/unread status tracked
+4. Preferences saved",,

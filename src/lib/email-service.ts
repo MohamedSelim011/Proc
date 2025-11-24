@@ -247,6 +247,229 @@ export async function sendRFQInvitationToVendors(data: {
   return { success, failed, errors };
 }
 
+// Service RFP Email Template
+export function generateServiceRFPInvitationEmail(data: {
+  vendorName: string;
+  rfpNumber: string;
+  title: string;
+  description: string;
+  closingDate: Date;
+  scopeOfWork: string;
+  evaluationCriteria: Array<{ name: string; weight: number }>;
+  termsAndConditions?: string;
+  submissionLink: string;
+}): { html: string; text: string } {
+  const closingDateFormatted = new Date(data.closingDate).toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+          .section { background: white; padding: 20px; margin: 20px 0; border-radius: 6px; border: 1px solid #e5e7eb; }
+          .button { display: inline-block; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+          .button:hover { background: linear-gradient(135deg, #F7931E 0%, #FF6B35 100%); }
+          .deadline { background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; }
+          .criteria { margin: 10px 0; padding: 10px; background: #f3f4f6; border-radius: 4px; }
+          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+          th { background: #f9fafb; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">Request for Proposal Invitation</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">${data.rfpNumber}</p>
+          </div>
+          
+          <div class="content">
+            <p>Dear ${data.vendorName},</p>
+            
+            <p>You are cordially invited to submit a proposal for the following service requirement:</p>
+            
+            <div class="section">
+              <h2 style="color: #FF6B35; margin-top: 0;">${data.title}</h2>
+              <p><strong>Description:</strong><br/>${data.description}</p>
+            </div>
+
+            <div class="section">
+              <h3 style="color: #FF6B35;">Scope of Work</h3>
+              <p style="white-space: pre-wrap;">${data.scopeOfWork}</p>
+            </div>
+
+            <div class="section">
+              <h3 style="color: #FF6B35;">Evaluation Criteria</h3>
+              <p>Your proposal will be evaluated based on the following criteria:</p>
+              ${data.evaluationCriteria.map(criteria => `
+                <div class="criteria">
+                  <strong>${criteria.name}</strong> - ${criteria.weight}%
+                </div>
+              `).join('')}
+            </div>
+
+            ${data.termsAndConditions ? `
+              <div class="section">
+                <h3 style="color: #FF6B35;">Terms & Conditions</h3>
+                <p style="white-space: pre-wrap;">${data.termsAndConditions}</p>
+              </div>
+            ` : ''}
+
+            <div class="deadline">
+              <strong>⏰ Submission Deadline:</strong><br/>
+              ${closingDateFormatted}
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${data.submissionLink}" class="button">Submit Your Proposal</a>
+            </div>
+
+            <p style="margin-top: 30px;"><strong>Important Notes:</strong></p>
+            <ul>
+              <li>Please ensure your proposal addresses all requirements in the scope of work</li>
+              <li>Include detailed pricing breakdown and timeline</li>
+              <li>Provide relevant experience and references</li>
+              <li>Submit all required documentation before the deadline</li>
+              <li>Late submissions will not be accepted</li>
+            </ul>
+
+            <p>If you have any questions or need clarification, please contact our procurement team.</p>
+            
+            <p>We look forward to receiving your proposal.</p>
+            
+            <p style="margin-top: 30px;">
+              Best regards,<br/>
+              <strong>WUJHA Procurement Team</strong>
+            </p>
+          </div>
+
+          <div class="footer">
+            <p>This is an automated message from the WUJHA Procurement System.</p>
+            <p>Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+WUJHA Procurement System
+Request for Proposal Invitation
+${data.rfpNumber}
+
+Dear ${data.vendorName},
+
+You are cordially invited to submit a proposal for the following service requirement:
+
+${data.title}
+
+Description:
+${data.description}
+
+Scope of Work:
+${data.scopeOfWork}
+
+Evaluation Criteria:
+${data.evaluationCriteria.map(criteria => `- ${criteria.name}: ${criteria.weight}%`).join('\n')}
+
+${data.termsAndConditions ? `Terms & Conditions:\n${data.termsAndConditions}\n\n` : ''}
+
+⏰ SUBMISSION DEADLINE: ${closingDateFormatted}
+
+To submit your proposal, please visit:
+${data.submissionLink}
+
+Important Notes:
+- Please ensure your proposal addresses all requirements in the scope of work
+- Include detailed pricing breakdown and timeline
+- Provide relevant experience and references
+- Submit all required documentation before the deadline
+- Late submissions will not be accepted
+
+If you have any questions or need clarification, please contact our procurement team.
+
+We look forward to receiving your proposal.
+
+Best regards,
+WUJHA Procurement Team
+
+---
+This is an automated message from the WUJHA Procurement System.
+Please do not reply to this email.
+  `;
+
+  return { html, text };
+}
+
+// Send Service RFP Invitation to Vendors
+export async function sendServiceRFPInvitationToVendors(data: {
+  rfpId: string;
+  rfpNumber: string;
+  title: string;
+  description: string;
+  closingDate: Date;
+  scopeOfWork: string;
+  evaluationCriteria: Array<{ name: string; weight: number }>;
+  termsAndConditions?: string;
+  vendors: Array<{ email: string; name: string; submissionToken: string }>;
+  baseUrl: string;
+}): Promise<{ success: number; failed: number; errors: string[] }> {
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const vendor of data.vendors) {
+    try {
+      const submissionLink = `${data.baseUrl}/rfp/submit/${data.rfpId}/${vendor.submissionToken}`;
+      
+      const { html, text } = generateServiceRFPInvitationEmail({
+        vendorName: vendor.name,
+        rfpNumber: data.rfpNumber,
+        title: data.title,
+        description: data.description,
+        closingDate: data.closingDate,
+        scopeOfWork: data.scopeOfWork,
+        evaluationCriteria: data.evaluationCriteria,
+        termsAndConditions: data.termsAndConditions,
+        submissionLink,
+      });
+
+      const sent = await sendEmail({
+        to: vendor.email,
+        subject: `Service RFP Invitation: ${data.rfpNumber} - ${data.title}`,
+        html,
+        text,
+      });
+
+      if (sent) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`Failed to send email to ${vendor.email}`);
+      }
+    } catch (error) {
+      failed++;
+      errors.push(`Error sending to ${vendor.email}: ${error}`);
+      console.error(`Error sending RFP invitation to ${vendor.email}:`, error);
+    }
+  }
+
+  return { success, failed, errors };
+}
+
 // Purchase Order Email Template
 export function generatePOEmail(data: {
   vendorName: string;

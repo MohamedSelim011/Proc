@@ -15,9 +15,12 @@ import {
   Trash2,
   Download,
   Settings,
-  DollarSign
+  DollarSign,
+  Users,
+  Eye
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { getUserRole, getUserData } from '@/lib/jwt';
 
 interface ServiceRequisition {
   id: string;
@@ -38,6 +41,9 @@ interface ServiceRequisition {
     technicalSpecifications?: string;
     duration: number;
     durationUnit: string;
+    deliverables?: string[] | any;
+    performanceMetrics?: string[] | any;
+    preferredVendors?: string[] | any;
     items: Array<{
       id: string;
       quantity: string;
@@ -65,7 +71,7 @@ interface ServiceRequisition {
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
-  SUBMITTED: 'bg-blue-100 text-blue-800',
+  SUBMITTED: 'bg-wujha-primary/10 text-wujha-primary',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   CANCELLED: 'bg-gray-100 text-gray-800'
@@ -73,7 +79,7 @@ const statusColors = {
 
 const priorityColors = {
   LOW: 'bg-green-100 text-green-800',
-  NORMAL: 'bg-blue-100 text-blue-800',
+  NORMAL: 'bg-wujha-primary/10 text-wujha-primary',
   HIGH: 'bg-yellow-100 text-yellow-800',
   URGENT: 'bg-red-100 text-red-800'
 };
@@ -85,6 +91,10 @@ export default function ServiceRequisitionDetail() {
   const [sr, setSr] = useState<ServiceRequisition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [preferredVendors, setPreferredVendors] = useState<Array<{ id: string; nameEn: string; vendorCode: string }>>([]);
+  const [hasRFP, setHasRFP] = useState(false);
+  const [rfpId, setRfpId] = useState<string | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -100,6 +110,113 @@ export default function ServiceRequisitionDetail() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleExportPDF = () => {
+    // Create a new window with the requisition details formatted for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Service Requisition ${sr?.prNumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .header { margin-bottom: 30px; }
+            .section { margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Service Requisition: ${sr?.prNumber}</h1>
+            <p><strong>Status:</strong> ${sr?.status}</p>
+            <p><strong>Priority:</strong> ${sr?.priority}</p>
+            <p><strong>Created:</strong> ${sr ? formatDate(sr.createdAt) : ''}</p>
+          </div>
+          <div class="section">
+            <h2>Details</h2>
+            <p><strong>Department:</strong> ${sr?.departmentId}</p>
+            <p><strong>Budget Code:</strong> ${sr?.budgetCode}</p>
+            <p><strong>Requester:</strong> ${sr?.requesterId}</p>
+            <p><strong>Duration:</strong> ${sr?.servicePR?.duration || 0} ${sr?.servicePR?.durationUnit || 'days'}</p>
+          </div>
+          ${sr?.justification ? `<div class="section"><h2>Business Justification</h2><p>${sr.justification}</p></div>` : ''}
+          ${sr?.servicePR?.serviceScope ? `<div class="section"><h2>Scope of Work</h2><p>${sr.servicePR.serviceScope}</p></div>` : ''}
+          <div class="section">
+            <h2>Service Items</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Service Description</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Estimated Rate</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sr?.servicePR?.items?.map(item => `
+                  <tr>
+                    <td>${item.serviceItem?.nameEn || 'N/A'}</td>
+                    <td>${item.serviceItem?.serviceCategory?.nameEn || 'N/A'}</td>
+                    <td>${item.quantity || 0} ${item.serviceItem?.unitOfMeasure || 'units'}</td>
+                    <td>${formatCurrency(parseFloat(item.estimatedRate || 0))}</td>
+                    <td>${formatCurrency((parseFloat(item.quantity || 0) * parseFloat(item.estimatedRate || 0) * (item.duration || 1)))}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="5">No items</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4"><strong>Total Estimated Cost:</strong></td>
+                  <td><strong>${sr ? formatCurrency(parseFloat(sr.estimatedCost)) : 'OMR 0.000'}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const handleEdit = () => {
+    router.push(`/procurement/services/requisitions/${sr?.id}/edit`);
+  };
+
+  const fetchPreferredVendors = async (vendorIds: string[]) => {
+    try {
+      const vendorPromises = vendorIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/vendors/${id}`);
+          if (res.ok) {
+            const vendor = await res.json();
+            return { id: vendor.id, nameEn: vendor.nameEn, vendorCode: vendor.vendorCode };
+          }
+          return null;
+        } catch (err) {
+          console.error(`Error fetching vendor ${id}:`, err);
+          return null;
+        }
+      });
+      const vendors = await Promise.all(vendorPromises);
+      setPreferredVendors(vendors.filter(v => v !== null) as Array<{ id: string; nameEn: string; vendorCode: string }>);
+    } catch (error) {
+      console.error('Error fetching preferred vendors:', error);
+    }
   };
 
   const handleSubmitRequisition = async () => {
@@ -132,7 +249,98 @@ export default function ServiceRequisitionDetail() {
 
   useEffect(() => {
     fetchServiceRequisition();
+    checkRFPExists();
   }, [params.id]);
+
+  const checkRFPExists = async () => {
+    try {
+      // Check if an RFP exists for this service requisition
+      const response = await fetch(`/api/services/rfp?prId=${params.id}`);
+      const data = await response.json();
+      
+      if (response.ok && data.rfps && data.rfps.length > 0) {
+        // Found an RFP for this SR
+        setHasRFP(true);
+        setRfpId(data.rfps[0].id);
+      }
+    } catch (error) {
+      console.error('Error checking RFP:', error);
+    }
+  };
+
+  // Get user role for permission checks - similar to PO detail page
+  useEffect(() => {
+    const updateUserInfo = () => {
+      if (typeof window === 'undefined') return;
+      
+      // Try multiple sources for role
+      let role = '';
+      let user: any = {};
+      
+      // Method 1: From JWT utility
+      const jwtRole = getUserRole();
+      const jwtUser = getUserData();
+      
+      // Method 2: Direct from localStorage
+      const localRole = localStorage.getItem('role');
+      const localUserStr = localStorage.getItem('user');
+      let localUser: any = null;
+      if (localUserStr) {
+        try {
+          localUser = JSON.parse(localUserStr);
+        } catch (e) {
+          console.error('Error parsing user from localStorage:', e);
+        }
+      }
+      
+      // Method 3: Decode from JWT token directly
+      const token = localStorage.getItem('token');
+      let tokenRole = '';
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            tokenRole = payload.role || '';
+          }
+        } catch (e) {
+          console.error('Error decoding token:', e);
+        }
+      }
+      
+      // Priority: JWT util > localStorage role > token decode
+      role = jwtRole || localRole || tokenRole || '';
+      user = jwtUser || localUser || {};
+      
+      console.log('Service Requisition Detail - Role Detection:', {
+        jwtRole,
+        localRole,
+        tokenRole,
+        finalRole: role,
+        jwtUser,
+        localUser,
+        finalUser: user,
+        tokenExists: !!token
+      });
+      
+      setUserRole(role ? role.toUpperCase() : null);
+    };
+
+    // Initial load
+    updateUserInfo();
+
+    // Listen for storage changes (e.g., token updated in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'role' || e.key === 'user') {
+        updateUserInfo();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, []);
 
   // Debug logging
   useEffect(() => {
@@ -142,6 +350,26 @@ export default function ServiceRequisitionDetail() {
       console.log('Items Length:', sr.servicePR?.items?.length);
     }
   }, [sr]);
+
+  // Debug button visibility
+  useEffect(() => {
+    if (sr && userRole) {
+      const statusMatch = sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL';
+      const roleMatch = userRole.toUpperCase() === 'SUPER_ADMIN' || 
+                       userRole.toUpperCase() === 'ADMIN' || 
+                       userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || 
+                       userRole.toUpperCase() === 'APPROVER' || 
+                       userRole.toUpperCase() === 'DEPARTMENT_MANAGER';
+      
+      console.log('Approve Button Visibility Check:', {
+        status: sr.status,
+        statusMatch,
+        userRole,
+        roleMatch,
+        shouldShow: statusMatch && roleMatch
+      });
+    }
+  }, [sr, userRole]);
 
   const fetchServiceRequisition = async () => {
     try {
@@ -153,6 +381,11 @@ export default function ServiceRequisitionDetail() {
       if (response.ok) {
         console.log('Fetched service requisition data:', data);
         setSr(data);
+        
+        // Fetch preferred vendors if they exist
+        if (data.servicePR?.preferredVendors && Array.isArray(data.servicePR.preferredVendors) && data.servicePR.preferredVendors.length > 0) {
+          fetchPreferredVendors(data.servicePR.preferredVendors);
+        }
       } else {
         setError(data.error || 'Failed to fetch service requisition');
       }
@@ -167,7 +400,7 @@ export default function ServiceRequisitionDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wujha-primary"></div>
       </div>
     );
   }
@@ -181,7 +414,7 @@ export default function ServiceRequisitionDetail() {
         <div className="mt-6">
           <button
             onClick={() => router.push('/procurement/services/requisitions')}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Service Requisitions
@@ -205,13 +438,19 @@ export default function ServiceRequisitionDetail() {
           </button>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          <button 
+            onClick={handleExportPDF}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </button>
           {sr.status === 'DRAFT' && (
             <>
-              <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+              <button 
+                onClick={handleEdit}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </button>
@@ -249,15 +488,15 @@ export default function ServiceRequisitionDetail() {
         <div className=" w-full px-6 py-4 bg-gray-50 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Approval Workflow</h3>
           <div className="flex items-center space-x-4">
-            <div className={`flex items-center ${sr.status === 'DRAFT' ? 'text-blue-600' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'DRAFT' ? 'bg-blue-100' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
+            <div className={`flex items-center ${sr.status === 'DRAFT' ? 'text-wujha-primary' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'DRAFT' ? 'bg-wujha-primary/10' : sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
                 <span className="text-sm font-medium">1</span>
               </div>
               <span className="ml-2 text-sm font-medium">Draft</span>
             </div>
             <div className={`w-8 h-1 ${sr.status === 'SUBMITTED' || sr.status === 'APPROVED' ? 'bg-green-200' : 'bg-gray-200'}`}></div>
-            <div className={`flex items-center ${sr.status === 'SUBMITTED' ? 'text-blue-600' : sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'SUBMITTED' ? 'bg-blue-100' : sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
+            <div className={`flex items-center ${sr.status === 'SUBMITTED' ? 'text-wujha-primary' : sr.status === 'APPROVED' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sr.status === 'SUBMITTED' ? 'bg-wujha-primary/10' : sr.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
                 <span className="text-sm font-medium">2</span>
               </div>
               <span className="ml-2 text-sm font-medium">Submitted</span>
@@ -332,6 +571,30 @@ export default function ServiceRequisitionDetail() {
           <div className="px-6 py-4 border-t border-gray-200">
             <dt className="text-sm font-medium text-gray-500 mb-2">Business Justification</dt>
             <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{sr.justification}</dd>
+          </div>
+        )}
+
+        {/* Preferred Vendors */}
+        {sr.servicePR?.preferredVendors && Array.isArray(sr.servicePR.preferredVendors) && sr.servicePR.preferredVendors.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <dt className="text-sm font-medium text-gray-500 mb-2 flex items-center">
+              <Users className="h-4 w-4 mr-2" />
+              Preferred Vendors
+            </dt>
+            <dd className="flex flex-wrap gap-2 mt-2">
+              {preferredVendors.length > 0 ? (
+                preferredVendors.map((vendor) => (
+                  <span
+                    key={vendor.id}
+                    className="inline-flex items-center px-3 py-1 bg-wujha-primary/10 text-wujha-primary text-sm rounded-full border border-wujha-primary/30"
+                  >
+                    {vendor.nameEn} ({vendor.vendorCode})
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-500">Loading vendor information...</span>
+              )}
+            </dd>
           </div>
         )}
       </div>
@@ -429,17 +692,57 @@ export default function ServiceRequisitionDetail() {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Service Requirements</h3>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Scope of Work</h4>
-              <p className="text-sm text-blue-800">
-                Detailed service requirements and deliverables as specified in the service items above.
-              </p>
+            <div className="bg-wujha-primary/10 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-wujha-primary mb-2">Scope of Work</h4>
+              {sr.servicePR?.serviceScope ? (
+                <p className="text-sm text-wujha-primary/80 whitespace-pre-wrap">
+                  {sr.servicePR.serviceScope}
+                </p>
+              ) : (
+                <p className="text-sm text-wujha-primary/80 italic">
+                  No scope of work specified
+                </p>
+              )}
+              {sr.servicePR?.deliverables && sr.servicePR.deliverables.length > 0 && (
+                <div className="mt-3">
+                  <h5 className="text-xs font-medium text-wujha-primary mb-1">Deliverables:</h5>
+                  <ul className="text-xs text-wujha-primary/80 list-disc list-inside space-y-1">
+                    {Array.isArray(sr.servicePR.deliverables) ? (
+                      sr.servicePR.deliverables.map((deliverable: string, index: number) => (
+                        <li key={index}>{deliverable}</li>
+                      ))
+                    ) : (
+                      <li>{String(sr.servicePR.deliverables)}</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="text-sm font-medium text-green-900 mb-2">Performance Metrics</h4>
-              <p className="text-sm text-green-800">
-                Service quality and performance will be measured against agreed KPIs and SLAs.
-              </p>
+              {sr.servicePR?.performanceMetrics && sr.servicePR.performanceMetrics.length > 0 ? (
+                <ul className="text-sm text-green-800 list-disc list-inside space-y-1">
+                  {Array.isArray(sr.servicePR.performanceMetrics) ? (
+                    sr.servicePR.performanceMetrics.map((metric: string, index: number) => (
+                      <li key={index}>{metric}</li>
+                    ))
+                  ) : (
+                    <li>{String(sr.servicePR.performanceMetrics)}</li>
+                  )}
+                </ul>
+              ) : (
+                <p className="text-sm text-green-800 italic">
+                  No performance metrics specified
+                </p>
+              )}
+              {sr.servicePR?.technicalSpecifications && (
+                <div className="mt-3">
+                  <h5 className="text-xs font-medium text-green-900 mb-1">Technical Specifications:</h5>
+                  <p className="text-xs text-green-800 whitespace-pre-wrap">
+                    {sr.servicePR.technicalSpecifications}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -452,12 +755,15 @@ export default function ServiceRequisitionDetail() {
           <div className="flex space-x-3">
             <button
               onClick={handleSubmitRequisition}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Submit for Approval
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <button 
+              onClick={handleEdit}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
               <Edit className="h-4 w-4 mr-2" />
               Edit Requisition
             </button>
@@ -465,7 +771,7 @@ export default function ServiceRequisitionDetail() {
         </div>
       )}
 
-      {sr.status === 'SUBMITTED' && (
+      {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (userRole.toUpperCase() === 'SUPER_ADMIN' || userRole.toUpperCase() === 'ADMIN' || userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || userRole.toUpperCase() === 'APPROVER' || userRole.toUpperCase() === 'DEPARTMENT_MANAGER') && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
           <div className="flex space-x-3">
@@ -491,7 +797,7 @@ export default function ServiceRequisitionDetail() {
           <div className="flex space-x-3">
             <button
               onClick={() => router.push(`/procurement/services/contracts/new?prId=${sr.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
             >
               <FileText className="h-4 w-4 mr-2" />
               Create Service Contract
@@ -501,7 +807,7 @@ export default function ServiceRequisitionDetail() {
               className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               <User className="h-4 w-4 mr-2" />
-              Issue RFP/RFQ
+              Issue RFP
             </button>
           </div>
         </div>

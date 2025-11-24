@@ -117,6 +117,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check payment schedule before creating contract and milestones
+    const pr = await prisma.purchaseRequisition.findUnique({
+      where: { id: prId },
+      include: {
+        servicePR: true
+      }
+    });
+
+    // Validate milestones can only be created if payment schedule is MILESTONE
+    if (milestones && milestones.length > 0) {
+      const paymentSchedule = pr?.servicePR?.paymentSchedule;
+      if (paymentSchedule !== 'MILESTONE') {
+        return NextResponse.json(
+          { error: `Cannot create milestones. Payment schedule is set to ${paymentSchedule}. Milestones can only be created when payment schedule is MILESTONE.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate contract number
     const contractCount = await prisma.serviceContract.count();
     const contractNumber = `SC-${String(contractCount + 1).padStart(6, '0')}`;
@@ -143,7 +162,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Create milestones if provided
+      // Create milestones if provided (already validated above)
       if (milestones && milestones.length > 0) {
         for (let i = 0; i < milestones.length; i++) {
           const milestone = milestones[i];

@@ -454,7 +454,7 @@ export default function ServiceInvoicesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      case 'SUBMITTED': return 'bg-blue-100 text-blue-800';
+      case 'SUBMITTED': return 'bg-wujha-primary/10 text-wujha-primary';
       case 'UNDER_REVIEW': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
@@ -478,7 +478,7 @@ export default function ServiceInvoicesPage() {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
       case 'MATCHED': return 'bg-green-100 text-green-800';
       case 'DISCREPANCY': return 'bg-red-100 text-red-800';
-      case 'APPROVED': return 'bg-blue-100 text-blue-800';
+      case 'APPROVED': return 'bg-wujha-primary/10 text-wujha-primary';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -521,8 +521,8 @@ export default function ServiceInvoicesPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+              <FileText className="h-6 w-6 text-wujha-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Invoices</p>
@@ -790,7 +790,7 @@ export default function ServiceInvoicesPage() {
                       {invoice.status === 'DRAFT' && (
                         <Link
                           href={`/procurement/services/invoices/${invoice.id}/edit`}
-                          className="text-blue-600 hover:text-blue-900 inline-block"
+                          className="text-wujha-primary hover:text-wujha-primary-hover inline-block"
                           title="Edit Invoice"
                         >
                           <Edit className="h-4 w-4" />
