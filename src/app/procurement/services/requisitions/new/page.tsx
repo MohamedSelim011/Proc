@@ -275,16 +275,23 @@ export default function NewServiceRequisition() {
       // Create proper service requisition using service-specific API
       const serviceData = {
         departmentId: formData.departmentId,
+        projectId: formData.projectId,
         requesterId: 'current-user-id', // In real app, get from auth
         priority: formData.priority,
         budgetCode: formData.budgetCode,
+        costCenter: formData.costCenter,
         justification: formData.justification,
+        requestedDeliveryDate: formData.requiredByDate,
         serviceScope: formData.detailedScope,
+        serviceCategory: formData.serviceCategory,
+        serviceType: formData.serviceType,
+        requestor: formData.requestor,
         technicalSpecifications: formData.technicalSpecifications,
+        qualityStandards: formData.qualityStandards,
         duration: formData.items.reduce((max, item) => Math.max(max, item.duration), 0),
         durationUnit: 'DAYS',
-        deliverables: formData.items.flatMap(item => item.deliverables),
-        performanceMetrics: formData.items.flatMap(item => item.performanceMetrics),
+        deliverables: formData.items.flatMap(item => item.deliverables.filter(d => d && d.trim())),
+        performanceMetrics: formData.items.flatMap(item => item.performanceMetrics.filter(m => m && m.trim())),
         slaRequirements: {
           responseTime: '4 hours',
           availability: '99.9%',
@@ -294,8 +301,10 @@ export default function NewServiceRequisition() {
         certificationRequired: true,
         safetyRequirements: formData.safetyRequirements,
         paymentSchedule: formData.paymentSchedule,
+        paymentTerms: formData.paymentTerms,
         retentionPercentage: 10,
         preferredVendors: formData.preferredVendors,
+        milestones: formData.milestones,
         items: formData.items.map(item => ({
           quantity: item.quantity,
           estimatedRate: item.estimatedRate,
@@ -303,8 +312,8 @@ export default function NewServiceRequisition() {
           durationUnit: item.durationUnit,
           unit: item.unit,
           specifications: item.specifications,
-          deliverables: item.deliverables,
-          performanceMetrics: item.performanceMetrics
+          deliverables: item.deliverables.filter(d => d && d.trim()),
+          performanceMetrics: item.performanceMetrics.filter(m => m && m.trim())
         }))
       };
 
@@ -534,14 +543,14 @@ export default function NewServiceRequisition() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Detailed Scope *
+                Scope of Work *
               </label>
               <textarea
                 rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.detailedScope}
                 onChange={(e) => setFormData(prev => ({ ...prev, detailedScope: e.target.value }))}
-                placeholder="Describe the detailed scope of work, requirements, and expectations..."
+                placeholder="Describe the overall scope of work, objectives, requirements, and expectations for this service..."
               />
               {errors.detailedScope && (
                 <p className="mt-1 text-sm text-red-600">{errors.detailedScope}</p>
@@ -589,14 +598,14 @@ export default function NewServiceRequisition() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="lg:col-span-3">
                       <label className="block text-sm font-medium text-gray-700">
-                        Service Description *
+                        Service Item Description *
                       </label>
                       <textarea
                         rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                         value={item.description}
                         onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
-                        placeholder="Describe the specific service or work to be performed..."
+                        placeholder="Describe this specific service item (e.g., 'Installation of HVAC system', 'Monthly maintenance service')..."
                       />
                     </div>
 
@@ -669,7 +678,93 @@ export default function NewServiceRequisition() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between pt-2 border-t border-gray-200">
+                  <div className="lg:col-span-3 mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Deliverables
+                    </label>
+                    <div className="space-y-2">
+                      {item.deliverables.map((deliverable, delIndex) => (
+                        <div key={delIndex} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            value={deliverable}
+                            onChange={(e) => {
+                              const newDeliverables = [...item.deliverables];
+                              newDeliverables[delIndex] = e.target.value;
+                              updateServiceItem(index, 'deliverables', newDeliverables);
+                            }}
+                            placeholder="e.g., Detailed project report, Training materials..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newDeliverables = item.deliverables.filter((_, i) => i !== delIndex);
+                              updateServiceItem(index, 'deliverables', newDeliverables);
+                            }}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateServiceItem(index, 'deliverables', [...item.deliverables, '']);
+                        }}
+                        className="text-sm text-wujha-primary hover:text-wujha-primary-hover flex items-center gap-1"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Deliverable
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Performance Metrics / Technical Specifications
+                    </label>
+                    <div className="space-y-2">
+                      {item.performanceMetrics.map((metric, metIndex) => (
+                        <div key={metIndex} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            value={metric}
+                            onChange={(e) => {
+                              const newMetrics = [...item.performanceMetrics];
+                              newMetrics[metIndex] = e.target.value;
+                              updateServiceItem(index, 'performanceMetrics', newMetrics);
+                            }}
+                            placeholder="e.g., 99.9% uptime, Response time < 2 hours..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMetrics = item.performanceMetrics.filter((_, i) => i !== metIndex);
+                              updateServiceItem(index, 'performanceMetrics', newMetrics);
+                            }}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateServiceItem(index, 'performanceMetrics', [...item.performanceMetrics, '']);
+                        }}
+                        className="text-sm text-wujha-primary hover:text-wujha-primary-hover flex items-center gap-1"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Performance Metric
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-3 mt-4 flex items-center justify-between pt-2 border-t border-gray-200">
                     <span className="text-sm text-gray-500">
                       Item Total: {formatCurrency(item.quantity * item.estimatedRate * item.duration)}
                     </span>

@@ -85,12 +85,19 @@ export async function POST(request: NextRequest) {
     
     const {
       departmentId,
+      projectId,
       requesterId,
       priority,
       budgetCode,
+      costCenter,
       justification,
+      requestedDeliveryDate,
       serviceScope,
+      serviceCategory,
+      serviceType,
+      requestor,
       technicalSpecifications,
+      qualityStandards,
       duration,
       durationUnit,
       deliverables,
@@ -100,8 +107,10 @@ export async function POST(request: NextRequest) {
       certificationRequired,
       safetyRequirements,
       paymentSchedule,
+      paymentTerms,
       retentionPercentage,
       preferredVendors,
+      milestones,
       items
     } = body;
 
@@ -114,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate total estimated cost
     const totalEstimatedCost = items.reduce(
-      (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate) * item.duration),
+      (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate)),
       0
     );
 
@@ -129,11 +138,14 @@ export async function POST(request: NextRequest) {
           prNumber,
           requesterId,
           departmentId,
+          projectId: projectId || null,
           itemType: 'SERVICE',
           priority: priority || 'NORMAL',
           estimatedCost: totalEstimatedCost,
           budgetCode,
-          justification
+          costCenter: costCenter || null,
+          justification,
+          requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null
         }
       });
 
@@ -142,7 +154,11 @@ export async function POST(request: NextRequest) {
         data: {
           prId: pr.id,
           serviceScope,
+          serviceCategory: serviceCategory || null,
+          serviceType: serviceType || null,
+          requestor: requestor || null,
           technicalSpecifications: technicalSpecifications || null,
+          qualityStandards: qualityStandards || null,
           duration: duration || 30,
           durationUnit: durationUnit || 'DAYS',
           deliverables: deliverables && deliverables.length > 0 ? deliverables : [],
@@ -152,8 +168,10 @@ export async function POST(request: NextRequest) {
           certificationRequired: certificationRequired || false,
           safetyRequirements: safetyRequirements || null,
           paymentSchedule: paymentSchedule || 'MILESTONE',
+          paymentTerms: paymentTerms || null,
           retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0,
-          preferredVendors: preferredVendors && preferredVendors.length > 0 ? preferredVendors : null
+          preferredVendors: preferredVendors && preferredVendors.length > 0 ? preferredVendors : null,
+          milestones: milestones || null
         }
       });
 
@@ -172,24 +190,24 @@ export async function POST(request: NextRequest) {
         if (!serviceItem) {
           // Create a new service item based on the form data
           // First, find or create a service category
-          let serviceCategory = await tx.serviceCategory.findFirst({
-            where: { code: 'IT_SERV' } // Default to IT Services for now
+          let serviceCategoryRecord = await tx.serviceCategory.findFirst({
+            where: { nameEn: serviceCategory || 'Custom Services' }
           });
           
-          if (!serviceCategory) {
+          if (!serviceCategoryRecord) {
             // Check if CUSTOM already exists
             const existingCustom = await tx.serviceCategory.findFirst({
               where: { code: 'CUSTOM' }
             });
             
             if (existingCustom) {
-              serviceCategory = existingCustom;
+              serviceCategoryRecord = existingCustom;
             } else {
               // Create CUSTOM category only if it doesn't exist
-              serviceCategory = await tx.serviceCategory.create({
+              serviceCategoryRecord = await tx.serviceCategory.create({
                 data: {
                   code: 'CUSTOM',
-                  nameEn: 'Custom Services',
+                  nameEn: serviceCategory || 'Custom Services',
                   nameAr: 'خدمات مخصصة',
                   description: 'Custom service items created during requisition',
                   requiresInsurance: false,
@@ -207,10 +225,10 @@ export async function POST(request: NextRequest) {
           serviceItem = await tx.serviceItem.create({
             data: {
               serviceCode,
-              nameEn: item.description || 'Custom Service',
+              nameEn: item.description || serviceType || 'Custom Service',
               nameAr: 'خدمة مخصصة',
-              description: item.description || 'Custom service item',
-              serviceCategoryId: serviceCategory.id,
+              description: item.specifications || item.description || 'Custom service item',
+              serviceCategoryId: serviceCategoryRecord.id,
               unitOfMeasure: item.unit || 'Hours',
               standardRate: parseFloat(item.estimatedRate) || 0,
               currency: 'OMR',
@@ -226,11 +244,12 @@ export async function POST(request: NextRequest) {
             serviceItemId: serviceItem.id,
             quantity: parseFloat(item.quantity),
             estimatedRate: parseFloat(item.estimatedRate),
+            unit: item.unit || 'Hours',
             duration: item.duration || 1,
             durationUnit: item.durationUnit || 'DAYS',
-            specifications: item.specifications,
-            deliverables: item.deliverables,
-            performanceMetrics: item.performanceMetrics
+            specifications: item.specifications || null,
+            deliverables: item.deliverables || [],
+            performanceMetrics: item.performanceMetrics || []
           }
         });
       }

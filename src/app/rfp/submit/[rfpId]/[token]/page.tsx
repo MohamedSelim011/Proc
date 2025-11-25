@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { FileText, Upload, Calendar, DollarSign, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ToastProvider, useToast } from '@/components/ui/toast';
 
 interface RFPDetails {
   id: string;
@@ -31,8 +32,17 @@ interface RFPDetails {
 }
 
 export default function SubmitRFPProposalPage() {
+  return (
+    <ToastProvider>
+      <SubmitRFPProposalContent />
+    </ToastProvider>
+  );
+}
+
+function SubmitRFPProposalContent() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [rfpDetails, setRfpDetails] = useState<RFPDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -73,12 +83,12 @@ export default function SubmitRFPProposalPage() {
     e.preventDefault();
 
     if (!rfpDetails?.isOpen) {
-      alert('This RFP is no longer accepting proposals');
+      showToast('error', 'This RFP is no longer accepting proposals');
       return;
     }
 
     if (!formData.totalAmount || !formData.validUntil) {
-      alert('Please fill in all required fields');
+      showToast('error', 'Please fill in all required fields');
       return;
     }
 
@@ -107,11 +117,12 @@ export default function SubmitRFPProposalPage() {
 
       if (response.ok) {
         setSubmitted(true);
+        showToast('success', 'Proposal submitted successfully!');
       } else {
-        alert(result.error || 'Failed to submit proposal');
+        showToast('error', result.error || 'Failed to submit proposal');
       }
     } catch (err) {
-      alert('Failed to submit proposal');
+      showToast('error', 'Failed to submit proposal');
     } finally {
       setSubmitting(false);
     }

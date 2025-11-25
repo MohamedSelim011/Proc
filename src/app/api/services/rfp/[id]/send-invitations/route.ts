@@ -78,14 +78,13 @@ export async function POST(
           // Generate new token
           token = crypto.randomBytes(32).toString('hex');
           
-          // Create response record with token - PENDING status until they submit
+          // Create response record with token - will be SUBMITTED (default) when vendor actually submits
           await prisma.serviceRFPResponse.create({
             data: {
               rfpId: rfp.id,
               vendorId: invitation.vendorId,
               submissionToken: token,
               tokenSentAt: new Date(),
-              status: 'PENDING', // PENDING until vendor actually submits
               tokenUsed: false
             }
           });

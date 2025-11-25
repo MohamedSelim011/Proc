@@ -32,9 +32,25 @@ export async function POST(
       );
     }
 
-    if (rfp.status !== 'EVALUATED') {
+    if (!['PUBLISHED', 'EVALUATED', 'CLOSED'].includes(rfp.status)) {
       return NextResponse.json(
-        { error: 'RFP must be in EVALUATED status to select a winner' },
+        { error: `RFP must be in PUBLISHED, EVALUATED, or CLOSED status to select a winner. Current status: ${rfp.status}` },
+        { status: 400 }
+      );
+    }
+
+    // Verify that the response has been scored
+    const selectedResponse = rfp.responses.find(r => r.id === responseId);
+    if (!selectedResponse) {
+      return NextResponse.json(
+        { error: 'Response not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!selectedResponse.overallScore) {
+      return NextResponse.json(
+        { error: 'Response must be scored before selecting as winner' },
         { status: 400 }
       );
     }
@@ -63,6 +79,7 @@ export async function POST(
     // Create process audit
     await prisma.processAudit.create({
       data: {
+        processType: 'SERVICE_RFP_WINNER_SELECTION',
         documentType: 'SERVICE_RFP',
         documentId: id,
         action: 'WINNER_SELECTED',

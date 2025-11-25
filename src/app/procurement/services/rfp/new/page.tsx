@@ -52,6 +52,8 @@ interface ServiceRFPFormData {
   confidentialityClause: string;
   paymentTerms: string;
   contractDuration: string;
+  contractDurationValue: number;
+  contractDurationUnit: string;
 }
 
 function NewServiceRFPContent() {
@@ -81,7 +83,9 @@ function NewServiceRFPContent() {
     liabilityTerms: '',
     confidentialityClause: '',
     paymentTerms: 'NET_30',
-    contractDuration: ''
+    contractDuration: '',
+    contractDurationValue: 12,
+    contractDurationUnit: 'months'
   });
 
   const steps = [
@@ -180,12 +184,15 @@ function NewServiceRFPContent() {
         setAvailableVendors(vendorsData.vendors || []);
       }
 
-      // Fetch approved service requisitions
-      const prResponse = await fetch('/api/purchase-requisitions?status=APPROVED&itemType=SERVICE,NON_STOCK');
+      // Fetch approved service requisitions using the service-specific API
+      const prResponse = await fetch('/api/services/requisitions?status=APPROVED&limit=1000');
       const prData = await prResponse.json();
       
       if (prResponse.ok) {
-        setServiceRequisitions(prData.purchaseRequisitions || []);
+        setServiceRequisitions(prData.serviceRequisitions || []);
+        console.log('Fetched service requisitions:', prData.serviceRequisitions?.length || 0);
+      } else {
+        console.error('Failed to fetch service requisitions:', prData);
       }
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -239,6 +246,7 @@ function NewServiceRFPContent() {
 
     switch (step) {
       case 1:
+        if (!formData.serviceRequisitionId) newErrors.serviceRequisitionId = 'Service requisition is required';
         if (!formData.title) newErrors.title = 'RFP title is required';
         if (!formData.description) newErrors.description = 'Description is required';
         if (!formData.scopeOfWork) newErrors.scopeOfWork = 'Scope of work is required';
@@ -395,7 +403,7 @@ function NewServiceRFPContent() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Service Requisition {searchParams.get('prId') ? '*' : ''}
+                  Service Requisition *
                 </label>
                 <select
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -408,13 +416,16 @@ function NewServiceRFPContent() {
                   }}
                   disabled={!!searchParams.get('prId')}
                 >
-                  <option value="">Select Service Requisition (Optional)</option>
+                  <option value="">Select Approved Service Requisition</option>
                   {serviceRequisitions.map(pr => (
                     <option key={pr.id} value={pr.id}>
                       {pr.prNumber} - {pr.servicePR?.serviceScope?.substring(0, 50) || pr.departmentId}
                     </option>
                   ))}
                 </select>
+                {errors.serviceRequisitionId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.serviceRequisitionId}</p>
+                )}
                 {searchParams.get('prId') && (
                   <p className="mt-1 text-xs text-gray-500">
                     Linked from Service Requisition
@@ -657,15 +668,15 @@ function NewServiceRFPContent() {
         {/* Step 3: Terms & Conditions */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">Terms & Conditions</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-6">Terms & Conditions</h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Terms *
                 </label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -679,26 +690,52 @@ function NewServiceRFPContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contract Duration
                 </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-                  value={formData.contractDuration}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contractDuration: e.target.value }))}
-                  placeholder="e.g., 12 months, 2 years"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    className="block w-32 rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
+                    value={formData.contractDurationValue}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        contractDurationValue: value,
+                        contractDuration: `${value} ${prev.contractDurationUnit}`
+                      }));
+                    }}
+                    placeholder="12"
+                  />
+                  <select
+                    className="block flex-1 rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
+                    value={formData.contractDurationUnit}
+                    onChange={(e) => {
+                      const unit = e.target.value;
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        contractDurationUnit: unit,
+                        contractDuration: `${prev.contractDurationValue} ${unit}`
+                      }));
+                    }}
+                  >
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                    <option value="years">Years</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Service Level Agreements (SLAs) *
               </label>
               <textarea
-                rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                rows={4}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                 value={formData.serviceLevelAgreements}
                 onChange={(e) => setFormData(prev => ({ ...prev, serviceLevelAgreements: e.target.value }))}
                 placeholder="Define service level requirements, response times, availability, etc."
@@ -709,12 +746,12 @@ function NewServiceRFPContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Insurance Requirements *
               </label>
               <textarea
-                rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                rows={4}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                 value={formData.insuranceRequirements}
                 onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}
                 placeholder="Specify required insurance coverage, amounts, and validity periods"
@@ -725,12 +762,12 @@ function NewServiceRFPContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Penalty Clause
               </label>
               <textarea
-                rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                rows={3}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                 value={formData.penaltyClause}
                 onChange={(e) => setFormData(prev => ({ ...prev, penaltyClause: e.target.value }))}
                 placeholder="Define penalties for non-compliance, delays, or quality issues"
@@ -738,12 +775,12 @@ function NewServiceRFPContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Liability Terms
               </label>
               <textarea
-                rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                rows={3}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                 value={formData.liabilityTerms}
                 onChange={(e) => setFormData(prev => ({ ...prev, liabilityTerms: e.target.value }))}
                 placeholder="Define liability limits and responsibilities"
@@ -751,12 +788,12 @@ function NewServiceRFPContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Confidentiality Clause
               </label>
               <textarea
-                rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                rows={3}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
                 value={formData.confidentialityClause}
                 onChange={(e) => setFormData(prev => ({ ...prev, confidentialityClause: e.target.value }))}
                 placeholder="Define confidentiality and non-disclosure requirements"

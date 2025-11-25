@@ -44,6 +44,19 @@ export async function POST(
     // Parse evaluation criteria to get weights
     const criteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria as string) : [];
     
+    // Map criteria names to database field names
+    const fieldMapping: Record<string, string> = {
+      'technicalcompliance': 'technicalScore',
+      'technical': 'technicalScore',
+      'commercialproposal': 'commercialScore',
+      'commercial': 'commercialScore',
+      'experience&references': 'experienceScore',
+      'experience': 'experienceScore',
+      'resourceavailability': 'deliveryScore',
+      'delivery': 'deliveryScore',
+      'resource': 'deliveryScore'
+    };
+    
     // Calculate overall weighted score
     let overallScore = 0;
     const updateData: any = {
@@ -55,8 +68,11 @@ export async function POST(
       const score = scores[key] || 0;
       const weight = c.weight || 0;
       
-      // Store individual criterion score
-      updateData[`${key}Score`] = score;
+      // Map to actual database field
+      const dbField = fieldMapping[key];
+      if (dbField) {
+        updateData[dbField] = score;
+      }
       
       // Calculate weighted contribution
       overallScore += (score * weight) / 100;
@@ -125,13 +141,28 @@ export async function GET(
     }
 
     // Return responses with scores
+    const fieldMapping: Record<string, string> = {
+      'technicalcompliance': 'technicalScore',
+      'technical': 'technicalScore',
+      'commercialproposal': 'commercialScore',
+      'commercial': 'commercialScore',
+      'experience&references': 'experienceScore',
+      'experience': 'experienceScore',
+      'resourceavailability': 'deliveryScore',
+      'delivery': 'deliveryScore',
+      'resource': 'deliveryScore'
+    };
+    
     const scoredResponses = rfp.responses.map(response => {
       const criteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria as string) : [];
       const scores: any = {};
       
       criteria.forEach((c: any) => {
         const key = c.name.toLowerCase().replace(/\s+/g, '');
-        scores[key] = (response as any)[`${key}Score`] || null;
+        const dbField = fieldMapping[key];
+        if (dbField) {
+          scores[key] = (response as any)[dbField] || null;
+        }
       });
 
       return {

@@ -27,27 +27,42 @@ interface ServiceRequisition {
   prNumber: string;
   itemType: string;
   departmentId: string;
+  projectId?: string;
+  costCenter?: string;
   requesterId: string;
   priority: string;
   status: string;
   estimatedCost: string;
   budgetCode: string;
   justification: string;
+  requestedDeliveryDate?: string;
   createdAt: string;
   updatedAt: string;
   servicePR: {
     id: string;
     serviceScope: string;
+    serviceCategory?: string;
+    serviceType?: string;
+    requestor?: string;
     technicalSpecifications?: string;
+    qualityStandards?: string;
     duration: number;
     durationUnit: string;
     deliverables?: string[] | any;
     performanceMetrics?: string[] | any;
+    safetyRequirements?: string;
+    paymentSchedule?: string;
+    paymentTerms?: string;
+    retentionPercentage?: number;
+    insuranceRequired?: boolean;
+    certificationRequired?: boolean;
     preferredVendors?: string[] | any;
+    milestones?: any;
     items: Array<{
       id: string;
       quantity: string;
       estimatedRate: string;
+      unit?: string;
       duration: number;
       durationUnit: string;
       specifications?: string;
@@ -95,6 +110,7 @@ export default function ServiceRequisitionDetail() {
   const [preferredVendors, setPreferredVendors] = useState<Array<{ id: string; nameEn: string; vendorCode: string }>>([]);
   const [hasRFP, setHasRFP] = useState(false);
   const [rfpId, setRfpId] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -244,6 +260,45 @@ export default function ServiceRequisitionDetail() {
     } catch (error) {
       console.error('Error submitting requisition:', error);
       showToast('error', 'Failed to submit requisition');
+    }
+  };
+
+  const handleApproveRequisition = async () => {
+    if (!sr) return;
+    
+    if (!confirm('Are you sure you want to approve this service requisition?')) {
+      return;
+    }
+
+    try {
+      setApproving(true);
+      
+      const response = await fetch(`/api/services/requisitions/${sr.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'APPROVED',
+          approvedBy: 'current-user-id', // In real app, get from auth
+          approvedAt: new Date().toISOString(),
+          comments: 'Approved'
+        }),
+      });
+
+      if (response.ok) {
+        showToast('success', 'Service requisition approved successfully!');
+        // Refresh the data to show updated status
+        fetchServiceRequisition();
+      } else {
+        const errorData = await response.json();
+        showToast('error', `Failed to approve: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error approving requisition:', error);
+      showToast('error', 'Failed to approve service requisition');
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -534,10 +589,20 @@ export default function ServiceRequisitionDetail() {
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <Settings className="h-4 w-4 mr-2" />
+                Service Category
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {sr.servicePR?.serviceCategory || 'N/A'}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-sm font-medium text-gray-500 flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
                 Service Type
               </dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {sr.itemType === 'SERVICE' ? 'Professional Services' : 'Non-Stock Items'}
+                {sr.servicePR?.serviceType || 'N/A'}
               </dd>
             </div>
 
@@ -549,13 +614,43 @@ export default function ServiceRequisitionDetail() {
               <dd className="mt-1 text-sm text-gray-900">{sr.budgetCode}</dd>
             </div>
 
+            {sr.costCenter && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 flex items-center">
+                  <Building className="h-4 w-4 mr-2" />
+                  Cost Center
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900">{sr.costCenter}</dd>
+              </div>
+            )}
+
+            {sr.projectId && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Project ID
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900">{sr.projectId}</dd>
+              </div>
+            )}
+
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <User className="h-4 w-4 mr-2" />
-                Requester
+                Requester ID
               </dt>
               <dd className="mt-1 text-sm text-gray-900">{sr.requesterId}</dd>
             </div>
+
+            {sr.servicePR?.requestor && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  Requestor Name
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900">{sr.servicePR.requestor}</dd>
+              </div>
+            )}
 
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
@@ -573,6 +668,55 @@ export default function ServiceRequisitionDetail() {
             <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{sr.justification}</dd>
           </div>
         )}
+
+        {/* Technical Specifications */}
+        {sr.servicePR?.technicalSpecifications && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <dt className="text-sm font-medium text-gray-500 mb-2">Technical Specifications</dt>
+            <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md whitespace-pre-wrap">{sr.servicePR.technicalSpecifications}</dd>
+          </div>
+        )}
+
+        {/* Quality Standards */}
+        {sr.servicePR?.qualityStandards && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <dt className="text-sm font-medium text-gray-500 mb-2">Quality Standards</dt>
+            <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md whitespace-pre-wrap">{sr.servicePR.qualityStandards}</dd>
+          </div>
+        )}
+
+        {/* Safety Requirements */}
+        {sr.servicePR?.safetyRequirements && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <dt className="text-sm font-medium text-gray-500 mb-2">Safety Requirements</dt>
+            <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md whitespace-pre-wrap">{sr.servicePR.safetyRequirements}</dd>
+          </div>
+        )}
+
+        {/* Payment Information */}
+        <div className="px-6 py-4 border-t border-gray-200">
+          <dt className="text-sm font-medium text-gray-500 mb-2">Payment Information</dt>
+          <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-md">
+            <div>
+              <span className="text-xs text-gray-500">Payment Schedule:</span>
+              <p className="text-sm text-gray-900">{sr.servicePR?.paymentSchedule || 'N/A'}</p>
+            </div>
+            {sr.servicePR?.paymentTerms && (
+              <div>
+                <span className="text-xs text-gray-500">Payment Terms:</span>
+                <p className="text-sm text-gray-900">{sr.servicePR.paymentTerms}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-xs text-gray-500">Retention:</span>
+              <p className="text-sm text-gray-900">{sr.servicePR?.retentionPercentage || 0}%</p>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500">Insurance Required:</span>
+              <p className="text-sm text-gray-900">{sr.servicePR?.insuranceRequired ? 'Yes' : 'No'}</p>
+            </div>
+          </div>
+        </div>
 
         {/* Preferred Vendors */}
         {sr.servicePR?.preferredVendors && Array.isArray(sr.servicePR.preferredVendors) && sr.servicePR.preferredVendors.length > 0 && (
@@ -776,16 +920,26 @@ export default function ServiceRequisitionDetail() {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
           <div className="flex space-x-3">
             <button
-              onClick={() => router.push(`/procurement/services/requisitions/${sr.id}/approve`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+              onClick={handleApproveRequisition}
+              disabled={approving}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Review & Approve
+              {approving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve
+                </>
+              )}
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
               <AlertCircle className="h-4 w-4 mr-2" />
               Request Changes
-            </button>
+            </button> */}
           </div>
         </div>
       )}
@@ -802,13 +956,13 @@ export default function ServiceRequisitionDetail() {
               <FileText className="h-4 w-4 mr-2" />
               Create Service Contract
             </button>
-            <button
+            {/* <button
               onClick={() => router.push(`/procurement/services/rfp/new?prId=${sr.id}`)}
               className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               <User className="h-4 w-4 mr-2" />
               Issue RFP
-            </button>
+            </button> */}
           </div>
         </div>
       )}

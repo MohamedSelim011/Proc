@@ -186,6 +186,7 @@ export async function POST(
     // Create audit trail
     await prisma.processAudit.create({
       data: {
+        processType: 'SERVICE_RFP_RESPONSE_SUBMISSION',
         documentType: 'SERVICE_RFP_RESPONSE',
         documentId: response.id,
         action: 'PROPOSAL_SUBMITTED',

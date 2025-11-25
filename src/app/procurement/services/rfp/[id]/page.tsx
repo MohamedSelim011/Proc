@@ -103,6 +103,9 @@ export default function ServiceRFPDetailPage() {
   const [selectedResponse, setSelectedResponse] = useState<any>(null);
   const [scoringData, setScoringData] = useState<any>({});
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showWinnerConfirmModal, setShowWinnerConfirmModal] = useState(false);
+  const [pendingWinnerSelection, setPendingWinnerSelection] = useState<{responseId: string; vendorId: string} | null>(null);
+  const [selectingWinner, setSelectingWinner] = useState(false);
 
   useEffect(() => {
     if (params?.id) {
@@ -240,7 +243,15 @@ export default function ServiceRFPDetailPage() {
   };
 
   const handleSelectWinner = async (responseId: string, vendorId: string) => {
-    if (!confirm('Are you sure you want to select this vendor as the winner?')) return;
+    setPendingWinnerSelection({ responseId, vendorId });
+    setShowWinnerConfirmModal(true);
+  };
+
+  const confirmSelectWinner = async () => {
+    if (!pendingWinnerSelection) return;
+    
+    setSelectingWinner(true);
+    const { responseId, vendorId } = pendingWinnerSelection;
 
     try {
       const response = await fetch(`/api/services/rfp/${rfp?.id}/select-winner`, {
@@ -250,19 +261,21 @@ export default function ServiceRFPDetailPage() {
       });
 
       if (response.ok) {
-        showToast('success', 'Winner selected successfully');
+        showToast('success', 'Winner selected successfully! RFP has been awarded.');
+        setShowWinnerConfirmModal(false);
+        setPendingWinnerSelection(null);
+        fetchRFPDetails();
         
-        if (confirm('Would you like to create a Purchase Order for this vendor?')) {
-          router.push(`/procurement/purchase-orders/new?rfpId=${rfp?.id}&vendorId=${vendorId}&prId=${rfp?.pr?.id}`);
-        } else {
-          fetchRFPDetails();
-        }
+        // Show success message with option to create PO
+        showToast('info', 'You can now create a Purchase Order from the Purchase Orders page.');
       } else {
         const data = await response.json();
         showToast('error', data.error || 'Failed to select winner');
       }
     } catch (error) {
       showToast('error', 'Failed to select winner');
+    } finally {
+      setSelectingWinner(false);
     }
   };
 
@@ -776,6 +789,56 @@ export default function ServiceRFPDetailPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Winner Confirmation Modal */}
+      {showWinnerConfirmModal && pendingWinnerSelection && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <Award className="h-6 w-6 text-wujha-primary mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  Select Winner
+                </h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to select this vendor as the winner? This action will mark the RFP as awarded.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowWinnerConfirmModal(false);
+                    setPendingWinnerSelection(null);
+                  }}
+                  disabled={selectingWinner}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSelectWinner}
+                  disabled={selectingWinner}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {selectingWinner ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Selecting...
+                    </>
+                  ) : (
+                    <>
+                      <Award className="h-4 w-4 mr-2" />
+                      Confirm Selection
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

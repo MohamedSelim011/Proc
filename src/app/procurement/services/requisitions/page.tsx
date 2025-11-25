@@ -62,6 +62,7 @@ export default function ServiceRequisitions() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
     search: '',
     status: '',
@@ -151,6 +152,43 @@ export default function ServiceRequisitions() {
     setCurrentPage(1); // Reset to first page when filtering
     // Trigger fetch after filter change
     setTimeout(() => fetchRequisitions(), 100);
+  };
+
+  const handleApprove = async (requisitionId: string) => {
+    if (!confirm('Are you sure you want to approve this service requisition?')) {
+      return;
+    }
+
+    try {
+      setApprovingId(requisitionId);
+      
+      const response = await fetch(`/api/services/requisitions/${requisitionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'APPROVED',
+          approvedBy: 'current-user-id', // In real app, get from auth
+          approvedAt: new Date().toISOString(),
+          comments: 'Approved'
+        }),
+      });
+
+      if (response.ok) {
+        alert('Service requisition approved successfully!');
+        // Refresh the list
+        await fetchRequisitions();
+      } else {
+        const error = await response.json();
+        alert(`Failed to approve: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error approving requisition:', error);
+      alert('Failed to approve service requisition');
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -425,13 +463,18 @@ export default function ServiceRequisitions() {
                         </Link>
                       )}
                       {requisition.status === 'SUBMITTED' && (
-                        <Link
-                          href={`/procurement/services/requisitions/${requisition.id}/approve`}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 hover:text-purple-700 transition-colors duration-200"
-                          title="Review & Approve"
+                        <button
+                          onClick={() => handleApprove(requisition.id)}
+                          disabled={approvingId === requisition.id}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Approve"
                         >
-                          <CheckCircle className="h-4 w-4" />
-                        </Link>
+                          {approvingId === requisition.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                        </button>
                       )}
                     </div>
                   </td>

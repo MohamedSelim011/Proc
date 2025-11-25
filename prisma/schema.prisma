@@ -980,7 +980,11 @@ model ServicePR {
   prId                    String              @unique
   pr                      PurchaseRequisition @relation(fields: [prId], references: [id])
   serviceScope            String
+  serviceCategory         String?             // Service category (e.g., Professional Services)
+  serviceType             String?             // Service type (e.g., Consultancy)
+  requestor               String?             // Requestor name/ID
   technicalSpecifications String?
+  qualityStandards        String?             // Quality standards required
   duration                Int
   durationUnit            String              @default("DAYS")
   deliverables            Json
@@ -990,8 +994,10 @@ model ServicePR {
   certificationRequired   Boolean             @default(false)
   safetyRequirements      String?
   paymentSchedule         String              @default("MILESTONE")
+  paymentTerms            String?             // Payment terms (e.g., NET_30)
   retentionPercentage     Decimal?            @default(0)
-  preferredVendors         Json?               // Array of vendor IDs
+  preferredVendors        Json?               // Array of vendor IDs
+  milestones              Json?               // Project milestones
 
   // Relationships
   items ServicePRItem[]
@@ -1008,6 +1014,7 @@ model ServicePRItem {
   serviceItem        ServiceItem @relation(fields: [serviceItemId], references: [id])
   quantity           Decimal
   estimatedRate      Decimal
+  unit               String?     @default("Hours") // Unit of measure
   duration           Int
   durationUnit       String      @default("DAYS")
   specifications     String?
