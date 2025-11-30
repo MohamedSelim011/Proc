@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -56,10 +56,10 @@ interface PasswordHistory {
 }
 
 export default function UserDetailsPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
   const userId = params.id as string
+  const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string } | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<UserDetails | null>(null)
@@ -71,15 +71,17 @@ export default function UserDetailsPage() {
   const [newPassword, setNewPassword] = useState('')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-        router.push('/')
-      } else {
-        fetchUserDetails()
-      }
+      return
     }
+    if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+      router.push('/')
+      return
+    }
+    setCurrentUser(userData)
+    fetchUserDetails()
   }, [status, session, router, userId])
 
   const fetchUserDetails = async () => {

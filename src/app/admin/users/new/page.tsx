@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,8 +12,8 @@ import { UserPlus, Loader2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function AddUserPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const [user, setUser] = useState<{ id?: string; role?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,14 +31,17 @@ export default function AddUserPage() {
   })
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-        router.push('/')
-      }
+      return
     }
-  }, [status, session, router])
+    if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+      router.push('/')
+      return
+    }
+    setUser(userData)
+  }, [router])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -118,7 +121,7 @@ export default function AddUserPage() {
     }
   }
 
-  if (status === 'loading') {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

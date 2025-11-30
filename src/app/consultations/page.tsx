@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import {
   MessageSquare,
   Send,
@@ -27,8 +27,8 @@ interface Consultation {
 }
 
 export default function ConsultationsPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const [user, setUser] = useState<{ id?: string; role?: string } | null>(null)
   const [consultations, setConsultations] = useState<Consultation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -41,12 +41,14 @@ export default function ConsultationsPage() {
   const [recommendation, setRecommendation] = useState<'APPROVE' | 'REJECT' | 'NEUTRAL'>('NEUTRAL')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      fetchConsultations()
+      return
     }
-  }, [status, router])
+    setUser(userData)
+    fetchConsultations()
+  }, [router])
 
   const fetchConsultations = async () => {
     try {
@@ -106,7 +108,7 @@ export default function ConsultationsPage() {
     }
   }
 
-  if (status === 'loading' || isLoading) {
+  if (!user || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

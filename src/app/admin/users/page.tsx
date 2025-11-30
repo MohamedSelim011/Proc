@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,8 +36,8 @@ interface User {
 }
 
 export default function UsersManagementPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const [user, setUser] = useState<{ id?: string; role?: string } | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,16 +51,18 @@ export default function UsersManagementPage() {
   const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-        router.push('/')
-      } else {
-        fetchUsers()
-      }
+      return
     }
-  }, [status, session, router])
+    if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+      router.push('/')
+      return
+    }
+    setUser(userData)
+    fetchUsers()
+  }, [router])
 
   const fetchUsers = async () => {
     try {
@@ -157,7 +159,7 @@ export default function UsersManagementPage() {
     })
   }
 
-  if (status === 'loading' || loading) {
+  if (!user || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

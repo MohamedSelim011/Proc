@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import {
   CheckCircle,
   XCircle,
@@ -29,8 +29,8 @@ interface PendingApproval {
 }
 
 export default function ApprovalsPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const [user, setUser] = useState<{ id?: string; role?: string } | null>(null)
   const [approvals, setApprovals] = useState<PendingApproval[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -43,12 +43,14 @@ export default function ApprovalsPage() {
   const [comments, setComments] = useState('')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      fetchApprovals()
+      return
     }
-  }, [status, router])
+    setUser(userData)
+    fetchApprovals()
+  }, [router])
 
   const fetchApprovals = async () => {
     try {
@@ -135,7 +137,7 @@ export default function ApprovalsPage() {
     }
   }
 
-  if (status === 'loading' || isLoading) {
+  if (!user || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

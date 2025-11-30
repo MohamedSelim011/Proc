@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -68,8 +68,8 @@ const MODULE_NAMES: { [key: string]: string } = {
 }
 
 export default function PermissionsManagementPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const [user, setUser] = useState<{ id?: string; role?: string } | null>(null)
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>({})
   const [originalRolePermissions, setOriginalRolePermissions] = useState<RolePermissions>({})
@@ -82,16 +82,17 @@ export default function PermissionsManagementPage() {
   const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-        router.push('/')
-      } else {
-        fetchData()
-      }
+      return
     }
-  }, [status, session, router])
+    if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+      router.push('/')
+      return
+    }
+    fetchData()
+  }, [router])
 
   const fetchData = async () => {
     try {
@@ -140,7 +141,7 @@ export default function PermissionsManagementPage() {
   }
 
   const togglePermission = (role: string, permissionCode: string) => {
-    if (session?.user?.role !== 'SUPER_ADMIN') {
+    if (user?.role !== 'SUPER_ADMIN') {
       setError('Only Super Admins can modify permissions')
       return
     }
@@ -171,7 +172,7 @@ export default function PermissionsManagementPage() {
   }
 
   const saveChanges = async () => {
-    if (session?.user?.role !== 'SUPER_ADMIN') {
+    if (user?.role !== 'SUPER_ADMIN') {
       setError('Only Super Admins can save permission changes')
       return
     }
@@ -261,9 +262,9 @@ export default function PermissionsManagementPage() {
       }, {} as { [key: string]: Permission[] })
     : {}
 
-  const isReadOnly = session?.user?.role !== 'SUPER_ADMIN'
+  const isReadOnly = user?.role !== 'SUPER_ADMIN'
 
-  if (status === 'loading' || loading) {
+  if (!user || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

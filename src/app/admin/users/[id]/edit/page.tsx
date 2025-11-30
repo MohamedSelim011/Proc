@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,10 +12,10 @@ import { Edit, Loader2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function EditUserPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
   const userId = params.id as string
+  const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string } | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -35,15 +35,17 @@ export default function EditUserPage() {
   })
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    const userData = getUserData()
+    if (!userData || !userData.id) {
       router.push('/login')
-    } else if (status === 'authenticated') {
-      if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-        router.push('/')
-      } else {
-        fetchUser()
-      }
+      return
     }
+    if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+      router.push('/')
+      return
+    }
+    setCurrentUser(userData)
+    fetchUser()
   }, [status, session, router, userId])
 
   const fetchUser = async () => {
