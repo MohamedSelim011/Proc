@@ -1,21 +1,21 @@
-import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
+import { getUserData } from '@/lib/jwt'
 
 /**
  * Client-side hook to check user permissions
  */
 export function usePermissions() {
-  const { data: session } = useSession()
   const [permissions, setPermissions] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (session?.user?.role) {
+    const user = getUserData()
+    if (user?.role) {
       fetchPermissions()
     } else {
       setIsLoading(false)
     }
-  }, [session?.user?.role])
+  }, [])
 
   const fetchPermissions = async () => {
     try {

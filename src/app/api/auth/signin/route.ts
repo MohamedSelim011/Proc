@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 import * as bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,6 +101,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create JWT token
+    const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production'
     const token = jwt.sign(
       {
         id: user.id,
@@ -112,34 +111,24 @@ export async function POST(request: NextRequest) {
         department: user.department,
         employeeId: user.employeeId,
       },
-      process.env.NEXTAUTH_SECRET || 'your-secret-key',
+      jwtSecret,
       { expiresIn: '8h' }
     );
 
-    // Create response with user data and token
-    const response = NextResponse.json({
+    // Return JSON response with user data and token
+    // Client will handle the redirect
+    return NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role || 'REQUESTOR', // Fallback to REQUESTOR if role is null
+        role: user.role || 'REQUESTOR',
         department: user.department,
         employeeId: user.employeeId,
       },
       token,
       homePath: '/procurement/dashboard',
     });
-
-    // Set JWT token as HTTP-only cookie for middleware verification
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 8, // 8 hours
-      path: '/',
-    });
-
-    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

@@ -1,8 +1,10 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { getUserData } from '@/lib/jwt'
 import {
   Home,
   FileText,
@@ -96,9 +98,15 @@ const navigationItems: NavItem[] = [
 ]
 
 export function AppHeader() {
-  const { data: session } = useSession()
+  const router = useRouter()
   const pathname = usePathname()
   const { hasPermission, hasAnyPermission, isLoading } = usePermissions()
+  const [user, setUser] = useState<{ name?: string; role?: string } | null>(null)
+
+  useEffect(() => {
+    const userData = getUserData()
+    setUser(userData)
+  }, [])
 
   // Filter navigation items based on permissions
   const visibleNavItems = navigationItems.filter((item) => {
@@ -120,7 +128,18 @@ export function AppHeader() {
     return false
   })
 
-  if (!session) {
+  const handleSignOut = () => {
+    // Clear localStorage
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
+    localStorage.removeItem('user')
+    // Clear cookie by setting it to expire
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    // Redirect to login
+    router.push('/login')
+  }
+
+  if (!user) {
     return null
   }
 
@@ -168,12 +187,12 @@ export function AppHeader() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
-                  {session.user?.name}
+                  {user.name}
                 </p>
-                <p className="text-xs text-gray-500">{session.user?.role}</p>
+                <p className="text-xs text-gray-500">{user.role}</p>
               </div>
               <button
-                onClick={() => signOut()}
+                onClick={handleSignOut}
                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Sign out"
               >

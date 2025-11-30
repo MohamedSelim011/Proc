@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, Mail, KeySquare, ArrowRight, Shield } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
@@ -17,15 +17,24 @@ function LoginForm() {
   })
   const [isLoading, setIsLoading] = useState(false)
 
+  // Check if user is already logged in (has token in localStorage)
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      // User already has a token, always redirect to dashboard (ignore callbackUrl)
+      console.log('✅ User already logged in, redirecting to dashboard')
+      router.push('/procurement/dashboard')
+    }
+  }, [router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Use custom signin API route instead of NextAuth
+      // Use custom signin API route
       const response = await apiFetch('/api/auth/signin', {
         method: 'POST',
-        credentials: 'include',
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
@@ -48,51 +57,19 @@ function LoginForm() {
       // Store user data and token in localStorage
       if (data?.token) {
         localStorage.setItem('token', data.token)
-        console.log('✅ Token stored in localStorage')
-      } else {
-        console.warn('⚠️ No token received from API')
       }
 
       if (data?.user) {
-        const role = data.user.role || 'REQUESTOR' // Fallback if role is null
+        const role = data.user.role || 'REQUESTOR'
         localStorage.setItem('role', role)
-        console.log('✅ Role stored in localStorage:', role)
-
-        const userData = {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          role: role,
-          department: data.user.department,
-          employeeId: data.user.employeeId,
-        }
-        localStorage.setItem('user', JSON.stringify(userData))
-        console.log('✅ User data stored in localStorage:', userData)
-      } else {
-        console.warn('⚠️ No user data received from API')
+        localStorage.setItem('user', JSON.stringify(data.user))
       }
 
       showToast('success', `Welcome back, ${data?.user?.name ?? 'User'}!`)
-
-      // Get destination and decode if URL-encoded
-      let destination = searchParams.get('callbackUrl') || data?.homePath || '/procurement/dashboard'
-      // Decode URL if it's encoded
-      try {
-        destination = decodeURIComponent(destination)
-      } catch (e) {
-        // If decoding fails, use as-is
-      }
-
-      console.log('🔄 Redirecting to:', destination)
-      
-      // Set loading to false
       setIsLoading(false)
-      
-      // Small delay to ensure localStorage is set and toast is shown
-      setTimeout(() => {
-        // Use window.location.href for a hard redirect to bypass middleware issues
-        window.location.href = destination
-      }, 500)
+
+      // Simple redirect to dashboard
+      window.location.href = '/procurement/dashboard'
     } catch (err) {
       console.error('❌ Login error:', err)
       showToast('error', err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')

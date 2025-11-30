@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { getUserData } from '@/lib/jwt';
 import {
   LayoutDashboard,
   FileText,
@@ -148,13 +148,18 @@ interface SidebarProps {
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const [user, setUser] = useState<{ role?: string } | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const userData = getUserData();
+    setUser(userData);
+  }, []);
 
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter((item) => {
     if (item.requiredRoles) {
-      return item.requiredRoles.includes(session?.user?.role || '');
+      return item.requiredRoles.includes(user?.role || '');
     }
     return true;
   });
