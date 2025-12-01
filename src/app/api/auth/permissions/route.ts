@@ -1,24 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { getRolePermissionsDetailed, hasPermission } from '@/lib/permissions'
-import { UserRole } from '@prisma/client'
+import { getAuthenticatedUser } from '@/lib/jwt'
+import { prisma } from '@/lib/db'
 
-// GET current user's permissions
+// GET /api/auth/permissions - Get permissions for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const role = session.user.role as UserRole
-    const permissions = await getRolePermissionsDetailed(role)
+    // Get permissions for the user's role
+    const rolePermissions = await prisma.rolePermission.findMany({
+      where: {
+        role: user.role as any,
+        isActive: true,
+      },
+      include: {
+        permission: {
+          where: {
+            isActive: true,
+          },
+        },
+      },
+    })
+
+    const permissions = rolePermissions
+      .filter(rp => rp.permission)
+      .map(rp => ({
+        code: rp.permission.code,
+        name: rp.permission.name,
+        module: rp.permission.module,
+        action: rp.permission.action,
+        conditions: rp.conditions,
+      }))
 
     return NextResponse.json({ permissions })
   } catch (error) {
-    console.error('Error fetching user permissions:', error)
+    console.error('Error fetching permissions:', error)
     return NextResponse.json(
       { error: 'Failed to fetch permissions' },
       { status: 500 }
@@ -26,16 +46,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST check if user has a specific permission
+// POST /api/auth/permissions - Check if user has specific permission
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { permissionCode } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const { permissionCode } = body
 
     if (!permissionCode) {
       return NextResponse.json(
@@ -44,10 +65,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const role = session.user.role as UserRole
-    const allowed = await hasPermission(role, permissionCode)
+    // Check if user's role has this permission
+    const hasPermission = await prisma.rolePermission.findFirst({
+      where: {
+        role: user.role as any,
+        permission: {
+          code: permissionCode,
+          isActive: true,
+        },
+        isActive: true,
+      },
+    })
 
-    return NextResponse.json({ allowed })
+    return NextResponse.json({ hasPermission: !!hasPermission })
   } catch (error) {
     console.error('Error checking permission:', error)
     return NextResponse.json(

@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getAuthenticatedUser } from '@/lib/jwt'
 import { prisma } from '@/lib/db'
-import { getAllPermissions } from '@/lib/permissions'
 
-// GET all permissions
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const permissions = await getAllPermissions()
+    // Get all permissions
+    const permissions = await prisma.permission.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        module: 'asc',
+      },
+    })
 
-    return NextResponse.json({ permissions })
+    return NextResponse.json(permissions)
   } catch (error) {
     console.error('Error fetching permissions:', error)
     return NextResponse.json(

@@ -1,47 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { markNotificationAsRead } from '@/lib/notification-service'
+import { getAuthenticatedUser } from '@/lib/jwt'
 import { prisma } from '@/lib/db'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const notificationId = params.id
+    const { id } = await params
 
-    // Verify notification belongs to user
-    const notification = await prisma.approvalNotification.findUnique({
-      where: { id: notificationId },
+    // Verify the notification belongs to the user
+    const notification = await prisma.approvalNotification.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
     })
 
     if (!notification) {
-      return NextResponse.json(
-        { error: 'Notification not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 })
     }
 
-    if (notification.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden - Not your notification' },
-        { status: 403 }
-      )
-    }
+    // Mark as read
+    await prisma.approvalNotification.update({
+      where: { id },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    })
 
-    await markNotificationAsRead(notificationId)
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: 'Notification marked as read' })
   } catch (error) {
     console.error('Error marking notification as read:', error)
     return NextResponse.json(

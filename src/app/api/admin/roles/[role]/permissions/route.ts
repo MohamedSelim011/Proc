@@ -1,32 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getAuthenticatedUser } from '@/lib/jwt'
 import { prisma } from '@/lib/db'
-import { getRolePermissionsDetailed, clearPermissionCache } from '@/lib/permissions'
-import { UserRole } from '@prisma/client'
 
-// GET permissions for a specific role
+// GET /api/admin/roles/[role]/permissions - Get permissions for a role
 export async function GET(
   request: NextRequest,
-  { params }: { params: { role: string } }
+  { params }: { params: Promise<{ role: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const role = params.role as UserRole
+    const { role } = await params
 
-    const permissions = await getRolePermissionsDetailed(role)
+    const rolePermissions = await prisma.rolePermission.findMany({
+      where: {
+        role: role as any,
+        isActive: true,
+      },
+      include: {
+        permission: true,
+      },
+    })
 
-    return NextResponse.json({ permissions })
+    return NextResponse.json(rolePermissions)
   } catch (error) {
     console.error('Error fetching role permissions:', error)
     return NextResponse.json(
@@ -36,25 +41,26 @@ export async function GET(
   }
 }
 
-// PUT update permissions for a specific role
+// PUT /api/admin/roles/[role]/permissions - Update permissions for a role
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { role: string } }
+  { params }: { params: Promise<{ role: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only super admin can modify permissions
-    if (session.user.role !== 'SUPER_ADMIN') {
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const role = params.role as UserRole
-    const { permissionIds } = await request.json()
+    const { role } = await params
+    const body = await request.json().catch(() => ({}))
+    const { permissionIds } = body
 
     if (!Array.isArray(permissionIds)) {
       return NextResponse.json(
@@ -63,44 +69,40 @@ export async function PUT(
       )
     }
 
-    // Delete existing role permissions
-    await prisma.rolePermission.deleteMany({
-      where: { role },
-    })
-
-    // Create new role permissions
-    await prisma.rolePermission.createMany({
-      data: permissionIds.map((permissionId: string) => ({
-        role,
-        permissionId,
-      })),
-      skipDuplicates: true,
-    })
-
-    // Clear permission cache
-    clearPermissionCache()
-
-    // Log the action
-    await prisma.auditLog.create({
+    // Deactivate all existing permissions for this role
+    await prisma.rolePermission.updateMany({
+      where: {
+        role: role as any,
+      },
       data: {
-        userId: session.user.id,
-        action: 'ROLE_PERMISSIONS_UPDATED',
-        module: 'permission_management',
-        resourceType: 'RolePermission',
-        resourceId: role,
-        newValue: {
-          role,
-          permissionCount: permissionIds.length,
-        },
+        isActive: false,
       },
     })
 
-    const updatedPermissions = await getRolePermissionsDetailed(role)
+    // Create new role permissions
+    if (permissionIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permissionIds.map((permissionId: string) => ({
+          role: role as any,
+          permissionId,
+          isActive: true,
+        })),
+        skipDuplicates: true,
+      })
+    }
 
-    return NextResponse.json({
-      success: true,
-      permissions: updatedPermissions,
+    // Get updated permissions
+    const updatedPermissions = await prisma.rolePermission.findMany({
+      where: {
+        role: role as any,
+        isActive: true,
+      },
+      include: {
+        permission: true,
+      },
     })
+
+    return NextResponse.json(updatedPermissions)
   } catch (error) {
     console.error('Error updating role permissions:', error)
     return NextResponse.json(

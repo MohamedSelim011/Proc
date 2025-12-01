@@ -49,6 +49,7 @@ const navigation: NavigationItem[] = [
           { name: 'Dashboard', href: '/procurement/dashboard', icon: LayoutDashboard },
           { name: 'Dynamic Dashboard', href: '/procurement/dynamic-dashboard', icon: BarChart3 },
           { name: 'Reports', href: '/procurement/reports', icon: BarChart3 },
+          { name: 'Dynamic Reports', href: '/procurement/dynamic-reports', icon: BarChart3 },
         ],
         expandable: true // Mark as expandable
       },

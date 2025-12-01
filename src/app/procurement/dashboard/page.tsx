@@ -13,8 +13,7 @@ import {
   Users,
   FileText,
   ShoppingCart,
-  BarChart3,
-  Settings
+  BarChart3
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -583,24 +582,6 @@ export default function ProcurementDashboard() {
               </div>
             </button>
 
-            <button className="relative group bg-gray-50 p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-wujha-primary rounded-lg hover:bg-gray-100">
-              <div>
-                <span className="rounded-lg inline-flex p-3 bg-rose-50 text-rose-700 ring-4 ring-white">
-                  <Settings className="h-6 w-6" />
-                </span>
-              </div>
-              <div className="mt-8">
-                <h3 className="text-lg font-medium">
-                  <a href="/procurement/settings" className="focus:outline-none">
-                    <span className="absolute inset-0" aria-hidden="true" />
-                    Settings
-                  </a>
-                </h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  System configuration
-                </p>
-              </div>
-            </button>
           </div>
         </div>
       </div>

@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { getUnreadNotificationCount } from '@/lib/notification-service'
+import { getAuthenticatedUser } from '@/lib/jwt'
+import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const count = await getUnreadNotificationCount(session.user.id)
+    const unreadCount = await prisma.approvalNotification.count({
+      where: {
+        userId: user.id,
+        isRead: false,
+      },
+    })
 
-    return NextResponse.json({ count })
+    return NextResponse.json({ count: unreadCount })
   } catch (error) {
-    console.error('Error fetching unread count:', error)
+    console.error('Error fetching unread notification count:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch notification count' },
+      { error: 'Failed to fetch unread notification count' },
       { status: 500 }
     )
   }

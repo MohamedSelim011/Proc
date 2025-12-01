@@ -93,16 +93,19 @@ export default function ServiceAnalyticsPage() {
         invoicesResponse.json()
       ]);
 
-      if (contractsResponse.ok && invoicesResponse.ok) {
-        const contracts = contractsData.purchaseOrders || [];
-        const invoices = invoicesData.invoices || [];
-        
-        // Generate comprehensive analytics
-        const analyticsData = generateServiceAnalytics(contracts, invoices);
-        setAnalytics(analyticsData);
-      }
+      // Gracefully handle non-200 responses and missing fields
+      const contracts = (contractsData.purchaseOrders || contractsData.orders || []) as any[];
+      const invoices = (invoicesData.invoices || []) as any[];
+
+      // Generate analytics even if arrays are empty – this will produce zeroed metrics
+      const analyticsData = generateServiceAnalytics(contracts, invoices);
+      setAnalytics(analyticsData);
     } catch (error) {
       console.error('Error fetching service analytics:', error);
+      // On error, show an empty analytics state instead of infinite loading
+      setAnalytics(
+        generateServiceAnalytics([], [])
+      );
     } finally {
       setLoading(false);
     }
@@ -334,10 +337,18 @@ export default function ServiceAnalyticsPage() {
     document.body.removeChild(link);
   };
 
-  if (loading || !analytics) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    );
+  }
+
+  if (!analytics) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-500">Unable to load service analytics at the moment.</p>
       </div>
     );
   }

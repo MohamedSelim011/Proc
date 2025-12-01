@@ -1,86 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getAuthenticatedUser } from '@/lib/jwt'
 import { prisma } from '@/lib/db'
-import { hasPermission, PERMISSIONS } from '@/lib/permissions'
-import { UserRole } from '@prisma/client'
 
-// GET user by ID
+// GET /api/admin/users/[id] - Get user by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permission
-    const hasAccess = await hasPermission(
-      session.user.role as UserRole,
-      PERMISSIONS.USERS_READ
-    )
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: params.id },
+    const { id } = await params
+
+    const foundUser = await prisma.user.findUnique({
+      where: { id },
       select: {
         id: true,
         email: true,
         name: true,
-        employeeId: true,
-        department: true,
         role: true,
-        mobile: true,
-        approvalLimit: true,
+        department: true,
+        employeeId: true,
         isActive: true,
-        mustChangePassword: true,
-        lastLoginAt: true,
-        lastLoginIP: true,
-        failedLoginAttempts: true,
-        passwordChangedAt: true,
         createdAt: true,
-        updatedAt: true,
+        lastLoginAt: true,
       },
     })
 
-    if (!user) {
+    if (!foundUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Get audit logs for this user
-    const auditLogs = await prisma.auditLog.findMany({
-      where: {
-        OR: [
-          { userId: params.id }, // Actions by this user
-          { resourceId: params.id, resourceType: 'User' }, // Actions on this user
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    })
-
-    // Get password history
-    const passwordHistory = await prisma.passwordHistory.findMany({
-      where: { userId: params.id },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        createdAt: true,
-      },
-    })
-
-    return NextResponse.json({
-      user,
-      auditLogs,
-      passwordHistory,
-    })
+    return NextResponse.json(foundUser)
   } catch (error) {
     console.error('Error fetching user:', error)
     return NextResponse.json(
@@ -90,106 +50,51 @@ export async function GET(
   }
 }
 
-// PUT update user
+// PUT /api/admin/users/[id] - Update user
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permission
-    const hasAccess = await hasPermission(
-      session.user.role as UserRole,
-      PERMISSIONS.USERS_UPDATE
-    )
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const body = await request.json()
-    const {
-      name,
-      employeeId,
-      department,
-      role,
-      mobile,
-      approvalLimit,
-      isActive,
-      mustChangePassword,
-    } = body
+    const { id } = await params
+    const body = await request.json().catch(() => ({}))
+    const { email, name, role, department, employeeId, isActive } = body
 
-    // Get old user data for audit log
-    const oldUser = await prisma.user.findUnique({
-      where: { id: params.id },
-    })
-
-    if (!oldUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Update user
-    const user = await prisma.user.update({
-      where: { id: params.id },
+    const updatedUser = await prisma.user.update({
+      where: { id },
       data: {
-        name: name || oldUser.name,
-        employeeId: employeeId || oldUser.employeeId,
-        department: department || oldUser.department,
-        role: role || oldUser.role,
-        mobile: mobile !== undefined ? mobile : oldUser.mobile,
-        approvalLimit:
-          approvalLimit !== undefined
-            ? approvalLimit
-              ? parseFloat(approvalLimit)
-              : null
-            : oldUser.approvalLimit,
-        isActive: isActive !== undefined ? isActive : oldUser.isActive,
-        mustChangePassword:
-          mustChangePassword !== undefined
-            ? mustChangePassword
-            : oldUser.mustChangePassword,
+        ...(email && { email }),
+        ...(name && { name }),
+        ...(role && { role: role as any }),
+        ...(department !== undefined && { department }),
+        ...(employeeId !== undefined && { employeeId }),
+        ...(isActive !== undefined && { isActive }),
       },
       select: {
         id: true,
         email: true,
         name: true,
-        employeeId: true,
-        department: true,
         role: true,
+        department: true,
+        employeeId: true,
         isActive: true,
         createdAt: true,
+        lastLoginAt: true,
       },
     })
 
-    // Log the action
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: 'USER_UPDATED',
-        module: 'user_management',
-        resourceType: 'User',
-        resourceId: user.id,
-        oldValue: {
-          name: oldUser.name,
-          role: oldUser.role,
-          department: oldUser.department,
-          isActive: oldUser.isActive,
-        },
-        newValue: {
-          name: user.name,
-          role: user.role,
-          department: user.department,
-          isActive: user.isActive,
-        },
-      },
-    })
-
-    return NextResponse.json({ user })
+    return NextResponse.json(updatedUser)
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json(
@@ -199,64 +104,34 @@ export async function PUT(
   }
 }
 
-// DELETE user (soft delete)
+// DELETE /api/admin/users/[id] - Delete user (soft delete by setting isActive to false)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permission
-    const hasAccess = await hasPermission(
-      session.user.role as UserRole,
-      PERMISSIONS.USERS_DELETE
-    )
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
+    // Only admins can access this
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Prevent deleting yourself
-    if (params.id === session.user.id) {
-      return NextResponse.json(
-        { error: 'Cannot delete your own account' },
-        { status: 400 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: params.id },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    const { id } = await params
 
     // Soft delete by setting isActive to false
     await prisma.user.update({
-      where: { id: params.id },
-      data: { isActive: false },
-    })
-
-    // Log the action
-    await prisma.auditLog.create({
+      where: { id },
       data: {
-        userId: session.user.id,
-        action: 'USER_DEACTIVATED',
-        module: 'user_management',
-        resourceType: 'User',
-        resourceId: params.id,
-        oldValue: { isActive: true },
-        newValue: { isActive: false },
+        isActive: false,
       },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: 'User deactivated successfully' })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json(

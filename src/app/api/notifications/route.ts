@@ -1,30 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { getUserNotifications, markAllNotificationsAsRead } from '@/lib/notification-service'
+import { getAuthenticatedUser } from '@/lib/jwt'
+import { prisma } from '@/lib/db'
 
+// GET /api/notifications - Get all notifications for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const notifications = await prisma.approvalNotification.findMany({
+      where: {
+        userId: user.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 50, // Limit to 50 most recent
+    })
 
-    const notifications = await getUserNotifications(
-      session.user.id,
-      limit,
-      offset
-    )
-
-    return NextResponse.json({ notifications })
+    return NextResponse.json(notifications)
   } catch (error) {
     console.error('Error fetching notifications:', error)
     return NextResponse.json(
@@ -34,25 +31,38 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// PATCH /api/notifications - Mark all notifications as read
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const user = getAuthenticatedUser(request)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Mark all notifications as read
-    await markAllNotificationsAsRead(session.user.id)
+    const body = await request.json().catch(() => ({}))
+    const { markAllAsRead } = body
 
-    return NextResponse.json({ success: true })
+    if (markAllAsRead) {
+      await prisma.approvalNotification.updateMany({
+        where: {
+          userId: user.id,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      })
+
+      return NextResponse.json({ success: true, message: 'All notifications marked as read' })
+    }
+
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   } catch (error) {
     console.error('Error marking notifications as read:', error)
     return NextResponse.json(
-      { error: 'Failed to mark notifications as read' },
+      { error: 'Failed to update notifications' },
       { status: 500 }
     )
   }

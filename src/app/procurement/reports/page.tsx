@@ -44,6 +44,12 @@ interface ReportMetrics {
   };
 }
 
+// Advanced reporting engine URL (Jasper / external engine)
+// Prefer a NEXT_PUBLIC_ env var, but fall back to the known Railway URL.
+const REPORTING_ENGINE_URL =
+  process.env.NEXT_PUBLIC_REPORTING_ENGINE_URL ||
+  'https://reporting-engine-production-a330.up.railway.app';
+
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
@@ -369,26 +375,28 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h1>
+          <p className="mt-2 text-sm text-gray-600">
             Procurement performance metrics and detailed reports
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-2">
           <button
             onClick={handleExportAll}
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover"
           >
             <Download className="h-4 w-4 mr-2" />
             Export Reports
           </button>
-          <a
-            href="/procurement/services/analytics"
-            className="inline-flex items-center justify-center rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
+          {/* <a
+            href={REPORTING_ENGINE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-md border border-wujha-primary bg-white px-3 py-2 text-sm font-semibold text-wujha-primary shadow-sm hover:bg-wujha-primary/5"
           >
-            <Database className="h-4 w-4 mr-2" />
+            <Database className="h-4 w-4 mr-2 text-wujha-primary" />
             Advanced Reports
-          </a>
+          </a> */}
         </div>
       </div>
 
@@ -403,7 +411,7 @@ export default function ReportsPage() {
             <div className="flex items-center space-x-2">
               <input
                 type="date"
-                className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+                className="block rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary sm:text-sm text-gray-900"
                 value={dateRange.startDate}
                 onChange={(e) => {
                   setDateRange(prev => ({ ...prev, startDate: e.target.value }));
@@ -413,7 +421,7 @@ export default function ReportsPage() {
               <span className="text-gray-500">to</span>
               <input
                 type="date"
-                className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+                className="block rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary sm:text-sm text-gray-900"
                 value={dateRange.endDate}
                 onChange={(e) => {
                   setDateRange(prev => ({ ...prev, endDate: e.target.value }));
@@ -424,7 +432,7 @@ export default function ReportsPage() {
             <button
               onClick={fetchMetrics}
               disabled={loading}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-3 py-2 border border-wujha-primary shadow-sm text-sm font-medium rounded-md text-wujha-primary bg-white hover:bg-wujha-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Filter className="h-4 w-4 mr-2" />
               {loading ? 'Applying...' : 'Apply Filter'}
@@ -433,7 +441,7 @@ export default function ReportsPage() {
 
           {filterApplied && !loading && (
             <div className="flex items-center space-x-2 text-sm">
-              <div className="flex items-center text-green-600">
+              <div className="flex items-center text-wujha-primary">
                 <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
@@ -453,8 +461,8 @@ export default function ReportsPage() {
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <FileText className="h-6 w-6 text-blue-400" />
+              <div className="flex-shrink-0 rounded-md bg-wujha-primary/10 p-2">
+                <FileText className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -472,8 +480,8 @@ export default function ReportsPage() {
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Package className="h-6 w-6 text-green-400" />
+              <div className="flex-shrink-0 rounded-md bg-wujha-primary/10 p-2">
+                <Package className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -491,8 +499,8 @@ export default function ReportsPage() {
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <DollarSign className="h-6 w-6 text-yellow-400" />
+              <div className="flex-shrink-0 rounded-md bg-wujha-primary/10 p-2">
+                <DollarSign className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -512,8 +520,8 @@ export default function ReportsPage() {
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-6 w-6 text-purple-400" />
+              <div className="flex-shrink-0 rounded-md bg-wujha-primary/10 p-2">
+                <Users className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -535,42 +543,42 @@ export default function ReportsPage() {
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <BarChart3 className="h-5 w-5 mr-2" />
+              <BarChart3 className="h-5 w-5 mr-2 text-wujha-primary" />
               Procurement Reports
             </h3>
           </div>
           <div className="p-6 space-y-4">
             <button
               onClick={() => handleExportReport('pr-analysis')}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Purchase Requisition Analysis</h4>
                 <p className="text-sm text-gray-500">Detailed PR metrics and trends</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
             <button
               onClick={() => handleExportReport('po-summary')}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Purchase Order Summary</h4>
                 <p className="text-sm text-gray-500">PO status and delivery performance</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
             <button
               onClick={() => handleExportReport('spend-analysis')}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Spend Analysis</h4>
                 <p className="text-sm text-gray-500">Category-wise spending breakdown</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
           </div>
         </div>
@@ -579,39 +587,39 @@ export default function ReportsPage() {
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Users className="h-5 w-5 mr-2" />
+              <Users className="h-5 w-5 mr-2 text-wujha-primary" />
               Vendor Reports
             </h3>
           </div>
           <div className="p-6 space-y-4">
             <button
               onClick={() => handleExportReport('vendor-performance')}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Vendor Performance</h4>
                 <p className="text-sm text-gray-500">Delivery and quality metrics</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
             <button
               onClick={() => handleExportReport('spend-analysis')}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Vendor Spend Analysis</h4>
                 <p className="text-sm text-gray-500">Top vendors by spend volume</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50 opacity-50">
+            <div className="flex items-center justify-between p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 opacity-70">
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Vendor Compliance</h4>
                 <p className="text-sm text-gray-500">Not yet available</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-gray-300" />
             </div>
           </div>
         </div>
@@ -621,7 +629,7 @@ export default function ReportsPage() {
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 flex items-center">
-            <DollarSign className="h-5 w-5 mr-2" />
+            <DollarSign className="h-5 w-5 mr-2 text-wujha-primary" />
             Financial Reports
           </h3>
         </div>
@@ -629,44 +637,44 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={() => handleExportReport('invoice-processing')}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Invoice Processing</h4>
                 <p className="text-sm text-gray-500">Invoice status and aging</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
             <button
               onClick={() => handleExportReport('spend-analysis')}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-wujha-primary/5"
             >
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Payment Analysis</h4>
                 <p className="text-sm text-gray-500">Payment trends and methods</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-wujha-primary" />
             </button>
 
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50 opacity-50">
+            <div className="flex items-center justify-between p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 opacity-70">
               <div className="text-left">
                 <h4 className="text-sm font-medium text-gray-900">Budget vs Actual</h4>
                 <p className="text-sm text-gray-500">Not yet available</p>
               </div>
-              <Download className="h-4 w-4 text-gray-400" />
+              <Download className="h-4 w-4 text-gray-300" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Coming Soon Notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-wujha-primary/5 border border-wujha-primary/30 rounded-lg p-6">
         <div className="flex items-start">
-          <BarChart3 className="h-6 w-6 text-blue-600 mr-3 mt-0.5" />
+          <BarChart3 className="h-6 w-6 text-wujha-primary mr-3 mt-0.5" />
           <div>
-            <h3 className="text-lg font-medium text-blue-900">Advanced Analytics Coming Soon</h3>
-            <p className="mt-2 text-sm text-blue-700">
+            <h3 className="text-lg font-medium text-wujha-primary">Advanced Analytics Coming Soon</h3>
+            <p className="mt-2 text-sm text-wujha-primary">
               Interactive dashboards, predictive analytics, and custom report builder will be available in the next release.
             </p>
           </div>
