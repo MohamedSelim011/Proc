@@ -34,7 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.541.0",
     "multer": "^2.0.2",
-    "next": "15.5.0",
+    "next": "15.5.9",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.10",
     "prisma": "^6.14.0",
@@ -57,7 +57,7 @@
     "@types/react-dom": "^19",
     "@types/xlsx": "^0.0.35",
     "eslint": "^9",
-    "eslint-config-next": "15.5.0",
+    "eslint-config-next": "15.5.9",
     "tailwindcss": "^4",
     "tsx": "^4.20.4",
     "typescript": "^5"
