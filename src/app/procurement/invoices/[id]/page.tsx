@@ -124,9 +124,21 @@ export default function InvoiceDetailPage() {
         setInvoice(data);
       } else {
         console.error('Error fetching invoice:', data.error);
+        // If invoice not found, redirect to list after a short delay
+        if (response.status === 404) {
+          setTimeout(() => {
+            alert('Invoice not found. Redirecting to invoices list...');
+            router.push('/procurement/invoices');
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error('Error fetching invoice:', error);
+      // On error, redirect to list
+      setTimeout(() => {
+        alert('Error loading invoice. Redirecting to invoices list...');
+        router.push('/procurement/invoices');
+      }, 1000);
     } finally {
       setLoading(false);
     }

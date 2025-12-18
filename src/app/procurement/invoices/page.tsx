@@ -85,6 +85,17 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     fetchInvoices();
+    
+    // Check if we just created an invoice and show success message
+    if (typeof window !== 'undefined') {
+      const invoiceCreated = sessionStorage.getItem('invoiceCreated');
+      const invoiceId = sessionStorage.getItem('invoiceId');
+      if (invoiceCreated === 'true' && invoiceId) {
+        showToast('success', `Invoice created successfully! Invoice ID: ${invoiceId}`);
+        sessionStorage.removeItem('invoiceCreated');
+        sessionStorage.removeItem('invoiceId');
+      }
+    }
   }, [pagination.page, pagination.limit, filters]);
 
   const fetchInvoices = async () => {

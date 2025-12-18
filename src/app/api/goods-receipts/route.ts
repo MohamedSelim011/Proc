@@ -11,10 +11,14 @@ export async function GET(request: NextRequest) {
     const limit = isExport ? undefined : parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
     const poId = searchParams.get('poId') || '';
+    const poNumber = searchParams.get('poNumber') || '';
+    const search = searchParams.get('search') || '';
 
     const skip = isExport ? undefined : (page - 1) * limit!;
 
     const where: any = {};
+    
+    // Status filter
     if (status) {
       if (status.includes(',')) {
         where.status = { in: status.split(',').map(s => s.trim()) };
@@ -22,7 +26,85 @@ export async function GET(request: NextRequest) {
         where.status = status;
       }
     }
-    if (poId) where.poId = poId;
+    
+    // PO ID filter (exact match)
+    if (poId) {
+      where.poId = poId;
+    }
+    
+    // PO Number filter
+    if (poNumber) {
+      where.po = {
+        poNumber: {
+          contains: poNumber,
+          mode: 'insensitive'
+        }
+      };
+    }
+    
+    // Search filter - searches across GR number, receivedBy, and vendor name
+    if (search) {
+      // If we already have a po filter, we need to combine them with AND
+      if (where.po) {
+        const poFilter = where.po;
+        delete where.po;
+        where.AND = [
+          { po: poFilter },
+          {
+            OR: [
+              {
+                grNumber: {
+                  contains: search,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                receivedBy: {
+                  contains: search,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                po: {
+                  vendor: {
+                    nameEn: {
+                      contains: search,
+                      mode: 'insensitive'
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ];
+      } else {
+        // Simple search without PO number filter
+        where.OR = [
+          {
+            grNumber: {
+              contains: search,
+              mode: 'insensitive'
+            }
+          },
+          {
+            receivedBy: {
+              contains: search,
+              mode: 'insensitive'
+            }
+          },
+          {
+            po: {
+              vendor: {
+                nameEn: {
+                  contains: search,
+                  mode: 'insensitive'
+                }
+              }
+            }
+          }
+        ];
+      }
+    }
 
     const [receipts, total] = await Promise.all([
       prisma.goodsReceipt.findMany({

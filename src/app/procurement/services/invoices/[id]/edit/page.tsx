@@ -91,14 +91,41 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name.includes('Amount') || name === 'totalAmount' || name === 'taxAmount' || name === 'discountAmount' || name === 'netAmount'
-        ? parseFloat(value) || 0
-        : value
-    }));
+    // Remove spaces from invoice number
+    const processedValue = name === 'invoiceNumber' ? value.replace(/\s/g, '') : value;
     
-    if (errors[name]) {
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [name]: name.includes('Amount') || name === 'totalAmount' || name === 'taxAmount' || name === 'discountAmount' || name === 'netAmount'
+          ? parseFloat(processedValue) || 0
+          : processedValue
+      };
+      
+      // Validate date relationships
+      if (name === 'invoiceDate' || name === 'dueDate') {
+        if (newFormData.invoiceDate && newFormData.dueDate) {
+          if (new Date(newFormData.invoiceDate) > new Date(newFormData.dueDate)) {
+            setErrors(prev => ({
+              ...prev,
+              invoiceDate: 'Invoice date must be before or equal to due date',
+              dueDate: 'Due date must be after or equal to invoice date'
+            }));
+          } else {
+            setErrors(prev => {
+              const newErrors = { ...prev };
+              delete newErrors.invoiceDate;
+              delete newErrors.dueDate;
+              return newErrors;
+            });
+          }
+        }
+      }
+      
+      return newFormData;
+    });
+    
+    if (errors[name] && name !== 'invoiceDate' && name !== 'dueDate') {
       setErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
@@ -115,9 +142,13 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
     }
     if (!formData.invoiceDate) {
       newErrors.invoiceDate = 'Invoice date is required';
+    } else if (formData.dueDate && new Date(formData.invoiceDate) > new Date(formData.dueDate)) {
+      newErrors.invoiceDate = 'Invoice date must be before or equal to due date';
     }
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required';
+    } else if (formData.invoiceDate && new Date(formData.invoiceDate) > new Date(formData.dueDate)) {
+      newErrors.dueDate = 'Due date must be after or equal to invoice date';
     }
     if (formData.totalAmount <= 0) {
       newErrors.totalAmount = 'Total amount must be greater than 0';
@@ -228,12 +259,11 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 type="date"
                 name="invoiceDate"
                 value={formData.invoiceDate}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                disabled
+                readOnly
               />
-              {errors.invoiceDate && (
-                <p className="mt-1 text-sm text-red-600">{errors.invoiceDate}</p>
-              )}
+              <p className="mt-1 text-xs text-gray-500">Invoice date cannot be changed</p>
             </div>
 
             <div>
@@ -245,7 +275,10 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 name="dueDate"
                 value={formData.dueDate}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 ${
+                  errors.dueDate ? 'border-red-300' : ''
+                }`}
+                min={formData.invoiceDate || undefined}
               />
               {errors.dueDate && (
                 <p className="mt-1 text-sm text-red-600">{errors.dueDate}</p>

@@ -183,9 +183,17 @@ function EditInvoiceContent() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.invoiceNumber) newErrors.invoiceNumber = 'Invoice number is required';
-    if (!formData.invoiceDate) newErrors.invoiceDate = 'Invoice date is required';
-    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+    if (!formData.invoiceNumber || !formData.invoiceNumber.trim()) {
+      newErrors.invoiceNumber = 'Invoice number is required';
+    } else if (formData.invoiceNumber.includes(' ')) {
+      newErrors.invoiceNumber = 'Invoice number cannot contain spaces';
+    }
+    // Invoice date is readonly, so we just check if due date is valid
+    if (!formData.dueDate) {
+      newErrors.dueDate = 'Due date is required';
+    } else if (formData.invoiceDate && new Date(formData.invoiceDate) > new Date(formData.dueDate)) {
+      newErrors.dueDate = 'Due date must be after or equal to invoice date';
+    }
     if (formData.items.length === 0) newErrors.items = 'At least one item is required';
 
     setErrors(newErrors);
@@ -320,7 +328,28 @@ function EditInvoiceContent() {
                     errors.invoiceNumber ? 'border-red-300' : ''
                   }`}
                   value={formData.invoiceNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                  onChange={(e) => {
+                    // Remove all spaces from the input
+                    const value = e.target.value.replace(/\s/g, '');
+                    setFormData(prev => ({ ...prev, invoiceNumber: value }));
+                    // Clear error if user starts typing
+                    if (errors.invoiceNumber && value) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.invoiceNumber;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Validate on blur
+                    const value = e.target.value.trim();
+                    if (!value) {
+                      setErrors(prev => ({ ...prev, invoiceNumber: 'Invoice number is required' }));
+                    } else if (value !== e.target.value) {
+                      setFormData(prev => ({ ...prev, invoiceNumber: value }));
+                    }
+                  }}
                 />
                 {errors.invoiceNumber && (
                   <p className="mt-1 text-sm text-red-600">{errors.invoiceNumber}</p>
@@ -348,15 +377,12 @@ function EditInvoiceContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                    errors.invoiceDate ? 'border-red-300' : ''
-                  }`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                   value={formData.invoiceDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
+                  disabled
+                  readOnly
                 />
-                {errors.invoiceDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.invoiceDate}</p>
-                )}
+                <p className="mt-1 text-xs text-gray-500">Invoice date cannot be changed</p>
               </div>
 
               <div>
@@ -369,7 +395,26 @@ function EditInvoiceContent() {
                     errors.dueDate ? 'border-red-300' : ''
                   }`}
                   value={formData.dueDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  onChange={(e) => {
+                    const newDueDate = e.target.value;
+                    setFormData(prev => ({ ...prev, dueDate: newDueDate }));
+                    
+                    // Validate against invoice date (which is readonly)
+                    if (formData.invoiceDate && new Date(formData.invoiceDate) > new Date(newDueDate)) {
+                      setErrors(prev => ({ 
+                        ...prev, 
+                        dueDate: 'Due date must be after or equal to invoice date'
+                      }));
+                    } else {
+                      // Clear error if valid
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.dueDate;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  min={formData.invoiceDate || undefined}
                 />
                 {errors.dueDate && (
                   <p className="mt-1 text-sm text-red-600">{errors.dueDate}</p>

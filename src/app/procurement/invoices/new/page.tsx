@@ -152,7 +152,7 @@ function NewInvoiceContent() {
     invoiceType: 'GOODS',
     vendorId: '',
     invoiceNumber: '',
-    invoiceDate: new Date().toISOString().split('T')[0],
+    invoiceDate: new Date().toISOString().split('T')[0], // Auto-set to current date
     dueDate: '',
     currency: 'OMR',
     items: [],
@@ -438,9 +438,17 @@ function NewInvoiceContent() {
     }
 
     if (step === 2) {
-      if (!formData.invoiceNumber) newErrors.invoiceNumber = 'Invoice number is required';
-      if (!formData.invoiceDate) newErrors.invoiceDate = 'Invoice date is required';
-      if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+      if (!formData.invoiceNumber || !formData.invoiceNumber.trim()) {
+        newErrors.invoiceNumber = 'Invoice number is required';
+      } else if (formData.invoiceNumber.includes(' ')) {
+        newErrors.invoiceNumber = 'Invoice number cannot contain spaces';
+      }
+      // Invoice date is auto-set to current date, so we just check if due date is valid
+      if (!formData.dueDate) {
+        newErrors.dueDate = 'Due date is required';
+      } else if (formData.invoiceDate && new Date(formData.invoiceDate) > new Date(formData.dueDate)) {
+        newErrors.dueDate = 'Due date must be after or equal to invoice date';
+      }
     }
 
     if (step === 3) {
@@ -515,11 +523,23 @@ function NewInvoiceContent() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        router.push(`/procurement/invoices/${data.id}`);
+      if (response.ok && data.id) {
+        // Show success message
+        console.log('Invoice created successfully:', data.id);
+        
+        // Store success message in sessionStorage to show on list page
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('invoiceCreated', 'true');
+          sessionStorage.setItem('invoiceId', data.id);
+        }
+        
+        // Redirect to invoices list page so user can see the newly created invoice
+        router.push('/procurement/invoices');
       } else {
-        console.error('Error creating invoice:', data.error);
-        setErrors({ submit: data.error || 'Failed to create invoice' });
+        console.error('Error creating invoice:', data.error || 'Unknown error');
+        const errorMessage = data.error || 'Failed to create invoice. Please try again.';
+        setErrors({ submit: errorMessage });
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error submitting invoice:', error);
@@ -585,19 +605,21 @@ function NewInvoiceContent() {
               { id: 3, name: 'Line Items', description: 'Configure invoice line items' },
               { id: 4, name: '3-Way Matching', description: 'Validate and review matching' }
             ].map((step, stepIdx) => (
-              <li key={step.id} className="relative flex-1 pt-2">
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  {stepIdx < 3 && (
-                    <div className={`h-0.5 w-full ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
-                  )}
-                </div>
+              <li key={step.id} className="relative flex-1">
+                {/* Connection line - positioned between icons and text */}
+                {stepIdx < 3 && (
+                  <div className="absolute top-[3.5rem] left-1/2 right-0 h-0.5 -translate-x-1/2 z-0" aria-hidden="true">
+                    <div className={`h-full w-full ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
+                  </div>
+                )}
                 <div className="relative flex flex-col items-center">
-                  <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                  {/* Step Icon */}
+                  <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 z-10 bg-white ${
                     step.id < currentStep 
                       ? 'bg-wujha-primary border-wujha-primary scale-110' 
                       : step.id === currentStep 
-                        ? 'border-wujha-primary bg-white shadow-lg' 
-                        : 'border-gray-300 bg-white hover:border-gray-400'
+                        ? 'border-wujha-primary shadow-lg' 
+                        : 'border-gray-300 hover:border-gray-400'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
@@ -609,7 +631,8 @@ function NewInvoiceContent() {
                       </span>
                     )}
                   </div>
-                  <div className="mt-3 text-center">
+                  {/* Step Text - positioned below the line */}
+                  <div className="mt-6 text-center z-10">
                     <span className={`text-sm font-medium ${
                       step.id === currentStep ? 'text-wujha-primary' : 'text-gray-500'
                     }`}>
@@ -855,7 +878,28 @@ function NewInvoiceContent() {
                       errors.invoiceNumber ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                    onChange={(e) => {
+                      // Remove all spaces from the input
+                      const value = e.target.value.replace(/\s/g, '');
+                      setFormData(prev => ({ ...prev, invoiceNumber: value }));
+                      // Clear error if user starts typing
+                      if (errors.invoiceNumber && value) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.invoiceNumber;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Validate on blur
+                      const value = e.target.value.trim();
+                      if (!value) {
+                        setErrors(prev => ({ ...prev, invoiceNumber: 'Invoice number is required' }));
+                      } else if (value !== e.target.value) {
+                        setFormData(prev => ({ ...prev, invoiceNumber: value }));
+                      }
+                    }}
                     placeholder="INV-2024-001"
                   />
                   {errors.invoiceNumber && (
@@ -884,16 +928,12 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                      errors.invoiceDate ? 'border-red-300' : ''
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     value={formData.invoiceDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
-                    max={new Date().toISOString().split('T')[0]}
+                    disabled
+                    readOnly
                   />
-                  {errors.invoiceDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.invoiceDate}</p>
-                  )}
+                  <p className="mt-1 text-xs text-gray-500">Automatically set to today's date</p>
                 </div>
 
                 <div>
@@ -906,7 +946,25 @@ function NewInvoiceContent() {
                       errors.dueDate ? 'border-red-300' : ''
                     }`}
                     value={formData.dueDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                    onChange={(e) => {
+                      const newDueDate = e.target.value;
+                      setFormData(prev => ({ ...prev, dueDate: newDueDate }));
+                      
+                      // Validate against invoice date (which is always today)
+                      if (formData.invoiceDate && new Date(formData.invoiceDate) > new Date(newDueDate)) {
+                        setErrors(prev => ({ 
+                          ...prev, 
+                          dueDate: 'Due date must be after or equal to invoice date'
+                        }));
+                      } else {
+                        // Clear error if valid
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.dueDate;
+                          return newErrors;
+                        });
+                      }
+                    }}
                     min={formData.invoiceDate}
                   />
                   {errors.dueDate && (

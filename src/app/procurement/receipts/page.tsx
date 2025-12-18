@@ -70,7 +70,7 @@ export default function GoodsReceiptsPage() {
   // Filters
   const [filters, setFilters] = useState({
     status: '',
-    poId: '',
+    poNumber: '',
     search: ''
   });
 
@@ -86,7 +86,8 @@ export default function GoodsReceiptsPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
         ...(filters.status && { status: filters.status }),
-        ...(filters.poId && { poId: filters.poId })
+        ...(filters.poNumber && { poNumber: filters.poNumber }),
+        ...(filters.search && { search: filters.search })
       });
 
       const response = await fetch(`/api/goods-receipts?${params}`);
@@ -174,7 +175,8 @@ export default function GoodsReceiptsPage() {
       const params = new URLSearchParams({
         export: 'true',
         ...(filters.status && { status: filters.status }),
-        ...(filters.poId && { poId: filters.poId })
+        ...(filters.poNumber && { poNumber: filters.poNumber }),
+        ...(filters.search && { search: filters.search })
       });
 
       const response = await fetch(`/api/goods-receipts?${params}`);
@@ -351,37 +353,38 @@ export default function GoodsReceiptsPage() {
             <input
               type="text"
               placeholder="Search receipts..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
+              style={{ color: '#111827' }}
             >
-              <option value="">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="REJECTED">Rejected</option>
+              <option value="" style={{ color: '#111827' }}>All Statuses</option>
+              <option value="PENDING" style={{ color: '#111827' }}>Pending</option>
+              <option value="PARTIAL" style={{ color: '#111827' }}>Partial</option>
+              <option value="COMPLETED" style={{ color: '#111827' }}>Completed</option>
+              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
             </select>
           </div>
           <div>
             <input
               type="text"
               placeholder="PO Number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-              value={filters.poId}
-              onChange={(e) => handleFilterChange('poId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+              value={filters.poNumber}
+              onChange={(e) => handleFilterChange('poNumber', e.target.value)}
             />
           </div>
           <div>
             <button
-              onClick={() => setFilters({ search: '', status: '', poId: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              onClick={() => setFilters({ search: '', status: '', poNumber: '' })}
+              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               Clear Filters
             </button>

@@ -99,10 +99,36 @@ function NewGoodsReceiptContent() {
 
   const fetchAvailablePOs = async () => {
     try {
-      const response = await fetch('/api/purchase-orders?status=ACKNOWLEDGED');
+      // Fetch all POs that can be received (ACKNOWLEDGED, SENT, or APPROVED statuses)
+      // API supports comma-separated statuses
+      const response = await fetch('/api/purchase-orders?status=ACKNOWLEDGED,SENT,APPROVED');
       const data = await response.json();
       if (response.ok) {
         setAvailablePOs(data.orders || []);
+      } else {
+        // Fallback: fetch them separately if comma-separated doesn't work
+        const [ackResponse, sentResponse, approvedResponse] = await Promise.all([
+          fetch('/api/purchase-orders?status=ACKNOWLEDGED'),
+          fetch('/api/purchase-orders?status=SENT'),
+          fetch('/api/purchase-orders?status=APPROVED')
+        ]);
+        
+        const ackData = await ackResponse.json();
+        const sentData = await sentResponse.json();
+        const approvedData = await approvedResponse.json();
+        
+        const allPOs = [
+          ...(ackData.orders || []),
+          ...(sentData.orders || []),
+          ...(approvedData.orders || [])
+        ];
+        
+        // Remove duplicates based on PO ID
+        const uniquePOs = allPOs.filter((po, index, self) => 
+          index === self.findIndex(p => p.id === po.id)
+        );
+        
+        setAvailablePOs(uniquePOs);
       }
     } catch (error) {
       console.error('Error fetching available POs:', error);
@@ -322,10 +348,14 @@ function NewGoodsReceiptContent() {
     });
   };
 
-  const filteredPOs = availablePOs.filter(po =>
-    po.poNumber.toLowerCase().includes(searchPO.toLowerCase()) ||
-    po.vendor.nameEn.toLowerCase().includes(searchPO.toLowerCase())
-  );
+  const filteredPOs = searchPO.trim() 
+    ? availablePOs.filter(po => {
+        const searchTerm = searchPO.toLowerCase().trim();
+        const poNumber = (po.poNumber || '').toLowerCase();
+        const vendorName = (po.vendor?.nameEn || '').toLowerCase();
+        return poNumber.includes(searchTerm) || vendorName.includes(searchTerm);
+      })
+    : availablePOs;
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -419,7 +449,7 @@ function NewGoodsReceiptContent() {
                       <input
                         type="text"
                         placeholder="Search purchase orders..."
-                        className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                        className="pl-10 block w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                         value={searchPO}
                         onChange={(e) => setSearchPO(e.target.value)}
                       />
@@ -427,6 +457,17 @@ function NewGoodsReceiptContent() {
                   </div>
                   
                   <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {filteredPOs.length === 0 && searchPO.trim() ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No purchase orders found matching "{searchPO}"</p>
+                        <p className="text-xs mt-1">Try searching by PO number (e.g., PO-2025-001) or vendor name</p>
+                      </div>
+                    ) : filteredPOs.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No purchase orders available</p>
+                        <p className="text-xs mt-1">Only ACKNOWLEDGED, SENT, or APPROVED purchase orders can be received</p>
+                      </div>
+                    ) : null}
                     {filteredPOs.map((po) => (
                       <div
                         key={po.id}

@@ -29,8 +29,16 @@ export async function GET(request: NextRequest) {
         ...(limit !== undefined && { take: limit }),
         include: {
           vendor: true,
-          po: true,
-          gr: true
+          po: {
+            include: {
+              goodsReceipts: {
+                take: 1,
+                orderBy: {
+                  createdAt: 'desc'
+                }
+              }
+            }
+          }
         },
         orderBy: {
           createdAt: 'desc'
@@ -39,9 +47,17 @@ export async function GET(request: NextRequest) {
       prisma.invoice.count({ where })
     ]);
 
+    // Transform invoices to include gr field from PO's goods receipts
+    const transformedInvoices = invoices.map(invoice => ({
+      ...invoice,
+      gr: invoice.po?.goodsReceipts?.[0] ? {
+        grNumber: invoice.po.goodsReceipts[0].grNumber
+      } : undefined
+    }));
+
     if (isExport) {
       return NextResponse.json({
-        invoices,
+        invoices: transformedInvoices,
         total
       });
     }
@@ -58,7 +74,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      invoices,
+      invoices: transformedInvoices,
       pagination: {
         page,
         limit: limit!,

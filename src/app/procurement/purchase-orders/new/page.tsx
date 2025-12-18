@@ -567,14 +567,19 @@ function NewPurchaseOrderContent() {
                     <div className={`h-0.5 w-full transform -translate-y-px ${step.id < currentStep ? 'bg-wujha-primary' : 'bg-gray-200'}`} />
                   )}
                 </div>
-                <div className="relative flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => step.id <= currentStep && setCurrentStep(step.id)}
+                  className="relative flex flex-col items-center w-full"
+                  disabled={step.id > currentStep}
+                >
                   <div className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                     step.id < currentStep 
-                      ? 'bg-wujha-primary border-wujha-primary scale-110' 
+                      ? 'bg-wujha-primary border-wujha-primary scale-110 cursor-pointer hover:scale-115' 
                       : step.id === currentStep 
                         ? 'border-wujha-primary bg-white shadow-lg' 
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                  }`}>
+                        : 'border-gray-300 bg-white'
+                  } ${step.id <= currentStep ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
                     {step.id < currentStep ? (
                       <CheckCircle className="h-5 w-5 text-white" />
                     ) : (
@@ -593,7 +598,7 @@ function NewPurchaseOrderContent() {
                     </span>
                     <p className="text-xs text-gray-500 mt-1 max-w-32 hidden sm:block">{step.description}</p>
                   </div>
-                </div>
+                </button>
               </li>
             ))}
           </ol>
