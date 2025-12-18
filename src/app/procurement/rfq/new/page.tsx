@@ -88,6 +88,8 @@ export default function NewRFQPage() {
     termsAndConditions: ''
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     fetchPurchaseRequisitions();
     fetchVendors();
@@ -147,13 +149,29 @@ export default function NewRFQPage() {
       return;
     }
     
-    if (!formData.prId || !formData.title || !formData.closingDate) {
-      showToast('error', 'Please fill in all required fields');
-      return;
+    // Validate form fields
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.prId) {
+      newErrors.prId = 'Purchase Requisition is required';
+    }
+    
+    if (!formData.title || !formData.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
+    
+    if (!formData.closingDate) {
+      newErrors.closingDate = 'Closing date is required';
     }
 
     if (formData.selectedVendors.length === 0) {
-      showToast('error', 'Please select at least one vendor');
+      newErrors.vendors = 'Please select at least one vendor';
+    }
+    
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      showToast('error', 'Please fix the errors in the form');
       return;
     }
 
@@ -240,7 +258,7 @@ export default function NewRFQPage() {
                 Purchase Requisition *
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.prId}
                 onChange={(e) => handlePRSelect(e.target.value)}
                 required
@@ -303,11 +321,49 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                  errors.title ? 'border-red-300 ring-red-100' : 'border-gray-300'
+                }`}
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  setFormData(prev => ({ ...prev, title: inputValue }));
+                  
+                  // Validate in real-time: if value is only whitespace, show error
+                  if (inputValue && !inputValue.trim()) {
+                    setErrors(prev => ({ ...prev, title: 'Title cannot be only whitespace' }));
+                  } else {
+                    // Clear error when user types valid content
+                    if (errors.title) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.title;
+                        return newErrors;
+                      });
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const inputValue = e.target.value;
+                  const trimmedValue = inputValue.trim();
+                  
+                  // If value is only whitespace, clear it and show error
+                  if (inputValue && !trimmedValue) {
+                    setFormData(prev => ({ ...prev, title: '' }));
+                    setErrors(prev => ({ ...prev, title: 'Title is required' }));
+                  } else if (trimmedValue !== inputValue) {
+                    // Trim leading/trailing whitespace but keep the value
+                    setFormData(prev => ({ ...prev, title: trimmedValue }));
+                  }
+                }}
                 required
               />
+              {errors.title && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <span className="mr-1">⚠</span>
+                  {errors.title}
+                </p>
+              )}
             </div>
             
             <div>
@@ -316,7 +372,7 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="datetime-local"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.closingDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, closingDate: e.target.value }))}
                 required
@@ -329,7 +385,7 @@ export default function NewRFQPage() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
@@ -395,7 +451,7 @@ export default function NewRFQPage() {
                   type="number"
                   min="0"
                   max="100"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={value}
                   onChange={(e) => {
                     const newValue = parseInt(e.target.value) || 0;
@@ -428,7 +484,7 @@ export default function NewRFQPage() {
           
           <textarea
             rows={6}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
             placeholder="Enter terms and conditions for the RFQ..."
             value={formData.termsAndConditions}
             onChange={(e) => setFormData(prev => ({ ...prev, termsAndConditions: e.target.value }))}

@@ -229,11 +229,11 @@ export default function NewServiceRequisition() {
       case 1:
         if (!formData.serviceCategory) newErrors.serviceCategory = 'Service category is required';
         if (!formData.serviceType) newErrors.serviceType = 'Service type is required';
-        if (!formData.departmentId) newErrors.departmentId = 'Department is required';
-        if (!formData.requestor) newErrors.requestor = 'Requestor is required';
+        if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+        if (!formData.requestor || !formData.requestor.trim()) newErrors.requestor = 'Requestor is required';
         break;
       case 2:
-        if (!formData.detailedScope) newErrors.detailedScope = 'Detailed scope is required';
+        if (!formData.detailedScope || !formData.detailedScope.trim()) newErrors.detailedScope = 'Detailed scope is required';
         if (formData.items.length === 0) newErrors.items = 'At least one service item is required';
         break;
       case 3:
@@ -241,9 +241,9 @@ export default function NewServiceRequisition() {
         if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
         break;
       case 4:
-        if (!formData.budgetCode) newErrors.budgetCode = 'Budget code is required';
+        if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
         if (!formData.requiredByDate) newErrors.requiredByDate = 'Required by date is required';
-        if (!formData.justification) newErrors.justification = 'Justification is required';
+        if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
         break;
     }
 

@@ -97,9 +97,41 @@ export default function NewPurchaseRequisition() {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.departmentId) newErrors.departmentId = 'Department is required';
-      if (!formData.requiredByDate) newErrors.requiredByDate = 'Required date is required';
-      if (!formData.justification) newErrors.justification = 'Justification is required';
+      if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+      if (formData.projectId && !formData.projectId.trim()) newErrors.projectId = 'Project ID cannot be only whitespace';
+      
+      // Validate Required By Date
+      if (!formData.requiredByDate) {
+        newErrors.requiredByDate = 'Required date is required';
+      } else {
+        const selectedDate = new Date(formData.requiredByDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+        
+        // Check if date is valid
+        if (isNaN(selectedDate.getTime())) {
+          newErrors.requiredByDate = 'Invalid date format';
+        } else {
+          // Check if date is too far in the past (before year 1900)
+          if (selectedDate.getFullYear() < 1900) {
+            newErrors.requiredByDate = 'Date cannot be before year 1900';
+          }
+          // Check if date is in the past
+          else if (selectedDate < today) {
+            newErrors.requiredByDate = 'Required date must be today or in the future';
+          }
+          // Check if date is too far in the future (more than 10 years)
+          else {
+            const maxDate = new Date();
+            maxDate.setFullYear(maxDate.getFullYear() + 10);
+            if (selectedDate > maxDate) {
+              newErrors.requiredByDate = 'Date cannot be more than 10 years in the future';
+            }
+          }
+        }
+      }
+      
+      if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
     }
 
     if (step === 2) {
@@ -115,7 +147,17 @@ export default function NewPurchaseRequisition() {
     }
 
     if (step === 3) {
-      if (!formData.budgetCode) newErrors.budgetCode = 'Budget code is required';
+      if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
+      // Cost Center is optional, but if provided, it cannot be only whitespace
+      // Check if costCenter exists and is not empty, but when trimmed becomes empty
+      if (formData.costCenter && typeof formData.costCenter === 'string' && formData.costCenter.length > 0) {
+        const trimmed = formData.costCenter.trim();
+        if (trimmed.length === 0) {
+          newErrors.costCenter = 'Cost Center cannot be only whitespace';
+          // Clear the whitespace-only value
+          setFormData(prev => ({ ...prev, costCenter: '' }));
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -190,6 +232,11 @@ export default function NewPurchaseRequisition() {
   };
 
   const handleSubmit = async () => {
+    // Validate step 3 before submitting
+    if (!validateStep(3)) {
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -198,8 +245,12 @@ export default function NewPurchaseRequisition() {
       const userData = userDataStr ? JSON.parse(userDataStr) : null;
       const requesterId = userData?.employeeId || userData?.id || 'emp001';
 
+      // Trim whitespace from costCenter before submitting
+      const trimmedCostCenter = formData.costCenter?.trim() || undefined;
+
       const submitData = {
         ...formData,
+        costCenter: trimmedCostCenter,
         requesterId,
         estimatedCost: calculateTotalCost(),
         autoSubmit: false // Keep as draft initially
@@ -361,11 +412,49 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                        errors.projectId ? 'border-red-300 ring-red-100' : ''
+                      }`}
                       value={formData.projectId || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ ...prev, projectId: inputValue }));
+                        
+                        // Validate in real-time: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, projectId: 'Project ID cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.projectId) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.projectId;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ ...prev, projectId: '' }));
+                          setErrors(prev => ({ ...prev, projectId: 'Project ID cannot be only whitespace' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ ...prev, projectId: trimmedValue }));
+                        }
+                      }}
                       placeholder="Optional project reference"
                     />
+                    {errors.projectId && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.projectId}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -394,8 +483,51 @@ export default function NewPurchaseRequisition() {
                         errors.requiredByDate ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.requiredByDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, requiredByDate: e.target.value }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ ...prev, requiredByDate: inputValue }));
+                        
+                        // Validate in real-time
+                        if (inputValue) {
+                          const selectedDate = new Date(inputValue);
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          
+                          if (isNaN(selectedDate.getTime())) {
+                            setErrors(prev => ({ ...prev, requiredByDate: 'Invalid date format' }));
+                          } else if (selectedDate.getFullYear() < 1900) {
+                            setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be before year 1900' }));
+                          } else if (selectedDate < today) {
+                            setErrors(prev => ({ ...prev, requiredByDate: 'Required date must be today or in the future' }));
+                          } else {
+                            const maxDate = new Date();
+                            maxDate.setFullYear(maxDate.getFullYear() + 10);
+                            if (selectedDate > maxDate) {
+                              setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be more than 10 years in the future' }));
+                            } else {
+                              // Clear error if date is valid
+                              setErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.requiredByDate;
+                                return newErrors;
+                              });
+                            }
+                          }
+                        } else {
+                          // Clear error if field is empty (will be caught by required validation)
+                          setErrors(prev => {
+                            const newErrors = { ...prev };
+                            delete newErrors.requiredByDate;
+                            return newErrors;
+                          });
+                        }
+                      }}
                       min={new Date().toISOString().split('T')[0]}
+                      max={(() => {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 10);
+                        return maxDate.toISOString().split('T')[0];
+                      })()}
                     />
                     {errors.requiredByDate && (
                       <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -508,58 +640,65 @@ export default function NewPurchaseRequisition() {
                             <input
                               type="text"
                               placeholder="Search items by code or name..."
-                              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 pr-10 text-base transition-colors duration-200"
+                              className={`block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 pr-10 text-base transition-colors duration-200 ${
+                                errors[`item_${index}_id`] ? 'border-red-300 ring-red-100' : ''
+                              }`}
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                             />
                             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                          </div>
-                          {searchTerm && (
-                            <div className="absolute z-20 mt-2 w-full bg-white shadow-xl max-h-64 rounded-lg border border-gray-200 overflow-hidden">
-                              <div className="py-2">
-                                {filteredItems.map((searchItem) => (
-                                  <div
-                                    key={searchItem.id}
-                                    className="cursor-pointer select-none relative px-4 py-3 hover:bg-wujha-primary/5 transition-colors duration-150"
-                                    onClick={() => {
-                                      updateItem(index, 'itemId', searchItem.id);
-                                      setSearchTerm('');
-                                    }}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-3">
-                                          <span className="font-semibold text-gray-900 text-sm">
-                                            {searchItem.itemCode}
-                                          </span>
-                                          <span className="text-gray-600 text-sm">
-                                            {searchItem.nameEn}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center space-x-2 mt-1">
-                                          <span className="text-xs text-wujha-primary bg-wujha-primary/10 px-2 py-1 rounded-full">
-                                            {searchItem.category.nameEn}
-                                          </span>
-                                          <span className="text-xs text-gray-500">
-                                            {searchItem.unitOfMeasure}
-                                          </span>
+                            {searchTerm && filteredItems.length > 0 && (
+                              <div className="absolute z-10 top-full left-0 right-0 mt-2 bg-white shadow-xl max-h-64 rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="py-2 max-h-64 overflow-y-auto">
+                                  {filteredItems.map((searchItem) => (
+                                    <div
+                                      key={searchItem.id}
+                                      className="cursor-pointer select-none relative px-4 py-3 hover:bg-wujha-primary/5 transition-colors duration-150"
+                                      onClick={() => {
+                                        updateItem(index, 'itemId', searchItem.id);
+                                        setSearchTerm('');
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center space-x-3">
+                                            <span className="font-semibold text-gray-900 text-sm">
+                                              {searchItem.itemCode}
+                                            </span>
+                                            <span className="text-gray-600 text-sm">
+                                              {searchItem.nameEn}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center space-x-2 mt-1">
+                                            <span className="text-xs text-wujha-primary bg-wujha-primary/10 px-2 py-1 rounded-full">
+                                              {searchItem.category.nameEn}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                              {searchItem.unitOfMeasure}
+                                            </span>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
+                            )}
+                          </div>
+                          {searchTerm && filteredItems.length === 0 && (
+                            <div className="mt-2 w-full bg-gray-50 border border-gray-200 rounded-lg p-3">
+                              <p className="text-sm text-gray-600">No items found matching "{searchTerm}"</p>
                             </div>
                           )}
                           {item.itemName && (
-                            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg relative z-0">
                               <p className="text-sm text-green-800 font-medium">
                                 ✓ Selected: <span className="font-semibold">{item.itemCode}</span> - {item.itemName}
                               </p>
                             </div>
                           )}
                           {errors[`item_${index}_id`] && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
+                            <p className="mt-2 text-sm text-red-600 flex items-center relative z-0">
                               <AlertCircle className="h-4 w-4 mr-1" />
                               {errors[`item_${index}_id`]}
                             </p>
@@ -690,7 +829,37 @@ export default function NewPurchaseRequisition() {
                         errors.budgetCode ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.budgetCode}
-                      onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ ...prev, budgetCode: inputValue }));
+                        
+                        // Validate in real-time: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.budgetCode) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.budgetCode;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ ...prev, budgetCode: '' }));
+                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ ...prev, budgetCode: trimmedValue }));
+                        }
+                      }}
                       placeholder="Enter budget code"
                     />
                     {errors.budgetCode && (
@@ -707,11 +876,49 @@ export default function NewPurchaseRequisition() {
                     </label>
                     <input
                       type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                        errors.costCenter ? 'border-red-300 ring-red-100' : ''
+                      }`}
                       value={formData.costCenter || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ ...prev, costCenter: inputValue }));
+                        
+                        // Validate in real-time: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.costCenter) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.costCenter;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ ...prev, costCenter: '' }));
+                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ ...prev, costCenter: trimmedValue }));
+                        }
+                      }}
                       placeholder="Optional cost center"
                     />
+                    {errors.costCenter && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.costCenter}
+                      </p>
+                    )}
                   </div>
                 </div>
 

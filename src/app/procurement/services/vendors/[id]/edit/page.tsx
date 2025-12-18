@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { filterArabicCharacters, filterNonArabicCharacters, filterPhoneNumber, validatePhoneNumber } from '@/lib/utils';
 
 interface VendorFormData {
   vendorCode: string;
@@ -175,8 +176,9 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = 'Phone number is required';
+    const mobileError = validatePhoneNumber(formData.mobile);
+    if (mobileError) {
+      newErrors.mobile = mobileError;
     }
     if (!formData.crNumber || !formData.crNumber.trim()) {
       newErrors.crNumber = 'Commercial Registration number is required';
@@ -337,7 +339,11 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <input
                 type="text"
                 value={formData.nameEn}
-                onChange={(e) => handleInputChange('nameEn', e.target.value)}
+                onChange={(e) => {
+                  // Filter out Arabic characters from the input
+                  const filteredValue = filterArabicCharacters(e.target.value);
+                  handleInputChange('nameEn', filteredValue);
+                }}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.nameEn ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
@@ -346,6 +352,9 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               {errors.nameEn && (
                 <p className="mt-1 text-sm text-red-600">{errors.nameEn}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Only English characters, numbers, and common punctuation are allowed
+              </p>
             </div>
 
             <div>
@@ -355,7 +364,11 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <input
                 type="text"
                 value={formData.nameAr}
-                onChange={(e) => handleInputChange('nameAr', e.target.value)}
+                onChange={(e) => {
+                  // Filter out non-Arabic characters from the input
+                  const filteredValue = filterNonArabicCharacters(e.target.value);
+                  handleInputChange('nameAr', filteredValue);
+                }}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.nameAr ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
@@ -365,6 +378,9 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               {errors.nameAr && (
                 <p className="mt-1 text-sm text-red-600">{errors.nameAr}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Only Arabic characters, numbers, and common punctuation are allowed
+              </p>
             </div>
 
             <div>
@@ -401,7 +417,11 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 <input
                   type="tel"
                   value={formData.mobile}
-                  onChange={(e) => handleInputChange('mobile', e.target.value)}
+                  onChange={(e) => {
+                    // Filter phone number to only allow digits and formatting characters
+                    const filteredValue = filterPhoneNumber(e.target.value);
+                    handleInputChange('mobile', filteredValue);
+                  }}
                   className={`block w-full pl-10 rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                     errors.mobile ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                   } text-gray-900 bg-white`}
@@ -411,6 +431,9 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               {errors.mobile && (
                 <p className="mt-1 text-sm text-red-600">{errors.mobile}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Enter a valid phone number (minimum 7 digits, digits only)
+              </p>
             </div>
 
             <div>
@@ -424,7 +447,11 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 <input
                   type="tel"
                   value={formData.alternativePhone || ''}
-                  onChange={(e) => handleInputChange('alternativePhone', e.target.value)}
+                  onChange={(e) => {
+                    // Filter phone number to only allow digits and formatting characters
+                    const filteredValue = filterPhoneNumber(e.target.value);
+                    handleInputChange('alternativePhone', filteredValue);
+                  }}
                   className="block w-full pl-10 rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                   placeholder="+968 XXXX XXXX"
                 />
@@ -762,7 +789,11 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <input
                 type="tel"
                 value={formData.contactPhone || ''}
-                onChange={(e) => handleInputChange('contactPhone', e.target.value)}
+                onChange={(e) => {
+                  // Filter phone number to only allow digits and formatting characters
+                  const filteredValue = filterPhoneNumber(e.target.value);
+                  handleInputChange('contactPhone', filteredValue);
+                }}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="+968 XXXX XXXX"
               />

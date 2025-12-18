@@ -66,6 +66,7 @@ export default function EditRFQPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -207,6 +208,24 @@ export default function EditRFQPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form fields
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.title || !formData.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
+    
+    if (!formData.submissionDeadline) {
+      newErrors.submissionDeadline = 'Submission deadline is required';
+    }
+    
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      setError('Please fix the errors in the form');
+      return;
+    }
     
     if (!validateEvaluationCriteria()) {
       setError('Evaluation criteria percentages must total 100%');
@@ -372,11 +391,49 @@ export default function EditRFQPage() {
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  handleInputChange('title', inputValue);
+                  
+                  // Validate in real-time: if value is only whitespace, show error
+                  if (inputValue && !inputValue.trim()) {
+                    setErrors(prev => ({ ...prev, title: 'Title cannot be only whitespace' }));
+                  } else {
+                    // Clear error when user types valid content
+                    if (errors.title) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.title;
+                        return newErrors;
+                      });
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const inputValue = e.target.value;
+                  const trimmedValue = inputValue.trim();
+                  
+                  // If value is only whitespace, clear it and show error
+                  if (inputValue && !trimmedValue) {
+                    handleInputChange('title', '');
+                    setErrors(prev => ({ ...prev, title: 'Title is required' }));
+                  } else if (trimmedValue !== inputValue) {
+                    // Trim leading/trailing whitespace but keep the value
+                    handleInputChange('title', trimmedValue);
+                  }
+                }}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                  errors.title ? 'border-red-300 ring-red-100' : 'border-gray-300'
+                }`}
                 placeholder="Enter RFQ title"
               />
+              {errors.title && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <span className="mr-1">⚠</span>
+                  {errors.title}
+                </p>
+              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">

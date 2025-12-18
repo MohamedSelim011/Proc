@@ -336,13 +336,48 @@ function NewPurchaseOrderContent() {
     }
 
     if (step === 2) {
-      if (!formData.deliveryDate) newErrors.deliveryDate = 'Delivery date is required';
+      if (!formData.deliveryDate) {
+        newErrors.deliveryDate = 'Delivery date is required';
+      } else {
+        // Validate date format and range
+        const selectedDate = new Date(formData.deliveryDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Check if date is valid
+        if (isNaN(selectedDate.getTime())) {
+          newErrors.deliveryDate = 'Please enter a valid date';
+        } else {
+          // Check if year is before 1900
+          if (selectedDate.getFullYear() < 1900) {
+            newErrors.deliveryDate = 'Date cannot be before year 1900';
+          }
+          // Check if date is in the past
+          else if (selectedDate < today) {
+            newErrors.deliveryDate = 'Delivery date cannot be in the past';
+          }
+          // Check if date is more than 10 years in the future
+          else {
+            const maxDate = new Date();
+            maxDate.setFullYear(maxDate.getFullYear() + 10);
+            if (selectedDate > maxDate) {
+              newErrors.deliveryDate = 'Delivery date cannot be more than 10 years in the future';
+            }
+          }
+        }
+      }
       
       // Only validate delivery address for goods, not services
       if (selectedPR?.itemType !== 'SERVICE') {
-        if (!formData.deliveryAddress.building) newErrors.building = 'Building is required';
-        if (!formData.deliveryAddress.street) newErrors.street = 'Street is required';
-        if (!formData.deliveryAddress.postalCode) newErrors.postalCode = 'Postal code is required';
+        if (!formData.deliveryAddress.building || !formData.deliveryAddress.building.trim()) {
+          newErrors.building = 'Building is required';
+        }
+        if (!formData.deliveryAddress.street || !formData.deliveryAddress.street.trim()) {
+          newErrors.street = 'Street is required';
+        }
+        if (!formData.deliveryAddress.postalCode || !formData.deliveryAddress.postalCode.trim()) {
+          newErrors.postalCode = 'Postal code is required';
+        }
       }
       
       if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
@@ -738,15 +773,69 @@ function NewPurchaseOrderContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                      errors.deliveryDate ? 'border-red-300' : ''
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
+                      errors.deliveryDate ? 'border-red-300 ring-red-100' : ''
                     }`}
                     value={formData.deliveryDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      setFormData(prev => ({ ...prev, deliveryDate: inputValue }));
+                      
+                      // Real-time validation
+                      if (inputValue) {
+                        const selectedDate = new Date(inputValue);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        // Check if date is valid
+                        if (isNaN(selectedDate.getTime())) {
+                          setErrors(prev => ({ ...prev, deliveryDate: 'Please enter a valid date' }));
+                        } else {
+                          // Check if year is before 1900
+                          if (selectedDate.getFullYear() < 1900) {
+                            setErrors(prev => ({ ...prev, deliveryDate: 'Date cannot be before year 1900' }));
+                          }
+                          // Check if date is in the past
+                          else if (selectedDate < today) {
+                            setErrors(prev => ({ ...prev, deliveryDate: 'Delivery date cannot be in the past' }));
+                          }
+                          // Check if date is more than 10 years in the future
+                          else {
+                            const maxDate = new Date();
+                            maxDate.setFullYear(maxDate.getFullYear() + 10);
+                            if (selectedDate > maxDate) {
+                              setErrors(prev => ({ ...prev, deliveryDate: 'Delivery date cannot be more than 10 years in the future' }));
+                            } else {
+                              // Clear error if date is valid
+                              setErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.deliveryDate;
+                                return newErrors;
+                              });
+                            }
+                          }
+                        }
+                      } else {
+                        // Clear error if field is empty (will be caught by required validation)
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.deliveryDate;
+                          return newErrors;
+                        });
+                      }
+                    }}
                     min={new Date().toISOString().split('T')[0]}
+                    max={(() => {
+                      const maxDate = new Date();
+                      maxDate.setFullYear(maxDate.getFullYear() + 10);
+                      return maxDate.toISOString().split('T')[0];
+                    })()}
                   />
                   {errors.deliveryDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.deliveryDate}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      {errors.deliveryDate}
+                    </p>
                   )}
                 </div>
 
@@ -755,13 +844,14 @@ function NewPurchaseOrderContent() {
                     Currency
                   </label>
                   <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+                    style={{ color: '#111827' }}
                   >
-                    <option value="OMR">Omani Rial (OMR)</option>
-                    <option value="USD">US Dollar (USD)</option>
-                    <option value="EUR">Euro (EUR)</option>
+                    <option value="OMR" style={{ color: '#111827' }}>Omani Rial (OMR)</option>
+                    <option value="USD" style={{ color: '#111827' }}>US Dollar (USD)</option>
+                    <option value="EUR" style={{ color: '#111827' }}>Euro (EUR)</option>
                   </select>
                 </div>
               </div>
@@ -780,18 +870,57 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                        errors.building ? 'border-red-300' : ''
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
+                        errors.building ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.building}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, building: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, building: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, building: 'Building cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.building) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.building;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, building: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, building: 'Building is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, building: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Building name/number"
                     />
                     {errors.building && (
-                      <p className="mt-1 text-sm text-red-600">{errors.building}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.building}
+                      </p>
                     )}
                   </div>
 
@@ -801,18 +930,57 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                        errors.street ? 'border-red-300' : ''
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
+                        errors.street ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.street}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, street: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, street: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, street: 'Street cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.street) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.street;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, street: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, street: 'Street is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, street: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Street name"
                     />
                     {errors.street && (
-                      <p className="mt-1 text-sm text-red-600">{errors.street}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.street}
+                      </p>
                     )}
                   </div>
 
@@ -822,7 +990,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                       value={formData.deliveryAddress.city}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -836,24 +1004,25 @@ function NewPurchaseOrderContent() {
                       Governorate
                     </label>
                     <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                       value={formData.deliveryAddress.governorate}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
                         deliveryAddress: { ...prev.deliveryAddress, governorate: e.target.value }
                       }))}
+                      style={{ color: '#111827' }}
                     >
-                      <option value="Muscat">Muscat</option>
-                      <option value="Dhofar">Dhofar</option>
-                      <option value="Al Batinah North">Al Batinah North</option>
-                      <option value="Al Batinah South">Al Batinah South</option>
-                      <option value="Al Sharqiyah North">Al Sharqiyah North</option>
-                      <option value="Al Sharqiyah South">Al Sharqiyah South</option>
-                      <option value="Ad Dakhiliyah">Ad Dakhiliyah</option>
-                      <option value="Al Dhahirah">Al Dhahirah</option>
-                      <option value="Al Wusta">Al Wusta</option>
-                      <option value="Musandam">Musandam</option>
-                      <option value="Al Buraimi">Al Buraimi</option>
+                      <option value="Muscat" style={{ color: '#111827' }}>Muscat</option>
+                      <option value="Dhofar" style={{ color: '#111827' }}>Dhofar</option>
+                      <option value="Al Batinah North" style={{ color: '#111827' }}>Al Batinah North</option>
+                      <option value="Al Batinah South" style={{ color: '#111827' }}>Al Batinah South</option>
+                      <option value="Al Sharqiyah North" style={{ color: '#111827' }}>Al Sharqiyah North</option>
+                      <option value="Al Sharqiyah South" style={{ color: '#111827' }}>Al Sharqiyah South</option>
+                      <option value="Ad Dakhiliyah" style={{ color: '#111827' }}>Ad Dakhiliyah</option>
+                      <option value="Al Dhahirah" style={{ color: '#111827' }}>Al Dhahirah</option>
+                      <option value="Al Wusta" style={{ color: '#111827' }}>Al Wusta</option>
+                      <option value="Musandam" style={{ color: '#111827' }}>Musandam</option>
+                      <option value="Al Buraimi" style={{ color: '#111827' }}>Al Buraimi</option>
                     </select>
                   </div>
 
@@ -863,18 +1032,57 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                        errors.postalCode ? 'border-red-300' : ''
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
+                        errors.postalCode ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.postalCode}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, postalCode: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, postalCode: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, postalCode: 'Postal code cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.postalCode) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.postalCode;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, postalCode: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, postalCode: 'Postal code is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, postalCode: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Postal code"
                     />
                     {errors.postalCode && (
-                      <p className="mt-1 text-sm text-red-600">{errors.postalCode}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.postalCode}
+                      </p>
                     )}
                   </div>
 
@@ -884,7 +1092,7 @@ function NewPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                       value={formData.deliveryAddress.country}
                       onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
@@ -910,7 +1118,7 @@ function NewPurchaseOrderContent() {
                       </label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                         placeholder="Where service will be performed"
                       />
                     </div>
@@ -920,7 +1128,7 @@ function NewPurchaseOrderContent() {
                       </label>
                       <input
                         type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                       />
                     </div>
                     <div>
@@ -929,7 +1137,7 @@ function NewPurchaseOrderContent() {
                       </label>
                       <input
                         type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                       />
                     </div>
                   </div>
@@ -943,18 +1151,19 @@ function NewPurchaseOrderContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                  style={{ color: '#111827' }}
                 >
-                  <option value="Net 30 days">Net 30 days</option>
-                  <option value="Net 45 days">Net 45 days</option>
-                  <option value="Net 60 days">Net 60 days</option>
-                  <option value="Cash on Delivery">Cash on Delivery</option>
-                  <option value="Advance Payment">Advance Payment</option>
-                  <option value="Letter of Credit">Letter of Credit</option>
+                  <option value="Net 30 days" style={{ color: '#111827' }}>Net 30 days</option>
+                  <option value="Net 45 days" style={{ color: '#111827' }}>Net 45 days</option>
+                  <option value="Net 60 days" style={{ color: '#111827' }}>Net 60 days</option>
+                  <option value="Cash on Delivery" style={{ color: '#111827' }}>Cash on Delivery</option>
+                  <option value="Advance Payment" style={{ color: '#111827' }}>Advance Payment</option>
+                  <option value="Letter of Credit" style={{ color: '#111827' }}>Letter of Credit</option>
                 </select>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
@@ -1041,7 +1250,7 @@ function NewPurchaseOrderContent() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`w-2/3 pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                                className={`w-2/3 pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white ${
                                   errors[`item_${index}_price`] ? 'border-red-300' : ''
                                 }`}
                                 value={poItem?.unitPrice || 0}
@@ -1088,7 +1297,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                     value={formData.specialConditions || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, specialConditions: e.target.value }))}
                     placeholder="Any special conditions or requirements..."
@@ -1101,7 +1310,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                     value={formData.warrantyRequirements || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, warrantyRequirements: e.target.value }))}
                     placeholder="Warranty terms and requirements..."
@@ -1114,7 +1323,7 @@ function NewPurchaseOrderContent() {
                   </label>
                   <textarea
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                     value={formData.qualityStandards || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                     placeholder="Quality standards and inspection requirements..."

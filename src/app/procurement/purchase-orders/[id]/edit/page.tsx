@@ -259,10 +259,45 @@ function EditPurchaseOrderContent() {
     }
 
     if (step === 2) {
-      if (!formData.deliveryDate) newErrors.deliveryDate = 'Delivery date is required';
-      if (!formData.deliveryAddress.building) newErrors.building = 'Building is required';
-      if (!formData.deliveryAddress.street) newErrors.street = 'Street is required';
-      if (!formData.deliveryAddress.postalCode) newErrors.postalCode = 'Postal code is required';
+      if (!formData.deliveryDate) {
+        newErrors.deliveryDate = 'Delivery date is required';
+      } else {
+        // Validate date format and range
+        const selectedDate = new Date(formData.deliveryDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Check if date is valid
+        if (isNaN(selectedDate.getTime())) {
+          newErrors.deliveryDate = 'Please enter a valid date';
+        } else {
+          // Check if year is before 1900
+          if (selectedDate.getFullYear() < 1900) {
+            newErrors.deliveryDate = 'Date cannot be before year 1900';
+          }
+          // Check if date is in the past
+          else if (selectedDate < today) {
+            newErrors.deliveryDate = 'Delivery date cannot be in the past';
+          }
+          // Check if date is more than 10 years in the future
+          else {
+            const maxDate = new Date();
+            maxDate.setFullYear(maxDate.getFullYear() + 10);
+            if (selectedDate > maxDate) {
+              newErrors.deliveryDate = 'Delivery date cannot be more than 10 years in the future';
+            }
+          }
+        }
+      }
+      if (!formData.deliveryAddress.building || !formData.deliveryAddress.building.trim()) {
+        newErrors.building = 'Building is required';
+      }
+      if (!formData.deliveryAddress.street || !formData.deliveryAddress.street.trim()) {
+        newErrors.street = 'Street is required';
+      }
+      if (!formData.deliveryAddress.postalCode || !formData.deliveryAddress.postalCode.trim()) {
+        newErrors.postalCode = 'Postal code is required';
+      }
       if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
     }
 
@@ -566,15 +601,69 @@ function EditPurchaseOrderContent() {
                   </label>
                   <input
                     type="date"
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
-                      errors.deliveryDate ? 'border-red-300' : ''
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white ${
+                      errors.deliveryDate ? 'border-red-300 ring-red-100' : ''
                     }`}
                     value={formData.deliveryDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      setFormData(prev => ({ ...prev, deliveryDate: inputValue }));
+                      
+                      // Real-time validation
+                      if (inputValue) {
+                        const selectedDate = new Date(inputValue);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        // Check if date is valid
+                        if (isNaN(selectedDate.getTime())) {
+                          setErrors(prev => ({ ...prev, deliveryDate: 'Please enter a valid date' }));
+                        } else {
+                          // Check if year is before 1900
+                          if (selectedDate.getFullYear() < 1900) {
+                            setErrors(prev => ({ ...prev, deliveryDate: 'Date cannot be before year 1900' }));
+                          }
+                          // Check if date is in the past
+                          else if (selectedDate < today) {
+                            setErrors(prev => ({ ...prev, deliveryDate: 'Delivery date cannot be in the past' }));
+                          }
+                          // Check if date is more than 10 years in the future
+                          else {
+                            const maxDate = new Date();
+                            maxDate.setFullYear(maxDate.getFullYear() + 10);
+                            if (selectedDate > maxDate) {
+                              setErrors(prev => ({ ...prev, deliveryDate: 'Delivery date cannot be more than 10 years in the future' }));
+                            } else {
+                              // Clear error if date is valid
+                              setErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.deliveryDate;
+                                return newErrors;
+                              });
+                            }
+                          }
+                        }
+                      } else {
+                        // Clear error if field is empty (will be caught by required validation)
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.deliveryDate;
+                          return newErrors;
+                        });
+                      }
+                    }}
                     min={new Date().toISOString().split('T')[0]}
+                    max={(() => {
+                      const maxDate = new Date();
+                      maxDate.setFullYear(maxDate.getFullYear() + 10);
+                      return maxDate.toISOString().split('T')[0];
+                    })()}
                   />
                   {errors.deliveryDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.deliveryDate}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      {errors.deliveryDate}
+                    </p>
                   )}
                 </div>
 
@@ -607,18 +696,57 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
-                        errors.building ? 'border-red-300' : ''
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white ${
+                        errors.building ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.building}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, building: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, building: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, building: 'Building cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.building) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.building;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, building: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, building: 'Building is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, building: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Building name/number"
                     />
                     {errors.building && (
-                      <p className="mt-1 text-sm text-red-600">{errors.building}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.building}
+                      </p>
                     )}
                   </div>
 
@@ -628,18 +756,57 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
-                        errors.street ? 'border-red-300' : ''
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white ${
+                        errors.street ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.street}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, street: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, street: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, street: 'Street cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.street) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.street;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, street: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, street: 'Street is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, street: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Street name"
                     />
                     {errors.street && (
-                      <p className="mt-1 text-sm text-red-600">{errors.street}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.street}
+                      </p>
                     )}
                   </div>
 
@@ -690,18 +857,57 @@ function EditPurchaseOrderContent() {
                     </label>
                     <input
                       type="text"
-                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
-                        errors.postalCode ? 'border-red-300' : ''
+                      className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white ${
+                        errors.postalCode ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.deliveryAddress.postalCode}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        deliveryAddress: { ...prev.deliveryAddress, postalCode: e.target.value }
-                      }))}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          deliveryAddress: { ...prev.deliveryAddress, postalCode: inputValue }
+                        }));
+                        
+                        // Real-time validation: if value is only whitespace, show error
+                        if (inputValue && !inputValue.trim()) {
+                          setErrors(prev => ({ ...prev, postalCode: 'Postal code cannot be only whitespace' }));
+                        } else {
+                          // Clear error when user types valid content
+                          if (errors.postalCode) {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.postalCode;
+                              return newErrors;
+                            });
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        const trimmedValue = inputValue.trim();
+                        
+                        // If value is only whitespace, clear it and show error
+                        if (inputValue && !trimmedValue) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, postalCode: '' }
+                          }));
+                          setErrors(prev => ({ ...prev, postalCode: 'Postal code is required' }));
+                        } else if (trimmedValue !== inputValue) {
+                          // Trim leading/trailing whitespace but keep the value
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            deliveryAddress: { ...prev.deliveryAddress, postalCode: trimmedValue }
+                          }));
+                        }
+                      }}
                       placeholder="Postal code"
                     />
                     {errors.postalCode && (
-                      <p className="mt-1 text-sm text-red-600">{errors.postalCode}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.postalCode}
+                      </p>
                     )}
                   </div>
 

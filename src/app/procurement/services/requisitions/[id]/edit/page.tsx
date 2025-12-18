@@ -342,11 +342,13 @@ export default function EditServiceRequisition() {
     switch (step) {
       case 1:
         if (!formData.serviceCategory) newErrors.serviceCategory = 'Service category is required';
-        if (!formData.departmentId) newErrors.departmentId = 'Department is required';
+        if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+        if (formData.projectId && !formData.projectId.trim()) newErrors.projectId = 'Project ID cannot be only whitespace';
         if (!formData.priority) newErrors.priority = 'Priority is required';
+        if (!formData.requestor || !formData.requestor.trim()) newErrors.requestor = 'Requestor is required';
         break;
       case 2:
-        if (!formData.detailedScope) newErrors.detailedScope = 'Detailed scope is required';
+        if (!formData.detailedScope || !formData.detailedScope.trim()) newErrors.detailedScope = 'Detailed scope is required';
         if (formData.items.length === 0) newErrors.items = 'At least one service item is required';
         break;
       case 3:
@@ -354,9 +356,43 @@ export default function EditServiceRequisition() {
         if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
         break;
       case 4:
-        if (!formData.budgetCode) newErrors.budgetCode = 'Budget code is required';
-        if (!formData.requiredByDate) newErrors.requiredByDate = 'Required by date is required';
-        if (!formData.justification) newErrors.justification = 'Justification is required';
+        if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
+        
+        // Validate Required By Date
+        if (!formData.requiredByDate) {
+          newErrors.requiredByDate = 'Required by date is required';
+        } else {
+          const selectedDate = new Date(formData.requiredByDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (isNaN(selectedDate.getTime())) {
+            newErrors.requiredByDate = 'Invalid date format';
+          } else {
+            if (selectedDate.getFullYear() < 1900) {
+              newErrors.requiredByDate = 'Date cannot be before year 1900';
+            } else if (selectedDate < today) {
+              newErrors.requiredByDate = 'Required date must be today or in the future';
+            } else {
+              const maxDate = new Date();
+              maxDate.setFullYear(maxDate.getFullYear() + 10);
+              if (selectedDate > maxDate) {
+                newErrors.requiredByDate = 'Date cannot be more than 10 years in the future';
+              }
+            }
+          }
+        }
+        
+        if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
+        
+        // Cost Center is optional, but if provided, it cannot be only whitespace
+        if (formData.costCenter && typeof formData.costCenter === 'string' && formData.costCenter.length > 0) {
+          const trimmed = formData.costCenter.trim();
+          if (trimmed.length === 0) {
+            newErrors.costCenter = 'Cost Center cannot be only whitespace';
+            setFormData(prev => ({ ...prev, costCenter: '' }));
+          }
+        }
         break;
     }
 
@@ -380,12 +416,16 @@ export default function EditServiceRequisition() {
     try {
       setLoading(true);
 
+      // Trim whitespace from costCenter before submitting
+      const trimmedCostCenter = formData.costCenter?.trim() || undefined;
+
       // Update service requisition using PUT method
       const serviceData = {
         departmentId: formData.departmentId,
         requesterId: 'current-user-id', // In real app, get from auth
         priority: formData.priority,
         budgetCode: formData.budgetCode,
+        costCenter: trimmedCostCenter,
         justification: formData.justification,
         serviceScope: formData.detailedScope,
         technicalSpecifications: formData.technicalSpecifications,
@@ -649,9 +689,22 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                  errors.detailedScope ? 'border-red-300 ring-red-100' : ''
+                }`}
                 value={formData.detailedScope}
-                onChange={(e) => setFormData({ ...formData, detailedScope: e.target.value })}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  setFormData({ ...formData, detailedScope: inputValue });
+                  // Clear error when user types
+                  if (errors.detailedScope) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.detailedScope;
+                      return newErrors;
+                    });
+                  }
+                }}
                 placeholder="Describe the overall scope of work, objectives, requirements, and expectations for this service..."
               />
               {errors.detailedScope && (
@@ -1040,9 +1093,41 @@ export default function EditServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                    errors.budgetCode ? 'border-red-300 ring-red-100' : ''
+                  }`}
                   value={formData.budgetCode}
-                  onChange={(e) => setFormData({ ...formData, budgetCode: e.target.value })}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    setFormData({ ...formData, budgetCode: inputValue });
+                    
+                    // Validate in real-time: if value is only whitespace, show error
+                    if (inputValue && !inputValue.trim()) {
+                      setErrors(prev => ({ ...prev, budgetCode: 'Budget code cannot be only whitespace' }));
+                    } else {
+                      // Clear error when user types valid content
+                      if (errors.budgetCode) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.budgetCode;
+                          return newErrors;
+                        });
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const inputValue = e.target.value;
+                    const trimmedValue = inputValue.trim();
+                    
+                    // If value is only whitespace, clear it and show error
+                    if (inputValue && !trimmedValue) {
+                      setFormData({ ...formData, budgetCode: '' });
+                      setErrors(prev => ({ ...prev, budgetCode: 'Budget code is required' }));
+                    } else if (trimmedValue !== inputValue) {
+                      // Trim leading/trailing whitespace but keep the value
+                      setFormData({ ...formData, budgetCode: trimmedValue });
+                    }
+                  }}
                   placeholder="Enter budget code"
                 />
                 {errors.budgetCode && (
@@ -1056,11 +1141,46 @@ export default function EditServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                    errors.costCenter ? 'border-red-300 ring-red-100' : ''
+                  }`}
                   value={formData.costCenter || ''}
-                  onChange={(e) => setFormData({ ...formData, costCenter: e.target.value })}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    setFormData({ ...formData, costCenter: inputValue });
+                    
+                    // Validate in real-time: if value is only whitespace, show error
+                    if (inputValue && !inputValue.trim()) {
+                      setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
+                    } else {
+                      // Clear error when user types valid content
+                      if (errors.costCenter) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.costCenter;
+                          return newErrors;
+                        });
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const inputValue = e.target.value;
+                    const trimmedValue = inputValue.trim();
+                    
+                    // If value is only whitespace, clear it and show error
+                    if (inputValue && !trimmedValue) {
+                      setFormData({ ...formData, costCenter: '' });
+                      setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
+                    } else if (trimmedValue !== inputValue) {
+                      // Trim leading/trailing whitespace but keep the value
+                      setFormData({ ...formData, costCenter: trimmedValue });
+                    }
+                  }}
                   placeholder="Enter cost center (optional)"
                 />
+                {errors.costCenter && (
+                  <p className="mt-1 text-sm text-red-600">{errors.costCenter}</p>
+                )}
               </div>
 
               <div>
@@ -1069,9 +1189,55 @@ export default function EditServiceRequisition() {
                 </label>
                 <input
                   type="date"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                    errors.requiredByDate ? 'border-red-300 ring-red-100' : ''
+                  }`}
                   value={formData.requiredByDate}
-                  onChange={(e) => setFormData({ ...formData, requiredByDate: e.target.value })}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    setFormData({ ...formData, requiredByDate: inputValue });
+                    
+                    // Validate in real-time
+                    if (inputValue) {
+                      const selectedDate = new Date(inputValue);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      
+                      if (isNaN(selectedDate.getTime())) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Invalid date format' }));
+                      } else if (selectedDate.getFullYear() < 1900) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be before year 1900' }));
+                      } else if (selectedDate < today) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Required date must be today or in the future' }));
+                      } else {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 10);
+                        if (selectedDate > maxDate) {
+                          setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be more than 10 years in the future' }));
+                        } else {
+                          // Clear error if date is valid
+                          setErrors(prev => {
+                            const newErrors = { ...prev };
+                            delete newErrors.requiredByDate;
+                            return newErrors;
+                          });
+                        }
+                      }
+                    } else {
+                      // Clear error if field is empty (will be caught by required validation)
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.requiredByDate;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  min={new Date().toISOString().split('T')[0]}
+                  max={(() => {
+                    const maxDate = new Date();
+                    maxDate.setFullYear(maxDate.getFullYear() + 10);
+                    return maxDate.toISOString().split('T')[0];
+                  })()}
                 />
                 {errors.requiredByDate && (
                   <p className="mt-1 text-sm text-red-600">{errors.requiredByDate}</p>
@@ -1124,9 +1290,22 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                  errors.justification ? 'border-red-300 ring-red-100' : ''
+                }`}
                 value={formData.justification}
-                onChange={(e) => setFormData({ ...formData, justification: e.target.value })}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  setFormData({ ...formData, justification: inputValue });
+                  // Clear error when user types
+                  if (errors.justification) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.justification;
+                      return newErrors;
+                    });
+                  }
+                }}
                 placeholder="Provide justification for this service requisition..."
               />
               {errors.justification && (
