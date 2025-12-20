@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
+    const priority = searchParams.get('priority') || '';
+    const departmentId = searchParams.get('departmentId') || searchParams.get('department') || '';
+    const serviceType = searchParams.get('serviceType') || '';
     const search = searchParams.get('search') || '';
 
     const skip = (page - 1) * limit;
@@ -18,6 +21,20 @@ export async function GET(request: NextRequest) {
     
     if (status) {
       where.status = status;
+    }
+
+    if (priority) {
+      where.priority = priority;
+    }
+
+    if (departmentId) {
+      where.departmentId = departmentId;
+    }
+
+    if (serviceType) {
+      where.servicePR = {
+        serviceType: serviceType
+      };
     }
 
     if (search) {
@@ -145,7 +162,7 @@ export async function POST(request: NextRequest) {
           budgetCode,
           costCenter: costCenter || null,
           justification,
-          requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null
+          requiredByDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null
         }
       });
 
@@ -160,9 +177,9 @@ export async function POST(request: NextRequest) {
           technicalSpecifications: technicalSpecifications || null,
           qualityStandards: qualityStandards || null,
           duration: duration || 30,
-          durationUnit: durationUnit || 'DAYS',
-          deliverables: deliverables && deliverables.length > 0 ? deliverables : [],
-          performanceMetrics: performanceMetrics && performanceMetrics.length > 0 ? performanceMetrics : [],
+          durationUnit: (durationUnit || 'DAYS').toUpperCase(),
+          deliverables: deliverables && Array.isArray(deliverables) && deliverables.length > 0 ? deliverables : [],
+          performanceMetrics: performanceMetrics && Array.isArray(performanceMetrics) && performanceMetrics.length > 0 ? performanceMetrics : null,
           slaRequirements: slaRequirements || null,
           insuranceRequired: insuranceRequired || false,
           certificationRequired: certificationRequired || false,
@@ -170,8 +187,8 @@ export async function POST(request: NextRequest) {
           paymentSchedule: paymentSchedule || 'MILESTONE',
           paymentTerms: paymentTerms || null,
           retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0,
-          preferredVendors: preferredVendors && preferredVendors.length > 0 ? preferredVendors : null,
-          milestones: milestones || null
+          preferredVendors: preferredVendors && Array.isArray(preferredVendors) && preferredVendors.length > 0 ? preferredVendors : null,
+          milestones: milestones && Array.isArray(milestones) && milestones.length > 0 ? milestones : null
         }
       });
 
@@ -233,7 +250,7 @@ export async function POST(request: NextRequest) {
               standardRate: parseFloat(item.estimatedRate) || 0,
               currency: 'OMR',
               slaRequired: false,
-              performanceMetrics: item.performanceMetrics || {}
+              performanceMetrics: item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0 ? item.performanceMetrics : null
             }
           });
         }
@@ -246,10 +263,10 @@ export async function POST(request: NextRequest) {
             estimatedRate: parseFloat(item.estimatedRate),
             unit: item.unit || 'Hours',
             duration: item.duration || 1,
-            durationUnit: item.durationUnit || 'DAYS',
+            durationUnit: (item.durationUnit || 'DAYS').toUpperCase(),
             specifications: item.specifications || null,
-            deliverables: item.deliverables || [],
-            performanceMetrics: item.performanceMetrics || []
+            deliverables: item.deliverables && Array.isArray(item.deliverables) && item.deliverables.length > 0 ? item.deliverables : null,
+            performanceMetrics: item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0 ? item.performanceMetrics : null
           }
         });
       }

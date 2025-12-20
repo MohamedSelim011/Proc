@@ -85,6 +85,7 @@ export default function NewServiceRequisition() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [itemErrors, setItemErrors] = useState<Record<number, Record<string, string>>>({});
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -184,6 +185,44 @@ export default function NewServiceRequisition() {
         i === index ? { ...item, [field]: value } : item
       )
     }));
+
+    // Clear error for this field when user starts typing
+    if (field === 'description') {
+      setItemErrors(prev => {
+        const newErrors = { ...prev };
+        if (newErrors[index]) {
+          delete newErrors[index].description;
+          if (Object.keys(newErrors[index]).length === 0) {
+            delete newErrors[index];
+          }
+        }
+        return newErrors;
+      });
+    }
+  };
+
+  const handleItemBlur = (index: number, field: keyof ServiceItem, value: any) => {
+    if (field === 'description') {
+      const trimmedValue = value?.trim() || '';
+      if (!trimmedValue) {
+        setItemErrors(prev => ({
+          ...prev,
+          [index]: {
+            ...prev[index],
+            description: 'Service item description is required'
+          }
+        }));
+        // Clear the field if it's only whitespace
+        if (value && !trimmedValue) {
+          setFormData(prev => ({
+            ...prev,
+            items: prev.items.map((item, i) => 
+              i === index ? { ...item, description: '' } : item
+            )
+          }));
+        }
+      }
+    }
   };
 
   const addMilestone = () => {
@@ -234,7 +273,25 @@ export default function NewServiceRequisition() {
         break;
       case 2:
         if (!formData.detailedScope || !formData.detailedScope.trim()) newErrors.detailedScope = 'Detailed scope is required';
-        if (formData.items.length === 0) newErrors.items = 'At least one service item is required';
+        if (formData.items.length === 0) {
+          newErrors.items = 'At least one service item is required';
+        } else {
+          // Validate each service item description
+          const itemValidationErrors: Record<number, Record<string, string>> = {};
+          formData.items.forEach((item, index) => {
+            if (!item.description || !item.description.trim()) {
+              itemValidationErrors[index] = {
+                description: 'Service item description is required'
+              };
+            }
+          });
+          if (Object.keys(itemValidationErrors).length > 0) {
+            setItemErrors(itemValidationErrors);
+            newErrors.items = 'Please fill in all required service item fields';
+          } else {
+            setItemErrors({});
+          }
+        }
         break;
       case 3:
         if (formData.estimatedCost <= 0) newErrors.estimatedCost = 'Estimated cost must be greater than 0';
@@ -253,6 +310,10 @@ export default function NewServiceRequisition() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
+      // Clear item errors when moving to next step if validation passes
+      if (currentStep === 2) {
+        setItemErrors({});
+      }
       if (currentStep === 3) {
         // Auto-calculate estimated cost from items
         const totalCost = calculateTotalCost();
@@ -267,7 +328,8 @@ export default function NewServiceRequisition() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(4)) return;
+    // Validate all steps before submission
+    if (!validateStep(2) || !validateStep(4)) return;
 
     try {
       setLoading(true);
@@ -434,7 +496,7 @@ export default function NewServiceRequisition() {
                   Service Category *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -457,7 +519,7 @@ export default function NewServiceRequisition() {
                   Service Type *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value }))}
                   disabled={!formData.serviceCategory}
@@ -478,7 +540,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.departmentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
                   placeholder="Enter department ID"
@@ -494,7 +556,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.projectId || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                   placeholder="Optional project reference"
@@ -506,7 +568,7 @@ export default function NewServiceRequisition() {
                   Priority *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                 >
@@ -523,7 +585,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.requestor}
                   onChange={(e) => setFormData(prev => ({ ...prev, requestor: e.target.value }))}
                   placeholder="Enter requestor name"
@@ -547,7 +609,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.detailedScope}
                 onChange={(e) => setFormData(prev => ({ ...prev, detailedScope: e.target.value }))}
                 placeholder="Describe the overall scope of work, objectives, requirements, and expectations for this service..."
@@ -563,7 +625,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.technicalSpecifications || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, technicalSpecifications: e.target.value }))}
                 placeholder="Technical requirements, standards, compliance requirements..."
@@ -602,11 +664,26 @@ export default function NewServiceRequisition() {
                       </label>
                       <textarea
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white ${
+                          itemErrors[index]?.description 
+                            ? 'border-red-300 focus:border-red-500' 
+                            : 'border-gray-300 focus:border-wujha-primary'
+                        }`}
                         value={item.description}
-                        onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Prevent spaces-only input
+                          if (value.trim() === '' && value.length > 0 && value.match(/^\s+$/)) {
+                            return; // Don't update if it's only spaces
+                          }
+                          updateServiceItem(index, 'description', value);
+                        }}
+                        onBlur={(e) => handleItemBlur(index, 'description', e.target.value)}
                         placeholder="Describe this specific service item (e.g., 'Installation of HVAC system', 'Monthly maintenance service')..."
                       />
+                      {itemErrors[index]?.description && (
+                        <p className="mt-1 text-sm text-red-600">{itemErrors[index].description}</p>
+                      )}
                     </div>
 
                     <div>
@@ -617,12 +694,12 @@ export default function NewServiceRequisition() {
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
                           onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
                         >
@@ -643,12 +720,12 @@ export default function NewServiceRequisition() {
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.duration}
                           onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.durationUnit}
                           onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
                         >
@@ -669,7 +746,7 @@ export default function NewServiceRequisition() {
                           type="number"
                           step="0.001"
                           min="0"
-                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.estimatedRate}
                           onChange={(e) => updateServiceItem(index, 'estimatedRate', parseFloat(e.target.value) || 0)}
                           placeholder="0.000"
@@ -687,7 +764,7 @@ export default function NewServiceRequisition() {
                         <div key={delIndex} className="flex items-center gap-2">
                           <input
                             type="text"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                             value={deliverable}
                             onChange={(e) => {
                               const newDeliverables = [...item.deliverables];
@@ -730,7 +807,7 @@ export default function NewServiceRequisition() {
                         <div key={metIndex} className="flex items-center gap-2">
                           <input
                             type="text"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                             value={metric}
                             onChange={(e) => {
                               const newMetrics = [...item.performanceMetrics];
@@ -827,7 +904,7 @@ export default function NewServiceRequisition() {
                     type="number"
                     step="0.001"
                     min="0"
-                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                     value={formData.estimatedCost}
                     onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.000"
@@ -843,7 +920,7 @@ export default function NewServiceRequisition() {
                   Payment Terms *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -864,7 +941,7 @@ export default function NewServiceRequisition() {
                   Payment Schedule *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentSchedule: e.target.value as any }))}
                 >
@@ -934,7 +1011,7 @@ export default function NewServiceRequisition() {
                             placeholder="Search vendors..."
                             value={vendorSearchTerm}
                             onChange={(e) => setVendorSearchTerm(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
+                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -1011,7 +1088,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.budgetCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
                   placeholder="Enter budget code"
@@ -1027,7 +1104,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.costCenter || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
                   placeholder="Optional cost center"
@@ -1040,7 +1117,7 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.requiredByDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, requiredByDate: e.target.value }))}
                 />
@@ -1068,7 +1145,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.safetyRequirements || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
                 placeholder="Specify any safety requirements, certifications, or compliance needs..."
@@ -1081,7 +1158,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.qualityStandards || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                 placeholder="Quality standards, certifications, or performance requirements..."
@@ -1094,7 +1171,7 @@ export default function NewServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.justification}
                 onChange={(e) => setFormData(prev => ({ ...prev, justification: e.target.value }))}
                 placeholder="Provide business justification for this service requirement..."

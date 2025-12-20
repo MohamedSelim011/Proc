@@ -92,7 +92,13 @@ export async function PUT(
         });
         
         // Create acknowledgment link
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3001';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin');
+        if (!baseUrl) {
+          return NextResponse.json(
+            { error: 'Base URL not found' },
+            { status: 500 }
+          );
+        }
         const acknowledgmentLink = `${baseUrl}/po/acknowledge/${id}/${acknowledgmentToken}`;
         
         emailSent = await sendPOToVendor({

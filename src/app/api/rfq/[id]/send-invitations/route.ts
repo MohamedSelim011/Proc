@@ -132,11 +132,6 @@ export async function POST(
       );
     }
 
-    // Get base URL from request
-    const protocol = request.headers.get('x-forwarded-proto') || 'http';
-    const host = request.headers.get('host') || 'localhost:3000';
-    const baseUrl = `${protocol}://${host}`;
-
     // Prepare items for email
     const items = rfq.pr?.items.map(item => ({
       name: item.item.nameEn,
@@ -154,7 +149,7 @@ export async function POST(
       items,
       termsAndConditions: rfq.termsAndConditions || undefined,
       vendors: vendorsToEmail,
-      baseUrl
+      baseUrl: process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
     });
 
     // Update RFQ status to PUBLISHED if it was APPROVED

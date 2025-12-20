@@ -31,8 +31,28 @@ interface EmailOptions {
 }
 
 // Send email
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; error?: string }> {
   try {
+    // Validate email configuration
+    if (!process.env.SMTP_FROM_EMAIL) {
+      const errorMsg = 'SMTP_FROM_EMAIL is not configured';
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+      const errorMsg = 'SMTP credentials are not configured';
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    // Validate recipient email
+    if (!options.to || !options.to.includes('@')) {
+      const errorMsg = `Invalid recipient email address: ${options.to}`;
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
     const info = await transporter.sendMail({
       from: `"${process.env.SMTP_FROM_NAME || 'Wujha Procurement'}" <${process.env.SMTP_FROM_EMAIL}>`,
       to: options.to,
@@ -41,11 +61,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       text: options.text || '',
     });
 
-    console.log('📧 Email sent successfully:', info.messageId);
-    return true;
+    console.log('📧 Email sent successfully:', info.messageId, 'to:', options.to);
+    return { success: true };
   } catch (error) {
-    console.error('❌ Failed to send email:', error);
-    return false;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ Failed to send email to', options.to, ':', errorMsg);
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -224,18 +245,18 @@ export async function sendRFQInvitationToVendors(data: {
         submissionLink,
       });
 
-      const sent = await sendEmail({
+      const emailResult = await sendEmail({
         to: vendor.email,
         subject: `Request for Quotation: ${data.rfqNumber} - ${data.title}`,
         html,
         text,
       });
 
-      if (sent) {
+      if (emailResult.success) {
         success++;
       } else {
         failed++;
-        errors.push(`Failed to send email to ${vendor.email}`);
+        errors.push(`Failed to send email to ${vendor.email}${emailResult.error ? ': ' + emailResult.error : ''}`);
       }
     } catch (error) {
       failed++;
@@ -447,23 +468,26 @@ export async function sendServiceRFPInvitationToVendors(data: {
         submissionLink,
       });
 
-      const sent = await sendEmail({
+      const emailResult = await sendEmail({
         to: vendor.email,
         subject: `Service RFP Invitation: ${data.rfpNumber} - ${data.title}`,
         html,
         text,
       });
 
-      if (sent) {
+      if (emailResult.success) {
         success++;
       } else {
         failed++;
-        errors.push(`Failed to send email to ${vendor.email}`);
+        const errorMsg = `Failed to send email to ${vendor.email} (${vendor.name})${emailResult.error ? ': ' + emailResult.error : ''}`;
+        errors.push(errorMsg);
+        console.error(`❌ ${errorMsg}`);
       }
     } catch (error) {
       failed++;
-      errors.push(`Error sending to ${vendor.email}: ${error}`);
-      console.error(`Error sending RFP invitation to ${vendor.email}:`, error);
+      const errorMsg = `Error sending to ${vendor.email} (${vendor.name}): ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(errorMsg);
+      console.error(`❌ ${errorMsg}`, error);
     }
   }
 
@@ -707,14 +731,14 @@ export async function sendPOToVendor(data: {
       acknowledgmentLink: data.acknowledgmentLink,
     });
 
-    const sent = await sendEmail({
+    const emailResult = await sendEmail({
       to: data.vendorEmail,
       subject: `Purchase Order ${data.poNumber} - Wujha Procurement`,
       html,
       text,
     });
 
-    return sent;
+    return emailResult.success;
   } catch (error) {
     console.error('Error sending PO email:', error);
     return false;

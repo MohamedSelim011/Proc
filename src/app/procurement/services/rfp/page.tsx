@@ -99,9 +99,19 @@ export default function ServiceRFPListPage() {
       const data = await response.json();
       
       if (response.ok) {
-        setRfps(data.rfps || []);
+        const rfpsList = data.rfps || [];
+        setRfps(rfpsList);
+        // Update pagination with actual counts
         if (data.pagination) {
           setPagination(data.pagination);
+        } else {
+          // If no pagination from API, calculate from the data
+          setPagination({
+            page: 1,
+            limit: rfpsList.length,
+            total: rfpsList.length,
+            totalPages: 1
+          });
         }
       } else {
         showToast('error', 'Failed to load Service RFPs. Please try again.');
@@ -251,7 +261,7 @@ export default function ServiceRFPListPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total RFPs</dt>
-                  <dd className="text-lg font-medium text-gray-900">{pagination.total}</dd>
+                  <dd className="text-lg font-medium text-gray-900">{pagination.total > 0 ? pagination.total : rfps.length}</dd>
                 </dl>
               </div>
             </div>

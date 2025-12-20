@@ -111,6 +111,7 @@ export default function ServiceRequisitionDetail() {
   const [hasRFP, setHasRFP] = useState(false);
   const [rfpId, setRfpId] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -129,84 +130,487 @@ export default function ServiceRequisitionDetail() {
   };
 
   const handleExportPDF = () => {
-    // Create a new window with the requisition details formatted for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!sr) return;
 
+    // Create a new window for PDF download
+    const downloadWindow = window.open('', '_blank');
+    if (!downloadWindow) return;
+
+    // Format deliverables and performance metrics
+    const formatArray = (arr: any): string => {
+      if (!arr) return 'N/A';
+      if (Array.isArray(arr)) {
+        return arr.filter(item => item && item.trim()).join(', ') || 'N/A';
+      }
+      return String(arr) || 'N/A';
+    };
+
+    // Generate HTML content for PDF download
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Service Requisition ${sr?.prNumber}</title>
+          <title>Service Requisition ${sr.prNumber}</title>
+          <meta charset="UTF-8">
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .header { margin-bottom: 30px; }
-            .section { margin: 20px 0; }
+            @media print {
+              @page {
+                size: A4 landscape;
+                margin: 15mm;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #1f2937;
+              background: white;
+              font-size: 11px;
+              line-height: 1.5;
+            }
+            .download-buttons {
+              position: fixed;
+              top: 10px;
+              right: 10px;
+              display: flex;
+              gap: 10px;
+              z-index: 1000;
+              background: white;
+              padding: 10px;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            }
+            .download-btn {
+              padding: 10px 20px;
+              border: 1px solid #ddd;
+              border-radius: 6px;
+              background: white;
+              cursor: pointer;
+              font-size: 13px;
+              font-weight: 600;
+              transition: all 0.2s;
+              color: #374151;
+            }
+            .download-btn:hover {
+              background: #f9fafb;
+            }
+            .download-btn.primary {
+              background: #f97316;
+              color: white;
+              border-color: #f97316;
+            }
+            .download-btn.primary:hover {
+              background: #ea580c;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 4px solid #f97316;
+              padding-bottom: 20px;
+            }
+            .company-name {
+              font-size: 28px;
+              font-weight: bold;
+              color: #f97316;
+              margin-bottom: 8px;
+              letter-spacing: 1px;
+            }
+            .document-title {
+              font-size: 20px;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 12px;
+            }
+            .pr-number {
+              font-size: 16px;
+              color: #6b7280;
+              font-weight: 500;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              margin-bottom: 25px;
+            }
+            .info-section {
+              background: #f9fafb;
+              padding: 15px;
+              border-radius: 8px;
+              border-left: 4px solid #f97316;
+            }
+            .info-title {
+              font-weight: 700;
+              font-size: 13px;
+              margin-bottom: 12px;
+              color: #f97316;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              padding-bottom: 6px;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .info-row:last-child {
+              border-bottom: none;
+              margin-bottom: 0;
+            }
+            .info-label {
+              color: #6b7280;
+              font-weight: 600;
+              font-size: 10px;
+            }
+            .info-value {
+              color: #1f2937;
+              font-weight: 600;
+              font-size: 11px;
+              text-align: right;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+            .status-${sr.status} {
+              ${sr.status === 'APPROVED' ? 'background: #d1fae5; color: #065f46;' : ''}
+              ${sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL' ? 'background: #fef3c7; color: #92400e;' : ''}
+              ${sr.status === 'DRAFT' ? 'background: #f3f4f6; color: #374151;' : ''}
+              ${sr.status === 'REJECTED' ? 'background: #fee2e2; color: #991b1b;' : ''}
+            }
+            .priority-badge {
+              display: inline-block;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+            .priority-${sr.priority} {
+              ${sr.priority === 'URGENT' ? 'background: #fee2e2; color: #991b1b;' : ''}
+              ${sr.priority === 'HIGH' ? 'background: #fef3c7; color: #92400e;' : ''}
+              ${sr.priority === 'NORMAL' ? 'background: #fef3c7; color: #f97316;' : ''}
+              ${sr.priority === 'LOW' ? 'background: #d1fae5; color: #065f46;' : ''}
+            }
+            .section {
+              margin: 25px 0;
+              page-break-inside: avoid;
+            }
+            .section-title {
+              font-size: 14px;
+              font-weight: 700;
+              color: #f97316;
+              margin-bottom: 12px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #f97316;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .section-content {
+              background: #ffffff;
+              padding: 15px;
+              border-radius: 6px;
+              border: 1px solid #e5e7eb;
+              white-space: pre-wrap;
+              font-size: 11px;
+              line-height: 1.6;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 20px 0;
+              font-size: 10px;
+            }
+            .items-table th {
+              background: #f97316;
+              color: white;
+              padding: 12px 8px;
+              text-align: left;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .items-table td {
+              padding: 10px 8px;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 10px;
+            }
+            .items-table tr:nth-child(even) {
+              background: #f9fafb;
+            }
+            .items-table tr:hover {
+              background: #fef3c7;
+            }
+            .total-row {
+              background: #fef3c7 !important;
+              font-weight: 700;
+              border-top: 2px solid #f97316;
+            }
+            .total-row td {
+              padding: 12px 8px;
+              font-size: 11px;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e5e7eb;
+              font-size: 9px;
+              color: #6b7280;
+              text-align: center;
+            }
+            .metadata {
+              font-size: 9px;
+              color: #9ca3af;
+              margin-top: 5px;
+            }
+            .deliverables-list, .metrics-list {
+              margin-top: 10px;
+              padding-left: 20px;
+            }
+            .deliverables-list li, .metrics-list li {
+              margin-bottom: 4px;
+              font-size: 10px;
+            }
           </style>
         </head>
         <body>
+          <div class="download-buttons no-print">
+            <button class="download-btn primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="download-btn" onclick="window.close()">✕ Close</button>
+          </div>
+
           <div class="header">
-            <h1>Service Requisition: ${sr?.prNumber}</h1>
-            <p><strong>Status:</strong> ${sr?.status}</p>
-            <p><strong>Priority:</strong> ${sr?.priority}</p>
-            <p><strong>Created:</strong> ${sr ? formatDate(sr.createdAt) : ''}</p>
+            <div class="company-name">WUJHA PROCUREMENT</div>
+            <div class="document-title">SERVICE REQUISITION</div>
+            <div class="pr-number">${sr.prNumber}</div>
+            <div class="metadata">Generated: ${new Date().toLocaleString('en-OM', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}</div>
           </div>
-          <div class="section">
-            <h2>Details</h2>
-            <p><strong>Department:</strong> ${sr?.departmentId}</p>
-            <p><strong>Budget Code:</strong> ${sr?.budgetCode}</p>
-            <p><strong>Requester:</strong> ${sr?.requesterId}</p>
-            <p><strong>Duration:</strong> ${sr?.servicePR?.duration || 0} ${sr?.servicePR?.durationUnit || 'days'}</p>
+
+          <div class="info-grid">
+            <div class="info-section">
+              <div class="info-title">Requisition Information</div>
+              <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value"><span class="status-badge status-${sr.status}">${sr.status}</span></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Priority:</span>
+                <span class="info-value"><span class="priority-badge priority-${sr.priority}">${sr.priority}</span></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Created Date:</span>
+                <span class="info-value">${formatDate(sr.createdAt)}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Department:</span>
+                <span class="info-value">${sr.departmentId || 'N/A'}</span>
+              </div>
+              ${sr.projectId ? `
+              <div class="info-row">
+                <span class="info-label">Project ID:</span>
+                <span class="info-value">${sr.projectId}</span>
+              </div>
+              ` : ''}
+            </div>
+
+            <div class="info-section">
+              <div class="info-title">Service Details</div>
+              <div class="info-row">
+                <span class="info-label">Service Category:</span>
+                <span class="info-value">${sr.servicePR?.serviceCategory || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Service Type:</span>
+                <span class="info-value">${sr.servicePR?.serviceType || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span class="info-value">${sr.servicePR?.duration || 0} ${sr.servicePR?.durationUnit || 'DAYS'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Requester:</span>
+                <span class="info-value">${sr.requesterId || 'N/A'}</span>
+              </div>
+              ${sr.servicePR?.requestor ? `
+              <div class="info-row">
+                <span class="info-label">Requestor Name:</span>
+                <span class="info-value">${sr.servicePR.requestor}</span>
+              </div>
+              ` : ''}
+            </div>
           </div>
-          ${sr?.justification ? `<div class="section"><h2>Business Justification</h2><p>${sr.justification}</p></div>` : ''}
-          ${sr?.servicePR?.serviceScope ? `<div class="section"><h2>Scope of Work</h2><p>${sr.servicePR.serviceScope}</p></div>` : ''}
+
+          <div class="info-grid">
+            <div class="info-section">
+              <div class="info-title">Financial Information</div>
+              <div class="info-row">
+                <span class="info-label">Budget Code:</span>
+                <span class="info-value">${sr.budgetCode || 'N/A'}</span>
+              </div>
+              ${sr.costCenter ? `
+              <div class="info-row">
+                <span class="info-label">Cost Center:</span>
+                <span class="info-value">${sr.costCenter}</span>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <span class="info-label">Total Estimated Cost:</span>
+                <span class="info-value" style="color: #f97316; font-size: 13px;">${formatCurrency(parseFloat(sr.estimatedCost))}</span>
+              </div>
+            </div>
+
+            <div class="info-section">
+              <div class="info-title">Payment Terms</div>
+              <div class="info-row">
+                <span class="info-label">Payment Schedule:</span>
+                <span class="info-value">${sr.servicePR?.paymentSchedule || 'N/A'}</span>
+              </div>
+              ${sr.servicePR?.paymentTerms ? `
+              <div class="info-row">
+                <span class="info-label">Payment Terms:</span>
+                <span class="info-value">${sr.servicePR.paymentTerms}</span>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <span class="info-label">Retention:</span>
+                <span class="info-value">${sr.servicePR?.retentionPercentage || 0}%</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Insurance Required:</span>
+                <span class="info-value">${sr.servicePR?.insuranceRequired ? 'Yes' : 'No'}</span>
+              </div>
+            </div>
+          </div>
+
+          ${sr.justification ? `
           <div class="section">
-            <h2>Service Items</h2>
-            <table>
+            <div class="section-title">Business Justification</div>
+            <div class="section-content">${sr.justification}</div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.serviceScope ? `
+          <div class="section">
+            <div class="section-title">Scope of Work</div>
+            <div class="section-content">${sr.servicePR.serviceScope}</div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.technicalSpecifications ? `
+          <div class="section">
+            <div class="section-title">Technical Specifications</div>
+            <div class="section-content">${sr.servicePR.technicalSpecifications}</div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.qualityStandards ? `
+          <div class="section">
+            <div class="section-title">Quality Standards</div>
+            <div class="section-content">${sr.servicePR.qualityStandards}</div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.safetyRequirements ? `
+          <div class="section">
+            <div class="section-title">Safety Requirements</div>
+            <div class="section-content">${sr.servicePR.safetyRequirements}</div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.deliverables && (Array.isArray(sr.servicePR.deliverables) ? sr.servicePR.deliverables.length > 0 : sr.servicePR.deliverables) ? `
+          <div class="section">
+            <div class="section-title">Deliverables</div>
+            <div class="section-content">
+              <ul class="deliverables-list">
+                ${Array.isArray(sr.servicePR.deliverables) 
+                  ? sr.servicePR.deliverables.filter((d: any) => d && d.trim()).map((deliverable: string) => `<li>${deliverable}</li>`).join('')
+                  : `<li>${sr.servicePR.deliverables}</li>`}
+              </ul>
+            </div>
+          </div>
+          ` : ''}
+
+          ${sr.servicePR?.performanceMetrics && (Array.isArray(sr.servicePR.performanceMetrics) ? sr.servicePR.performanceMetrics.length > 0 : sr.servicePR.performanceMetrics) ? `
+          <div class="section">
+            <div class="section-title">Performance Metrics</div>
+            <div class="section-content">
+              <ul class="metrics-list">
+                ${Array.isArray(sr.servicePR.performanceMetrics)
+                  ? sr.servicePR.performanceMetrics.filter((m: any) => m && m.trim()).map((metric: string) => `<li>${metric}</li>`).join('')
+                  : `<li>${sr.servicePR.performanceMetrics}</li>`}
+              </ul>
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="section">
+            <div class="section-title">Service Items</div>
+            <table class="items-table">
               <thead>
                 <tr>
-                  <th>Service Description</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th>Estimated Rate</th>
-                  <th>Total</th>
+                  <th style="width: 30%;">Service Description</th>
+                  <th style="width: 15%;">Category</th>
+                  <th style="width: 12%;">Quantity</th>
+                  <th style="width: 12%;">Unit Rate</th>
+                  <th style="width: 10%;">Duration</th>
+                  <th style="width: 21%; text-align: right;">Total</th>
                 </tr>
               </thead>
               <tbody>
-                ${sr?.servicePR?.items?.map(item => `
+                ${sr.servicePR?.items && sr.servicePR.items.length > 0 ? sr.servicePR.items.map((item: any) => `
                   <tr>
-                    <td>${item.serviceItem?.nameEn || 'N/A'}</td>
+                    <td>
+                      <strong>${item.serviceItem?.serviceCode || 'N/A'}</strong><br>
+                      <span style="color: #6b7280; font-size: 9px;">${item.serviceItem?.nameEn || 'N/A'}</span>
+                      ${item.specifications ? `<br><span style="color: #9ca3af; font-size: 8px; font-style: italic;">${item.specifications.substring(0, 100)}${item.specifications.length > 100 ? '...' : ''}</span>` : ''}
+                    </td>
                     <td>${item.serviceItem?.serviceCategory?.nameEn || 'N/A'}</td>
                     <td>${item.quantity || 0} ${item.serviceItem?.unitOfMeasure || 'units'}</td>
                     <td>${formatCurrency(parseFloat(item.estimatedRate || 0))}</td>
-                    <td>${formatCurrency((parseFloat(item.quantity || 0) * parseFloat(item.estimatedRate || 0) * (item.duration || 1)))}</td>
+                    <td>${item.duration || 1} ${item.durationUnit || 'DAYS'}</td>
+                    <td style="text-align: right; font-weight: 600;">${formatCurrency((parseFloat(item.quantity || 0) * parseFloat(item.estimatedRate || 0) * (item.duration || 1)))}</td>
                   </tr>
-                `).join('') || '<tr><td colspan="5">No items</td></tr>'}
+                `).join('') : '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #9ca3af;">No service items found</td></tr>'}
               </tbody>
               <tfoot>
-                <tr>
-                  <td colspan="4"><strong>Total Estimated Cost:</strong></td>
-                  <td><strong>${sr ? formatCurrency(parseFloat(sr.estimatedCost)) : 'OMR 0.000'}</strong></td>
+                <tr class="total-row">
+                  <td colspan="5" style="text-align: right; padding-right: 15px;"><strong>TOTAL ESTIMATED COST:</strong></td>
+                  <td style="text-align: right; font-size: 12px; color: #f97316;"><strong>${formatCurrency(parseFloat(sr.estimatedCost))}</strong></td>
                 </tr>
               </tfoot>
             </table>
+          </div>
+
+          <div class="footer">
+            <p><strong>WUJHA Procurement System</strong> | This is a system-generated document</p>
+            <p style="margin-top: 5px;">For inquiries, please contact the Procurement Department</p>
           </div>
         </body>
       </html>
     `;
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    
-    // Wait for content to load, then print
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    downloadWindow.document.write(htmlContent);
+    downloadWindow.document.close();
+    downloadWindow.focus();
   };
 
   const handleEdit = () => {
@@ -265,10 +669,12 @@ export default function ServiceRequisitionDetail() {
 
   const handleApproveRequisition = async () => {
     if (!sr) return;
-    
-    if (!confirm('Are you sure you want to approve this service requisition?')) {
-      return;
-    }
+    setShowConfirmModal(true);
+  };
+
+  const confirmApproveRequisition = async () => {
+    if (!sr) return;
+    setShowConfirmModal(false);
 
     try {
       setApproving(true);
@@ -498,7 +904,7 @@ export default function ServiceRequisitionDetail() {
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export PDF
+            Download
           </button>
           {sr.status === 'DRAFT' && (
             <>
@@ -963,6 +1369,53 @@ export default function ServiceRequisitionDetail() {
               <User className="h-4 w-4 mr-2" />
               Issue RFP
             </button> */}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-wujha-primary mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  Confirm Approval
+                </h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to approve this service requisition? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={approving}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmApproveRequisition}
+                  disabled={approving}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {approving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm Approval
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

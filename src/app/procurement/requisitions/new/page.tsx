@@ -650,38 +650,38 @@ export default function NewPurchaseRequisition() {
                             {searchTerm && filteredItems.length > 0 && (
                               <div className="absolute z-10 top-full left-0 right-0 mt-2 bg-white shadow-xl max-h-64 rounded-lg border border-gray-200 overflow-hidden">
                                 <div className="py-2 max-h-64 overflow-y-auto">
-                                  {filteredItems.map((searchItem) => (
-                                    <div
-                                      key={searchItem.id}
-                                      className="cursor-pointer select-none relative px-4 py-3 hover:bg-wujha-primary/5 transition-colors duration-150"
-                                      onClick={() => {
-                                        updateItem(index, 'itemId', searchItem.id);
-                                        setSearchTerm('');
-                                      }}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                          <div className="flex items-center space-x-3">
-                                            <span className="font-semibold text-gray-900 text-sm">
-                                              {searchItem.itemCode}
-                                            </span>
-                                            <span className="text-gray-600 text-sm">
-                                              {searchItem.nameEn}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center space-x-2 mt-1">
-                                            <span className="text-xs text-wujha-primary bg-wujha-primary/10 px-2 py-1 rounded-full">
-                                              {searchItem.category.nameEn}
-                                            </span>
-                                            <span className="text-xs text-gray-500">
-                                              {searchItem.unitOfMeasure}
-                                            </span>
-                                          </div>
+                                {filteredItems.map((searchItem) => (
+                                  <div
+                                    key={searchItem.id}
+                                    className="cursor-pointer select-none relative px-4 py-3 hover:bg-wujha-primary/5 transition-colors duration-150"
+                                    onClick={() => {
+                                      updateItem(index, 'itemId', searchItem.id);
+                                      setSearchTerm('');
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center space-x-3">
+                                          <span className="font-semibold text-gray-900 text-sm">
+                                            {searchItem.itemCode}
+                                          </span>
+                                          <span className="text-gray-600 text-sm">
+                                            {searchItem.nameEn}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center space-x-2 mt-1">
+                                          <span className="text-xs text-wujha-primary bg-wujha-primary/10 px-2 py-1 rounded-full">
+                                            {searchItem.category.nameEn}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            {searchItem.unitOfMeasure}
+                                          </span>
                                         </div>
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
+                                  </div>
+                                ))}
+                              </div>
                               </div>
                             )}
                           </div>

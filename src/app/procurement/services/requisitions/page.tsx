@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceRequisition {
   id: string;
@@ -57,12 +58,15 @@ interface Filters {
 }
 
 export default function ServiceRequisitions() {
+  const { showToast } = useToast();
   const [requisitions, setRequisitions] = useState<ServiceRequisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
     search: '',
     status: '',
@@ -89,7 +93,7 @@ export default function ServiceRequisitions() {
 
   useEffect(() => {
     fetchRequisitions();
-  }, [currentPage]);
+  }, [currentPage, filters]);
 
   const fetchRequisitions = async () => {
     try {
@@ -107,6 +111,7 @@ export default function ServiceRequisitions() {
       if (filters.status) params.append('status', filters.status);
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.department) params.append('departmentId', filters.department);
+      if (filters.serviceType) params.append('serviceType', filters.serviceType);
 
       const url = `/api/services/requisitions?${params}`;
       console.log('Fetching from URL:', url);
@@ -150,19 +155,21 @@ export default function ServiceRequisitions() {
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1); // Reset to first page when filtering
-    // Trigger fetch after filter change
-    setTimeout(() => fetchRequisitions(), 100);
   };
 
   const handleApprove = async (requisitionId: string) => {
-    if (!confirm('Are you sure you want to approve this service requisition?')) {
-      return;
-    }
+    setPendingApprovalId(requisitionId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!pendingApprovalId) return;
 
     try {
-      setApprovingId(requisitionId);
+      setApprovingId(pendingApprovalId);
+      setShowConfirmModal(false);
       
-      const response = await fetch(`/api/services/requisitions/${requisitionId}`, {
+      const response = await fetch(`/api/services/requisitions/${pendingApprovalId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -176,18 +183,19 @@ export default function ServiceRequisitions() {
       });
 
       if (response.ok) {
-        alert('Service requisition approved successfully!');
+        showToast('success', 'Service requisition approved successfully!');
         // Refresh the list
         await fetchRequisitions();
       } else {
         const error = await response.json();
-        alert(`Failed to approve: ${error.error || 'Unknown error'}`);
+        showToast('error', `Failed to approve: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error approving requisition:', error);
-      alert('Failed to approve service requisition');
+      showToast('error', 'Failed to approve service requisition');
     } finally {
       setApprovingId(null);
+      setPendingApprovalId(null);
     }
   };
 
@@ -264,11 +272,11 @@ export default function ServiceRequisitions() {
               <input
                 type="text"
                 placeholder="Search by PR number, department..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                className="block w-full h-10 pl-3 pr-10 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
@@ -277,7 +285,7 @@ export default function ServiceRequisitions() {
               Status
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
@@ -295,7 +303,7 @@ export default function ServiceRequisitions() {
               Priority
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.priority}
               onChange={(e) => handleFilterChange('priority', e.target.value)}
             >
@@ -314,7 +322,7 @@ export default function ServiceRequisitions() {
             <input
               type="text"
               placeholder="Department ID"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.department}
               onChange={(e) => handleFilterChange('department', e.target.value)}
             />
@@ -325,7 +333,7 @@ export default function ServiceRequisitions() {
               Service Type
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.serviceType}
               onChange={(e) => handleFilterChange('serviceType', e.target.value)}
             >
@@ -541,6 +549,56 @@ export default function ServiceRequisitions() {
                   Next
                 </button>
               </nav>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-wujha-primary mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  Confirm Approval
+                </h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to approve this service requisition? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingApprovalId(null);
+                  }}
+                  disabled={approvingId !== null}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmApprove}
+                  disabled={approvingId !== null}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {approvingId ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm Approval
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

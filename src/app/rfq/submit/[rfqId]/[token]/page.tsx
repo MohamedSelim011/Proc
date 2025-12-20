@@ -385,7 +385,7 @@ export default function VendorSubmissionPage() {
                   step="0.001"
                   min="0"
                   required
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full pl-10 pr-4 py-2 border border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   placeholder="0.000"
                   value={formData.totalAmount}
                   onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
@@ -401,7 +401,7 @@ export default function VendorSubmissionPage() {
               <input
                 type="date"
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-4 py-2 border border-wujha-primary text-gray-900 bg-white rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 value={formData.validUntil}
                 onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
               />
@@ -412,7 +412,7 @@ export default function VendorSubmissionPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Proposal Document (PDF) *
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-wujha-primary transition-colors">
+              <div className="border-2 border-dashed border-wujha-primary rounded-lg p-6 text-center hover:border-wujha-primary transition-colors">
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <input
                   type="file"
@@ -445,7 +445,7 @@ export default function VendorSubmissionPage() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-4 py-2 border border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 placeholder="Provide a breakdown of your pricing..."
                 value={formData.priceBreakdown}
                 onChange={(e) => setFormData({ ...formData, priceBreakdown: e.target.value })}
@@ -459,7 +459,7 @@ export default function VendorSubmissionPage() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-4 py-2 border border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 placeholder="Provide technical specifications and details..."
                 value={formData.technicalDetails}
                 onChange={(e) => setFormData({ ...formData, technicalDetails: e.target.value })}
@@ -473,7 +473,7 @@ export default function VendorSubmissionPage() {
               </label>
               <textarea
                 rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-4 py-2 border border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 placeholder="Specify your delivery terms..."
                 value={formData.deliveryTerms}
                 onChange={(e) => setFormData({ ...formData, deliveryTerms: e.target.value })}
@@ -487,7 +487,7 @@ export default function VendorSubmissionPage() {
               </label>
               <textarea
                 rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                className="w-full px-4 py-2 border border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                 placeholder="Any additional information..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

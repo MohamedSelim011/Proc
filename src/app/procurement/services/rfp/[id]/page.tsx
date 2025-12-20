@@ -140,9 +140,18 @@ export default function ServiceRFPDetailPage() {
 
   const handleRequestApproval = async () => {
     try {
+      // Get token from localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/services/rfp/${rfp?.id}/request-approval`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
 
       if (response.ok) {
@@ -159,9 +168,18 @@ export default function ServiceRFPDetailPage() {
 
   const handleApprove = async () => {
     try {
+      // Get token from localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/services/rfp/${rfp?.id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
 
       if (response.ok) {
@@ -179,6 +197,21 @@ export default function ServiceRFPDetailPage() {
   const handleSendInvitations = async () => {
     if (!rfp) return;
 
+    // Check if there are vendors to invite
+    if (!rfp.invitedVendors || rfp.invitedVendors.length === 0) {
+      showToast('error', 'No vendors have been invited to this RFP. Please add vendors first.');
+      return;
+    }
+
+    // Check if vendors have email addresses
+    const vendorsWithoutEmail = rfp.invitedVendors.filter(
+      (inv) => !inv.vendor?.email
+    );
+    if (vendorsWithoutEmail.length > 0) {
+      showToast('error', `${vendorsWithoutEmail.length} vendor(s) do not have email addresses. Please update vendor information.`);
+      return;
+    }
+
     setSending(true);
     try {
       const response = await fetch(`/api/services/rfp/${rfp.id}/send-invitations`, {
@@ -190,14 +223,30 @@ export default function ServiceRFPDetailPage() {
       const result = await response.json();
 
       if (response.ok) {
-        showToast('success', `Invitations sent successfully to ${result.success} vendors!`);
+        if (result.success > 0 && result.failed === 0) {
+          // All emails sent successfully
+          showToast('success', `Invitations sent successfully to ${result.success} vendor(s)!`);
+        } else if (result.success > 0 && result.failed > 0) {
+          // Partial success - show both success and error toasts
+          showToast('success', `Successfully sent invitations to ${result.success} vendor(s)!`);
+          showToast('error', `${result.failed} email(s) failed to send. Check console for details.`);
+          console.error('Some emails failed to send:', result.errors || []);
+        } else {
+          // All emails failed
+          showToast('error', `Failed to send invitations. ${result.failed || 0} email(s) failed.`);
+          if (result.errors && result.errors.length > 0) {
+            console.error('Email sending errors:', result.errors);
+          } else {
+            console.error('No error details available. Check email configuration (SMTP settings).');
+          }
+        }
         fetchRFPDetails();
       } else {
         showToast('error', result.error || 'Failed to send invitations');
       }
     } catch (error) {
       console.error('Error sending invitations:', error);
-      showToast('error', 'Failed to send invitations');
+      showToast('error', 'Failed to send invitations. Please check your email configuration.');
     } finally {
       setSending(false);
     }
@@ -285,6 +334,7 @@ export default function ServiceRFPDetailPage() {
       case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'PUBLISHED': return 'bg-wujha-primary/10 text-wujha-primary';
+      case 'SENT': return 'bg-blue-100 text-blue-800';
       case 'CLOSED': return 'bg-red-100 text-red-800';
       case 'EVALUATED': return 'bg-purple-100 text-purple-800';
       case 'AWARDED': return 'bg-green-100 text-green-800';
@@ -306,6 +356,11 @@ export default function ServiceRFPDetailPage() {
     const role = userRole?.toUpperCase();
     return role === 'SUPER_ADMIN' || role === 'ADMIN' || 
            role === 'PROCUREMENT_MANAGER' || role === 'DEPARTMENT_MANAGER';
+  };
+
+  const hasAdminRole = () => {
+    const role = userRole?.toUpperCase();
+    return role === 'SUPER_ADMIN' || role === 'ADMIN';
   };
 
   if (loading) {
@@ -338,12 +393,12 @@ export default function ServiceRFPDetailPage() {
   const evaluationCriteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria) : [];
   const termsAndConditions = rfp.termsAndConditions ? JSON.parse(rfp.termsAndConditions) : {};
   const submittedResponses = rfp.responses?.filter(r => r.tokenUsed && r.proposalFileUrl) || [];
-  const canApprove = hasManagerRole() && rfp.status === 'PENDING_APPROVAL';
+  const canApprove = hasAdminRole() && rfp.status === 'PENDING_APPROVAL';
   const canRequestApproval = rfp.status === 'DRAFT';
-  const canSendInvitations = (rfp.status === 'APPROVED' || rfp.status === 'PUBLISHED') && 
+  const canSendInvitations = (rfp.status === 'APPROVED' || rfp.status === 'PUBLISHED' || rfp.status === 'SENT') && 
                               (!rfp.invitedVendors || rfp.invitedVendors.length === 0 || 
                                !rfp.responses?.some(r => r.tokenUsed));
-  const canEvaluate = rfp.status === 'PUBLISHED' && submittedResponses.length > 0;
+  const canEvaluate = (rfp.status === 'PUBLISHED' || rfp.status === 'SENT') && submittedResponses.length > 0;
   const canSelectWinner = rfp.status === 'EVALUATED' && hasManagerRole();
 
   return (

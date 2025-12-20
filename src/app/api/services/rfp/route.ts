@@ -5,6 +5,9 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const prId = searchParams.get('prId');
+    const status = searchParams.get('status') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
 
     let where: any = {};
 
@@ -12,52 +15,71 @@ export async function GET(request: NextRequest) {
       where.prId = prId;
     }
 
-    const rfps = await prisma.serviceRFP.findMany({
-      where,
-      include: {
-        pr: {
-          select: {
-            prNumber: true,
-            estimatedCost: true,
-            servicePR: {
-              select: {
-                serviceScope: true,
-                duration: true,
-                durationUnit: true,
-              }
-            }
-          }
-        },
-        invitedVendors: {
-          include: {
-            vendor: {
-              select: {
-                id: true,
-                nameEn: true,
-                email: true,
-                mobile: true,
-              }
-            }
-          }
-        },
-        responses: {
-          include: {
-            vendor: {
-              select: {
-                id: true,
-                nameEn: true,
-                email: true,
-              }
-            }
-          }
-        },
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    if (status) {
+      where.status = status;
+    }
 
-    return NextResponse.json({ rfps }, { status: 200 });
+    const skip = (page - 1) * limit;
+
+    const [rfps, total] = await Promise.all([
+      prisma.serviceRFP.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          pr: {
+            select: {
+              prNumber: true,
+              estimatedCost: true,
+              servicePR: {
+                select: {
+                  serviceScope: true,
+                  duration: true,
+                  durationUnit: true,
+                }
+              }
+            }
+          },
+          invitedVendors: {
+            include: {
+              vendor: {
+                select: {
+                  id: true,
+                  nameEn: true,
+                  email: true,
+                  mobile: true,
+                }
+              }
+            }
+          },
+          responses: {
+            include: {
+              vendor: {
+                select: {
+                  id: true,
+                  nameEn: true,
+                  email: true,
+                }
+              }
+            }
+          },
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      prisma.serviceRFP.count({ where })
+    ]);
+
+    return NextResponse.json({ 
+      rfps,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error('Error fetching Service RFPs:', error);
     return NextResponse.json(
@@ -98,14 +120,32 @@ export async function POST(request: NextRequest) {
     const rfpNumber = `RFP-SRV-${String(count + 1).padStart(5, '0')}`;
 
     // Determine closing date
-    let closingDate = new Date();
+    // submissionDeadline comes as ISO string from frontend (UTC)
+    let closingDate: Date;
     if (submissionDeadline) {
+      // Parse the ISO string to ensure we preserve the exact date and time
       closingDate = new Date(submissionDeadline);
+      // Validate the date
+      if (isNaN(closingDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid submission deadline date format' },
+          { status: 400 }
+        );
+      }
+      
+      console.log('RFP closing date saved:', {
+        input: submissionDeadline,
+        closingDate: closingDate.toISOString(),
+        closingDateLocal: closingDate.toLocaleString(),
+        closingDateUTC: closingDate.toUTCString()
+      });
     } else {
-      closingDate.setDate(closingDate.getDate() + 7); // Default 7 days from now
+      // Default to 7 days from now
+      closingDate = new Date();
+      closingDate.setDate(closingDate.getDate() + 7);
     }
 
-    // Create RFP
+    // Create RFP with DRAFT status
     const rfp = await prisma.serviceRFP.create({
       data: {
         rfpNumber,
@@ -116,12 +156,14 @@ export async function POST(request: NextRequest) {
         evaluationCriteria: evaluationCriteria ? JSON.stringify(evaluationCriteria) : null,
         termsAndConditions: termsAndConditions ? JSON.stringify(termsAndConditions) : null,
         createdBy: createdBy || 'SYSTEM',
-        status: 'DRAFT',
+        status: 'DRAFT', // Always create as DRAFT - invitations must be sent separately after approval
       },
       include: {
         invitedVendors: true
       }
     });
+
+    console.log(`Service RFP created with status: ${rfp.status} (RFP Number: ${rfp.rfpNumber})`);
 
     // Create vendor invitations
     if (invitedVendors && invitedVendors.length > 0) {

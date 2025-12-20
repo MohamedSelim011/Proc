@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/jwt';
 
 export async function POST(
   request: NextRequest,
@@ -7,6 +8,24 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+
+    // Get authenticated user
+    const user = getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Verify user is admin (ADMIN or SUPER_ADMIN)
+    const allowedRoles = ['ADMIN', 'SUPER_ADMIN'];
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Only administrators can approve RFPs' },
+        { status: 403 }
+      );
+    }
 
     // Find the RFP with approvals
     const rfp = await prisma.serviceRFP.findUnique({
@@ -39,7 +58,8 @@ export async function POST(
       },
       data: {
         status: 'APPROVED',
-        approvedAt: new Date()
+        approvedAt: new Date(),
+        approverId: user.id
       }
     });
 

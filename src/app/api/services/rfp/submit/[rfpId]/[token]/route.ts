@@ -58,7 +58,18 @@ export async function GET(
     }
 
     // Check if RFP is still open
-    const isOpen = new Date(response.rfp.closingDate) > new Date();
+    // closingDate is stored in the database, compare with current time
+    const closingDate = new Date(response.rfp.closingDate);
+    const now = new Date();
+    const isOpen = closingDate > now;
+    
+    console.log('RFP closing date check (GET):', {
+      closingDate: closingDate.toISOString(),
+      now: now.toISOString(),
+      isOpen,
+      closingDateLocal: closingDate.toLocaleString(),
+      nowLocal: now.toLocaleString()
+    });
 
     return NextResponse.json({
       id: response.rfp.id,
@@ -111,10 +122,22 @@ export async function POST(
     }
 
     // Check if RFP is still open
-    const isOpen = new Date(response.rfp.closingDate) > new Date();
+    // closingDate is stored in the database, compare with current time
+    const closingDate = new Date(response.rfp.closingDate);
+    const now = new Date();
+    const isOpen = closingDate > now;
+    
+    console.log('RFP closing date check (POST):', {
+      closingDate: closingDate.toISOString(),
+      now: now.toISOString(),
+      isOpen,
+      closingDateLocal: closingDate.toLocaleString(),
+      nowLocal: now.toLocaleString()
+    });
+    
     const rfpStatus = response.rfp.status;
     
-    if (!isOpen || !['PUBLISHED', 'APPROVED'].includes(rfpStatus)) {
+    if (!isOpen || !['PUBLISHED', 'APPROVED', 'SENT'].includes(rfpStatus)) {
       return NextResponse.json(
         { error: 'This RFP is no longer accepting proposals' },
         { status: 400 }

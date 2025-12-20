@@ -283,9 +283,40 @@ function NewServiceRFPContent() {
       setLoading(true);
 
       // Convert datetime-local string to ISO date string
-      const submissionDeadline = formData.submissionDeadline 
-        ? new Date(formData.submissionDeadline).toISOString()
-        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default to 7 days from now
+      // datetime-local format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
+      // We need to preserve the exact date and time as entered by the user
+      let submissionDeadline: string;
+      if (formData.submissionDeadline) {
+        // datetime-local gives us "YYYY-MM-DDTHH:mm" in local time
+        // Parse it manually to ensure correct timezone handling
+        // The string is in format: "YYYY-MM-DDTHH:mm"
+        const [datePart, timePart] = formData.submissionDeadline.split('T');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        
+        // Create a Date object in local timezone
+        // This ensures the exact time entered is preserved
+        const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        
+        // Validate the date was created correctly
+        if (isNaN(localDate.getTime())) {
+          throw new Error('Invalid submission deadline date format');
+        }
+        
+        // Convert to ISO string (preserves the exact moment in time, converted to UTC)
+        submissionDeadline = localDate.toISOString();
+        
+        console.log('Submission deadline conversion:', {
+          input: formData.submissionDeadline,
+          parsed: { year, month, day, hours, minutes },
+          localDate: localDate.toString(),
+          isoString: submissionDeadline,
+          localISO: localDate.toLocaleString()
+        });
+      } else {
+        // Default to 7 days from now
+        submissionDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
 
       // Create Service RFP
       const response = await fetch('/api/services/rfp', {
@@ -317,21 +348,12 @@ function NewServiceRFPContent() {
       const result = await response.json();
 
       if (response.ok) {
-        // Send invitations to vendors
-        try {
-          await fetch(`/api/services/rfp/${result.id}/send-invitations`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sentBy: 'SYSTEM'
-            }),
-          });
-        } catch (emailError) {
-          console.error('Error sending invitations:', emailError);
+        // RFP is created with DRAFT status
+        // User must request approval, get it approved, then send invitations
+        console.log('RFP created with status:', result.status, 'RFP ID:', result.id);
+        if (result.status !== 'DRAFT') {
+          console.warn('WARNING: RFP was not created with DRAFT status! Current status:', result.status);
         }
-
         router.push(`/procurement/services/rfp/${result.id}`);
       } else {
         setErrors({ submit: result.error || 'Failed to create Service RFP' });

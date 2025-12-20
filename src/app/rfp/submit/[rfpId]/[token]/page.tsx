@@ -253,7 +253,7 @@ function SubmitRFPProposalContent() {
                     required
                     value={formData.totalAmount}
                     onChange={(e) => setFormData({...formData, totalAmount: e.target.value})}
-                    className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                    className="pl-10 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                     placeholder="0.00"
                   />
                 </div>
@@ -272,7 +272,7 @@ function SubmitRFPProposalContent() {
                     required
                     value={formData.validUntil}
                     onChange={(e) => setFormData({...formData, validUntil: e.target.value})}
-                    className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                    className="pl-10 block w-full rounded-md border-wujha-primary text-gray-900 bg-white shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                   />
                 </div>
               </div>
@@ -286,7 +286,7 @@ function SubmitRFPProposalContent() {
                 rows={3}
                 value={formData.priceBreakdown}
                 onChange={(e) => setFormData({...formData, priceBreakdown: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                 placeholder="Provide detailed cost breakdown..."
               />
             </div>
@@ -299,7 +299,7 @@ function SubmitRFPProposalContent() {
                 rows={3}
                 value={formData.technicalDetails}
                 onChange={(e) => setFormData({...formData, technicalDetails: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                 placeholder="Describe your technical approach..."
               />
             </div>
@@ -312,7 +312,7 @@ function SubmitRFPProposalContent() {
                 rows={3}
                 value={formData.deliveryTerms}
                 onChange={(e) => setFormData({...formData, deliveryTerms: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                 placeholder="Specify delivery timeline and terms..."
               />
             </div>
@@ -325,7 +325,7 @@ function SubmitRFPProposalContent() {
                 rows={2}
                 value={formData.notes}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                 placeholder="Any additional information..."
               />
             </div>
