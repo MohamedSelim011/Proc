@@ -41,6 +41,14 @@ export async function POST(
       );
     }
 
+    // Prevent re-evaluation of already reviewed proposals
+    if (response.status === 'REVIEWED' || response.status === 'SELECTED') {
+      return NextResponse.json(
+        { error: 'This proposal has already been evaluated and cannot be evaluated again' },
+        { status: 400 }
+      );
+    }
+
     // Parse evaluation criteria to get weights
     const criteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria as string) : [];
     
@@ -93,7 +101,7 @@ export async function POST(
     );
 
     // If all responses are scored, update RFP status to EVALUATED
-    if (allScored && rfp.status === 'PUBLISHED') {
+    if (allScored && (rfp.status === 'PUBLISHED' || rfp.status === 'SENT')) {
       await prisma.serviceRFP.update({
         where: { id },
         data: { status: 'EVALUATED' }

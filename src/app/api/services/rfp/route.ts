@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const [rfps, total] = await Promise.all([
+    const [rfps, total, stats] = await Promise.all([
       prisma.serviceRFP.findMany({
         where,
         skip,
@@ -68,7 +68,19 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         }
       }),
-      prisma.serviceRFP.count({ where })
+      prisma.serviceRFP.count({ where }),
+      // Get stats counts (without filters to get accurate totals)
+      Promise.all([
+        prisma.serviceRFP.count({ where: { status: 'DRAFT' } }),
+        prisma.serviceRFP.count({ where: { status: 'SENT' } }),
+        prisma.serviceRFP.count({ where: { status: 'EVALUATED' } }),
+        prisma.serviceRFP.count()
+      ]).then(([draft, sent, evaluated, total]) => ({
+        draft,
+        sent,
+        evaluated,
+        total
+      }))
     ]);
 
     return NextResponse.json({ 
@@ -78,7 +90,8 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit)
-      }
+      },
+      stats
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching Service RFPs:', error);

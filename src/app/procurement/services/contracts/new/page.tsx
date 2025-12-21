@@ -12,6 +12,7 @@ import {
   FileText,
   Clock
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface ServiceRequisition {
   id: string;
@@ -87,6 +88,7 @@ interface ContractFormData {
 function NewServiceContractContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const prId = searchParams.get('prId');
 
   const [loading, setLoading] = useState(false);
@@ -163,11 +165,50 @@ function NewServiceContractContent() {
           prId: id,
           totalValue: parseFloat(data.estimatedCost) || 0
         }));
+        
+        // Check for awarded RFP and auto-select winning vendor
+        await checkRFPForAwardedVendor(id);
       }
     } catch (error) {
       console.error('Error fetching PR details:', error);
     } finally {
       setLoadingPR(false);
+    }
+  };
+
+  const checkRFPForAwardedVendor = async (prId: string) => {
+    try {
+      // Check for Service RFP with AWARDED status
+      const response = await fetch(`/api/services/rfp?prId=${prId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Find RFP with AWARDED status and SELECTED response
+        const awardedRFP = data.rfps?.find((rfp: any) => 
+          rfp.status === 'AWARDED' && 
+          rfp.responses?.some((r: any) => r.status === 'SELECTED')
+        );
+        
+        if (awardedRFP) {
+          const winningResponse = awardedRFP.responses.find((r: any) => r.status === 'SELECTED');
+          if (winningResponse && winningResponse.vendor) {
+            const winnerId = winningResponse.vendor.id;
+            setContractFormData(prev => ({ ...prev, vendorId: winnerId }));
+            
+            // Update total value from winning response if available
+            if (winningResponse.totalAmount) {
+              setContractFormData(prev => ({ 
+                ...prev, 
+                vendorId: winnerId,
+                totalValue: parseFloat(winningResponse.totalAmount.toString())
+              }));
+            }
+            
+            showToast('info', `Awarded vendor from RFP ${awardedRFP.rfpNumber} has been automatically selected`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking RFP for awarded vendor:', error);
     }
   };
 
@@ -229,7 +270,12 @@ function NewServiceContractContent() {
   const filteredVendors = vendors.filter(vendor =>
     vendor.nameEn.toLowerCase().includes(searchVendor.toLowerCase()) ||
     vendor.vendorCode.toLowerCase().includes(searchVendor.toLowerCase())
-  );
+  ).sort((a, b) => {
+    // Sort selected vendor to the top
+    if (a.id === formData.vendorId) return -1;
+    if (b.id === formData.vendorId) return 1;
+    return 0;
+  });
 
   const filteredPRs = prs.filter(pr =>
     pr.prNumber.toLowerCase().includes(searchPR.toLowerCase()) ||
@@ -276,7 +322,7 @@ function NewServiceContractContent() {
             placeholder="Search requisitions..."
             value={searchPR}
             onChange={(e) => setSearchPR(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4"
+            className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4 text-gray-900 bg-white placeholder:text-gray-600"
           />
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -359,7 +405,7 @@ function NewServiceContractContent() {
                 placeholder="Search vendors..."
                 value={searchVendor}
                 onChange={(e) => setSearchVendor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4"
+                className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4 text-gray-900 bg-white placeholder:text-gray-600"
               />
               
               <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -398,7 +444,7 @@ function NewServiceContractContent() {
                   Contract Type
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.contractType}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, contractType: e.target.value }))}
                 >
@@ -414,7 +460,7 @@ function NewServiceContractContent() {
                   Currency
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.currency}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, currency: e.target.value }))}
                 >
@@ -430,8 +476,8 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                    errors.startDate ? 'border-red-300' : ''
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.startDate ? 'border-red-300' : 'border-wujha-primary'
                   }`}
                   value={formData.startDate}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, startDate: e.target.value }))}
@@ -448,8 +494,8 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                    errors.endDate ? 'border-red-300' : ''
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.endDate ? 'border-red-300' : 'border-wujha-primary'
                   }`}
                   value={formData.endDate}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
@@ -468,8 +514,8 @@ function NewServiceContractContent() {
                   type="number"
                   step="0.01"
                   min="0"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                    errors.totalValue ? 'border-red-300' : ''
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.totalValue ? 'border-red-300' : 'border-wujha-primary'
                   }`}
                   value={formData.totalValue}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, totalValue: parseFloat(e.target.value) || 0 }))}
@@ -484,8 +530,8 @@ function NewServiceContractContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
-                    errors.paymentTerms ? 'border-red-300' : ''
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.paymentTerms ? 'border-red-300' : 'border-wujha-primary'
                   }`}
                   value={formData.paymentTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
@@ -510,7 +556,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                   placeholder="Service Level Agreement terms..."
                   value={formData.slaTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, slaTerms: e.target.value }))}
@@ -523,7 +569,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                   placeholder="Penalty terms for non-compliance..."
                   value={formData.penaltyClause}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, penaltyClause: e.target.value }))}
@@ -539,7 +585,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                    className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                     placeholder="0.00"
                     value={formData.performanceBond}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, performanceBond: parseFloat(e.target.value) || 0 }))}
@@ -554,7 +600,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                    className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                     placeholder="0.00"
                     value={formData.retentionAmount}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, retentionAmount: parseFloat(e.target.value) || 0 }))}
@@ -568,7 +614,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                   placeholder="Insurance requirements and coverage..."
                   value={formData.insuranceRequirements}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}

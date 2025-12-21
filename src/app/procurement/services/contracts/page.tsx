@@ -147,11 +147,12 @@ export default function ServiceContracts() {
   const getStatusColor = (status: string) => {
     const colors = {
       'DRAFT': 'bg-gray-100 text-gray-800',
+      'APPROVED': 'bg-blue-100 text-blue-800',
+      'SIGNED': 'bg-green-100 text-green-800',
       'ACTIVE': 'bg-wujha-primary/10 text-wujha-primary',
-      'EXPIRING': 'bg-yellow-100 text-yellow-800',
-      'EXPIRED': 'bg-red-100 text-red-800',
       'COMPLETED': 'bg-wujha-primary/10 text-wujha-primary',
-      'TERMINATED': 'bg-red-100 text-red-800'
+      'TERMINATED': 'bg-red-100 text-red-800',
+      'CANCELLED': 'bg-red-100 text-red-800'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -289,7 +290,7 @@ export default function ServiceContracts() {
               <input
                 type="text"
                 placeholder="Search contracts..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+                className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -302,17 +303,18 @@ export default function ServiceContracts() {
               Status
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+              className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
               <option value="">All Status</option>
               <option value="DRAFT">Draft</option>
+              <option value="APPROVED">Approved</option>
+              <option value="SIGNED">Signed</option>
               <option value="ACTIVE">Active</option>
-              <option value="EXPIRING">Expiring</option>
-              <option value="EXPIRED">Expired</option>
               <option value="COMPLETED">Completed</option>
               <option value="TERMINATED">Terminated</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
 
@@ -321,15 +323,15 @@ export default function ServiceContracts() {
               Contract Type
             </label>
             <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white"
               value={filters.contractType}
               onChange={(e) => handleFilterChange('contractType', e.target.value)}
             >
               <option value="">All Types</option>
-              <option value="Service Agreement">Service Agreement</option>
-              <option value="Master Agreement">Master Agreement</option>
-              <option value="Work Order">Work Order</option>
-              <option value="Rental Agreement">Rental Agreement</option>
+              <option value="SERVICE_AGREEMENT">Service Agreement</option>
+              <option value="CONSULTING_CONTRACT">Consulting Contract</option>
+              <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
+              <option value="SUPPORT_CONTRACT">Support Contract</option>
             </select>
           </div>
 
@@ -340,7 +342,7 @@ export default function ServiceContracts() {
             <input
               type="text"
               placeholder="Vendor name"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
+              className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
               value={filters.vendor}
               onChange={(e) => handleFilterChange('vendor', e.target.value)}
             />

@@ -32,9 +32,9 @@ export async function POST(
       );
     }
 
-    if (!['PUBLISHED', 'EVALUATED', 'CLOSED'].includes(rfp.status)) {
+    if (!['SENT', 'PUBLISHED', 'EVALUATED', 'CLOSED'].includes(rfp.status)) {
       return NextResponse.json(
-        { error: `RFP must be in PUBLISHED, EVALUATED, or CLOSED status to select a winner. Current status: ${rfp.status}` },
+        { error: `RFP must be in SENT, PUBLISHED, EVALUATED, or CLOSED status to select a winner. Current status: ${rfp.status}` },
         { status: 400 }
       );
     }

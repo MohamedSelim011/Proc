@@ -74,6 +74,12 @@ export default function ServiceRFPListPage() {
     total: 0,
     totalPages: 0
   });
+  const [stats, setStats] = useState({
+    draft: 0,
+    sent: 0,
+    evaluated: 0,
+    total: 0
+  });
 
   // Filters
   const [filters, setFilters] = useState({
@@ -113,6 +119,10 @@ export default function ServiceRFPListPage() {
             totalPages: 1
           });
         }
+        // Update stats if provided by API
+        if (data.stats) {
+          setStats(data.stats);
+        }
       } else {
         showToast('error', 'Failed to load Service RFPs. Please try again.');
       }
@@ -141,11 +151,14 @@ export default function ServiceRFPListPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
+      case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-blue-100 text-blue-800';
       case 'PUBLISHED': return 'bg-wujha-primary/10 text-wujha-primary';
+      case 'SENT': return 'bg-blue-100 text-blue-800';
       case 'CLOSED': return 'bg-red-100 text-red-800';
       case 'EVALUATED': return 'bg-green-100 text-green-800';
       case 'AWARDED': return 'bg-purple-100 text-purple-800';
+      case 'REJECTED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -261,7 +274,7 @@ export default function ServiceRFPListPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total RFPs</dt>
-                  <dd className="text-lg font-medium text-gray-900">{pagination.total > 0 ? pagination.total : rfps.length}</dd>
+                  <dd className="text-lg font-medium text-gray-900">{stats.total > 0 ? stats.total : (pagination.total > 0 ? pagination.total : rfps.length)}</dd>
                 </dl>
               </div>
             </div>
@@ -276,9 +289,9 @@ export default function ServiceRFPListPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Published</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Sent</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {rfps.filter(r => r.status === 'PUBLISHED').length}
+                    {stats.sent}
                   </dd>
                 </dl>
               </div>
@@ -296,7 +309,7 @@ export default function ServiceRFPListPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Draft</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {rfps.filter(r => r.status === 'DRAFT').length}
+                    {stats.draft}
                   </dd>
                 </dl>
               </div>
@@ -314,7 +327,7 @@ export default function ServiceRFPListPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Evaluated</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {rfps.filter(r => r.status === 'EVALUATED').length}
+                    {stats.evaluated}
                   </dd>
                 </dl>
               </div>
@@ -324,7 +337,7 @@ export default function ServiceRFPListPage() {
       </div>
 
       {/* Quick Actions */}
-      {rfps.filter(r => r.status === 'DRAFT').length > 0 && (
+      {stats.draft > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -334,7 +347,7 @@ export default function ServiceRFPListPage() {
                   Draft RFPs
                 </h3>
                 <p className="text-sm text-orange-700">
-                  You have {rfps.filter(r => r.status === 'DRAFT').length} draft RFP(s) that need to be published
+                  You have {stats.draft} draft RFP(s) that need to be published
                 </p>
               </div>
             </div>
@@ -353,34 +366,40 @@ export default function ServiceRFPListPage() {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
             <input
               type="text"
               placeholder="Search RFPs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full pl-10 pr-3 py-2 h-10 border border-wujha-primary text-gray-900 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 h-10 border border-wujha-primary text-gray-900 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
               <option value="">All Statuses</option>
               <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="APPROVED">Approved</option>
               <option value="PUBLISHED">Published</option>
+              <option value="SENT">Sent</option>
               <option value="CLOSED">Closed</option>
               <option value="EVALUATED">Evaluated</option>
               <option value="AWARDED">Awarded</option>
+              <option value="REJECTED">Rejected</option>
             </select>
           </div>
           <div className="md:col-span-2">
             <button
               onClick={() => setFilters({ search: '', status: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className="w-full px-4 py-2 h-10 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               Clear Filters
             </button>

@@ -253,6 +253,12 @@ export default function ServiceRFPDetailPage() {
   };
 
   const handleOpenScoring = (response: any) => {
+    // Prevent opening scoring modal for already reviewed proposals
+    if (response.status === 'REVIEWED' || response.status === 'SELECTED') {
+      showToast('error', 'This proposal has already been evaluated and cannot be evaluated again');
+      return;
+    }
+    
     setSelectedResponse(response);
     
     const criteria = rfp?.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria) : [];
@@ -399,7 +405,9 @@ export default function ServiceRFPDetailPage() {
                               (!rfp.invitedVendors || rfp.invitedVendors.length === 0 || 
                                !rfp.responses?.some(r => r.tokenUsed));
   const canEvaluate = (rfp.status === 'PUBLISHED' || rfp.status === 'SENT') && submittedResponses.length > 0;
-  const canSelectWinner = rfp.status === 'EVALUATED' && hasManagerRole();
+  const canSelectWinner = (rfp.status === 'SENT' || rfp.status === 'PUBLISHED' || rfp.status === 'EVALUATED') && 
+                          hasManagerRole() && 
+                          submittedResponses.some(r => r.status === 'REVIEWED');
 
   return (
     <div className="space-y-6">
@@ -672,7 +680,7 @@ export default function ServiceRFPDetailPage() {
                         <Eye className="h-3 w-3 mr-1" />
                         View Details
                       </button>
-                      {canEvaluate && (
+                      {canEvaluate && response.status !== 'REVIEWED' && response.status !== 'SELECTED' && (
                         <button
                           onClick={() => handleOpenScoring(response)}
                           className="inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-xs font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
@@ -727,12 +735,13 @@ export default function ServiceRFPDetailPage() {
                         type="number"
                         min="0"
                         max="100"
-                        value={scoringData[key] || 0}
+                        value={scoringData[key] || ''}
                         onChange={(e) => setScoringData({
                           ...scoringData,
                           [key]: parseInt(e.target.value) || 0
                         })}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                        placeholder="Enter score (0-100)"
+                        className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
                       />
                     </div>
                   );
@@ -821,26 +830,49 @@ export default function ServiceRFPDetailPage() {
                     </a>
                   </div>
                 )}
-                {selectedResponse.overallScore !== null && (
+                {(selectedResponse.overallScore !== null || 
+                  selectedResponse.technicalScore !== null || 
+                  selectedResponse.commercialScore !== null || 
+                  selectedResponse.deliveryScore !== null || 
+                  selectedResponse.experienceScore !== null) && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-700">Scores</h4>
                     <div className="grid grid-cols-2 gap-4 mt-2">
                       {evaluationCriteria.map((criteria: any) => {
-                        const key = criteria.name.toLowerCase().replace(/\s+/g, '');
-                        const score = selectedResponse[`${key}Score`];
-                        return score !== null ? (
+                        const key = criteria.name.toLowerCase().replace(/\s+/g, '').replace(/&/g, '');
+                        
+                        // Map criteria names to database field names (same as evaluate endpoint)
+                        const fieldMapping: Record<string, string> = {
+                          'technicalcompliance': 'technicalScore',
+                          'technical': 'technicalScore',
+                          'commercialproposal': 'commercialScore',
+                          'commercial': 'commercialScore',
+                          'experience&references': 'experienceScore',
+                          'experiencereferences': 'experienceScore',
+                          'experience': 'experienceScore',
+                          'resourceavailability': 'deliveryScore',
+                          'delivery': 'deliveryScore',
+                          'resource': 'deliveryScore'
+                        };
+                        
+                        const dbField = fieldMapping[key] || `${key}Score`;
+                        const score = selectedResponse[dbField];
+                        
+                        return score !== null && score !== undefined ? (
                           <div key={key}>
                             <p className="text-xs text-gray-500">{criteria.name} ({criteria.weight}%)</p>
-                            <p className="text-sm font-medium">{score}/100</p>
+                            <p className="text-sm font-medium text-gray-900">{score}/100</p>
                           </div>
                         ) : null;
                       })}
-                      <div className="col-span-2">
-                        <p className="text-xs text-gray-500">Overall Score</p>
-                        <p className="text-lg font-bold text-wujha-primary">
-                          {parseFloat(selectedResponse.overallScore).toFixed(2)}/100
-                        </p>
-                      </div>
+                      {selectedResponse.overallScore !== null && (
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-500">Overall Score</p>
+                          <p className="text-lg font-bold text-wujha-primary">
+                            {parseFloat(selectedResponse.overallScore).toFixed(2)}/100
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

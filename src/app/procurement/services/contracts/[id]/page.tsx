@@ -30,11 +30,11 @@ interface ServiceContract {
   totalValue: number;
   currency: string;
   paymentTerms: string;
-  slaTerms?: string;
+  slaTerms?: string | object;
   penaltyClause?: string;
   performanceBond?: number;
   retentionAmount?: number;
-  insuranceRequirements?: string;
+  insuranceRequirements?: string | object;
   status: string;
   signedAt?: string;
   createdAt: string;
@@ -123,6 +123,22 @@ export default function ServiceContractDetail() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatJsonField = (value: string | object | undefined): string => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+      // Format object as key-value pairs with proper formatting
+      return Object.entries(value)
+        .map(([key, val]) => {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+          const formattedValue = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
+          return `${formattedKey}: ${formattedValue}`;
+        })
+        .join('\n');
+    }
+    return String(value);
   };
 
   useEffect(() => {
@@ -436,7 +452,7 @@ export default function ServiceContractDetail() {
           ${contract.slaTerms ? `
             <div class="terms-box" style="background: #dbeafe; border-color: #3b82f6;">
               <h4 style="color: #1e40af;">SLA Terms</h4>
-              <p style="color: #1e3a8a;">${contract.slaTerms}</p>
+              <p style="color: #1e3a8a;">${typeof contract.slaTerms === 'string' ? contract.slaTerms : JSON.stringify(contract.slaTerms, null, 2)}</p>
             </div>
           ` : ''}
           ${contract.penaltyClause ? `
@@ -448,7 +464,7 @@ export default function ServiceContractDetail() {
           ${contract.insuranceRequirements ? `
             <div class="terms-box" style="background: #d1fae5; border-color: #10b981;">
               <h4 style="color: #065f46;">Insurance Requirements</h4>
-              <p style="color: #064e3b;">${contract.insuranceRequirements}</p>
+              <p style="color: #064e3b;">${typeof contract.insuranceRequirements === 'string' ? contract.insuranceRequirements : JSON.stringify(contract.insuranceRequirements, null, 2)}</p>
             </div>
           ` : ''}
         </div>
@@ -749,7 +765,9 @@ export default function ServiceContractDetail() {
               {contract.slaTerms && (
                 <div className="bg-wujha-primary/10 p-4 rounded-lg">
                   <h4 className="text-sm font-medium text-wujha-primary mb-2">SLA Terms</h4>
-                  <p className="text-sm text-wujha-primary/80">{contract.slaTerms}</p>
+                  <pre className="text-sm text-wujha-primary/80 whitespace-pre-wrap font-sans">
+                    {formatJsonField(contract.slaTerms)}
+                  </pre>
                 </div>
               )}
               
@@ -763,7 +781,9 @@ export default function ServiceContractDetail() {
               {contract.insuranceRequirements && (
                 <div className="bg-green-50 p-4 rounded-lg">
                   <h4 className="text-sm font-medium text-green-900 mb-2">Insurance Requirements</h4>
-                  <p className="text-sm text-green-800">{contract.insuranceRequirements}</p>
+                  <pre className="text-sm text-green-800 whitespace-pre-wrap font-sans">
+                    {formatJsonField(contract.insuranceRequirements)}
+                  </pre>
                 </div>
               )}
             </div>
