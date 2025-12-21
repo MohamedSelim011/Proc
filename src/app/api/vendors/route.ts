@@ -52,7 +52,25 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      where.status = status;
+      // Validate status against enum values
+      const validStatuses = ['DRAFT', 'PENDING', 'APPROVED', 'ACTIVE', 'INACTIVE', 'BLACKLISTED'];
+      // Map SUSPENDED to BLACKLISTED for backward compatibility
+      const mappedStatus = status === 'SUSPENDED' ? 'BLACKLISTED' : status;
+      
+      if (validStatuses.includes(mappedStatus)) {
+        where.status = mappedStatus;
+      } else {
+        // If invalid status, return empty result instead of error
+        return NextResponse.json({
+          vendors: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
     }
 
     if (categoryId) {

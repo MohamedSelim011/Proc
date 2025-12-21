@@ -14,8 +14,60 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (status) where.status = status;
+    if (status) {
+      // Map frontend status values to database enum values for backward compatibility
+      // Some statuses map to multiple database values
+      const statusMappings: Record<string, string[]> = {
+        'ISSUED': ['PUBLISHED', 'SENT', 'ISSUED'], // Map to PUBLISHED/SENT for backward compatibility
+        'UNDER_EVALUATION': ['EVALUATED', 'CLOSED', 'UNDER_EVALUATION'], // Map to EVALUATED/CLOSED for backward compatibility
+        'COMPLETED': ['AWARDED', 'COMPLETED'], // Map to AWARDED for backward compatibility
+        'CANCELLED': ['CANCELLED'],
+        // Direct mappings for statuses that match exactly
+        'DRAFT': ['DRAFT'],
+        'PENDING_APPROVAL': ['PENDING_APPROVAL'],
+        'APPROVED': ['APPROVED'],
+        'REJECTED': ['REJECTED'],
+        // Also support direct database enum values
+        'PUBLISHED': ['PUBLISHED'],
+        'SENT': ['SENT'],
+        'CLOSED': ['CLOSED'],
+        'EVALUATED': ['EVALUATED'],
+        'AWARDED': ['AWARDED']
+      };
+      
+      const normalizedStatus = status.toUpperCase().trim();
+      const mappedStatuses = statusMappings[normalizedStatus];
+      
+      if (mappedStatuses) {
+        // Always use 'in' for consistency, even for single values
+        where.status = { in: mappedStatuses };
+      } else {
+        // If status is not in mapping, try to use it directly (for backward compatibility)
+        // But validate it's a valid enum value
+        const validStatuses = [
+          'DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED',
+          'PUBLISHED', 'SENT', 'CLOSED', 'EVALUATED', 'AWARDED',
+          'ISSUED', 'UNDER_EVALUATION', 'COMPLETED', 'CANCELLED'
+        ];
+        
+        if (validStatuses.includes(normalizedStatus)) {
+          where.status = normalizedStatus;
+        } else {
+          console.warn(`Invalid RFQ status filter: ${status}. Ignoring filter.`);
+          // Don't apply filter if status is invalid
+        }
+      }
+      
+      console.log('RFQ Status Filter:', { 
+        requestedStatus: status,
+        normalizedStatus,
+        mappedStatuses,
+        whereClause: where.status 
+      });
+    }
     if (prId) where.prId = prId;
+
+    console.log('RFQ Query Where Clause:', JSON.stringify(where, null, 2));
 
     const [rfqs, total] = await Promise.all([
       prisma.rFQ.findMany({
@@ -41,6 +93,13 @@ export async function GET(request: NextRequest) {
       }),
       prisma.rFQ.count({ where })
     ]);
+
+    console.log('RFQ Query Results:', { 
+      count: rfqs.length, 
+      total,
+      statuses: rfqs.map(r => r.status),
+      requestedStatus: status 
+    });
 
     return NextResponse.json({
       rfqs,

@@ -89,6 +89,7 @@ export default function PurchaseRequisitionsPage() {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
+        ...(filters.search && { search: filters.search }),
         ...(filters.status && { status: filters.status }),
         ...(filters.priority && { priority: filters.priority }),
         ...(filters.requesterId && { requesterId: filters.requesterId }),
@@ -316,44 +317,46 @@ export default function PurchaseRequisitionsPage() {
             <input
               type="text"
               placeholder="Search PRs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white placeholder:text-gray-600"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
+              style={{ color: '#111827' }}
             >
-              <option value="">All Statuses</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="CONVERTED">Converted</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="" style={{ color: '#111827' }}>All Statuses</option>
+              <option value="DRAFT" style={{ color: '#111827' }}>Draft</option>
+              <option value="PENDING_APPROVAL" style={{ color: '#111827' }}>Pending Approval</option>
+              <option value="SUBMITTED" style={{ color: '#111827' }}>Submitted</option>
+              <option value="APPROVED" style={{ color: '#111827' }}>Approved</option>
+              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
+              <option value="CONVERTED" style={{ color: '#111827' }}>Converted</option>
+              <option value="CANCELLED" style={{ color: '#111827' }}>Cancelled</option>
             </select>
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
               value={filters.priority}
               onChange={(e) => handleFilterChange('priority', e.target.value)}
+              style={{ color: '#111827' }}
             >
-              <option value="">All Priorities</option>
-              <option value="LOW">Low</option>
-              <option value="NORMAL">Normal</option>
-              <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
+              <option value="" style={{ color: '#111827' }}>All Priorities</option>
+              <option value="LOW" style={{ color: '#111827' }}>Low</option>
+              <option value="NORMAL" style={{ color: '#111827' }}>Normal</option>
+              <option value="HIGH" style={{ color: '#111827' }}>High</option>
+              <option value="URGENT" style={{ color: '#111827' }}>Urgent</option>
             </select>
           </div>
           <div>
             <button
               onClick={() => setFilters({ search: '', status: '', priority: '', requesterId: '', departmentId: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               Clear Filters
             </button>

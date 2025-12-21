@@ -874,7 +874,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="text"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 ${
                       errors.invoiceNumber ? 'border-red-300' : ''
                     }`}
                     value={formData.invoiceNumber}
@@ -912,13 +912,14 @@ function NewInvoiceContent() {
                     Currency
                   </label>
                   <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+                    style={{ color: '#111827' }}
                   >
-                    <option value="OMR">Omani Rial (OMR)</option>
-                    <option value="USD">US Dollar (USD)</option>
-                    <option value="EUR">Euro (EUR)</option>
+                    <option value="OMR" style={{ color: '#111827' }}>Omani Rial (OMR)</option>
+                    <option value="USD" style={{ color: '#111827' }}>US Dollar (USD)</option>
+                    <option value="EUR" style={{ color: '#111827' }}>Euro (EUR)</option>
                   </select>
                 </div>
 
@@ -942,7 +943,7 @@ function NewInvoiceContent() {
                   </label>
                   <input
                     type="date"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                       errors.dueDate ? 'border-red-300' : ''
                     }`}
                     value={formData.dueDate}
@@ -978,15 +979,16 @@ function NewInvoiceContent() {
                   Payment Terms
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                  style={{ color: '#111827' }}
                 >
-                  <option value="Net 30 days">Net 30 days</option>
-                  <option value="Net 45 days">Net 45 days</option>
-                  <option value="Net 60 days">Net 60 days</option>
-                  <option value="Cash on Delivery">Cash on Delivery</option>
-                  <option value="Advance Payment">Advance Payment</option>
+                  <option value="Net 30 days" style={{ color: '#111827' }}>Net 30 days</option>
+                  <option value="Net 45 days" style={{ color: '#111827' }}>Net 45 days</option>
+                  <option value="Net 60 days" style={{ color: '#111827' }}>Net 60 days</option>
+                  <option value="Cash on Delivery" style={{ color: '#111827' }}>Cash on Delivery</option>
+                  <option value="Advance Payment" style={{ color: '#111827' }}>Advance Payment</option>
                 </select>
               </div>
 
@@ -996,7 +998,7 @@ function NewInvoiceContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
                   value={formData.description || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Invoice description or notes..."
@@ -1076,7 +1078,7 @@ function NewInvoiceContent() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
+                              className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                               value={invoiceItem?.invoiceQuantity || 0}
                               onChange={(e) => updateItemField(index, 'invoiceQuantity', parseFloat(e.target.value) || 0)}
                             />
@@ -1090,7 +1092,7 @@ function NewInvoiceContent() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm"
+                                className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                                 value={invoiceItem?.invoiceUnitPrice || 0}
                                 onChange={(e) => updateItemField(index, 'invoiceUnitPrice', parseFloat(e.target.value) || 0)}
                               />
@@ -1129,7 +1131,7 @@ function NewInvoiceContent() {
                             type="number"
                             min="0"
                             step="0.01"
-                            className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            className="block w-24 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                             value={item.invoiceQuantity || 0}
                             onChange={(e) => updateItemField(index, 'invoiceQuantity', parseFloat(e.target.value) || 0)}
                           />
@@ -1143,7 +1145,7 @@ function NewInvoiceContent() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              className="pl-12 block w-32 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                               value={item.invoiceUnitPrice || 0}
                               onChange={(e) => updateItemField(index, 'invoiceUnitPrice', parseFloat(e.target.value) || 0)}
                             />
@@ -1177,7 +1179,7 @@ function NewInvoiceContent() {
                       min="0"
                       max="100"
                       step="0.1"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                       value={formData.taxRate}
                       onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
                     />
@@ -1195,7 +1197,7 @@ function NewInvoiceContent() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                        className="pl-12 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                         value={formData.discountAmount}
                         onChange={(e) => setFormData(prev => ({ ...prev, discountAmount: parseFloat(e.target.value) || 0 }))}
                       />

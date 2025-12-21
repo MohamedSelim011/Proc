@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const includeRFQ = searchParams.get('includeRFQ') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = isExport ? undefined : parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const priority = searchParams.get('priority') || '';
     const requesterId = searchParams.get('requesterId') || '';
@@ -18,6 +19,46 @@ export async function GET(request: NextRequest) {
     const skip = isExport ? undefined : (page - 1) * limit!;
 
     const where: any = {};
+    
+    // Only include Purchase Requisitions (STOCK and NON_STOCK), exclude Service Requisitions (SERVICE)
+    where.itemType = {
+      in: ['STOCK', 'NON_STOCK']
+    };
+    
+    // Search functionality - search across PR number, requester ID, and department ID
+    // Only apply search if search term is at least 2 characters to avoid overly broad matches
+    if (search && search.trim().length >= 2) {
+      const searchTerm = search.trim();
+      const searchConditions: any[] = [];
+      
+      // For PR number search, be more specific:
+      // - If search starts with "PR" or contains numbers, search PR number more precisely
+      // - Otherwise, search all fields
+      if (searchTerm.toUpperCase().startsWith('PR') || /\d/.test(searchTerm)) {
+        // Search PR number with the search term
+        searchConditions.push({ prNumber: { contains: searchTerm, mode: 'insensitive' } });
+      } else {
+        // For other searches, include PR number but also other fields
+        searchConditions.push(
+          { prNumber: { contains: searchTerm, mode: 'insensitive' } },
+          { requesterId: { contains: searchTerm, mode: 'insensitive' } },
+          { departmentId: { contains: searchTerm, mode: 'insensitive' } },
+          { budgetCode: { contains: searchTerm, mode: 'insensitive' } },
+          { costCenter: { contains: searchTerm, mode: 'insensitive' } }
+        );
+      }
+      
+      where.AND = [
+        {
+          itemType: {
+            in: ['STOCK', 'NON_STOCK']
+          }
+        },
+        {
+          OR: searchConditions
+        }
+      ];
+    }
     
     if (status) where.status = status;
     if (priority) where.priority = priority;

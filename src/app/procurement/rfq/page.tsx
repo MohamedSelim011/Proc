@@ -67,6 +67,12 @@ export default function RFQPage() {
     search: ''
   });
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.status, filters.itemType, filters.search]);
+
+  // Fetch RFQs when page or filters change
   useEffect(() => {
     fetchRFQs();
   }, [currentPage, filters]);
@@ -84,10 +90,18 @@ export default function RFQPage() {
         if (value) params.append(key, value);
       });
 
-      const response = await fetch(`/api/rfq?${params}`);
+      const response = await fetch(`/api/rfq?${params.toString()}`);
       const data = await response.json();
       
-              if (response.ok) {
+      console.log('RFQ Fetch Response:', {
+        status: response.status,
+        filters,
+        params: params.toString(),
+        rfqCount: data.rfqs?.length || 0,
+        total: data.pagination?.total || 0
+      });
+      
+      if (response.ok) {
           // Transform RFQ data to match the expected interface
           const transformedRFQs: RFQ[] = data.rfqs?.map((rfq: any) => ({
             id: rfq.id,
@@ -174,9 +188,14 @@ export default function RFQPage() {
       case 'APPROVED': return 'APPROVED';
       case 'REJECTED': return 'REJECTED';
       case 'PUBLISHED': return 'ISSUED';
+      case 'SENT': return 'ISSUED';
+      case 'ISSUED': return 'ISSUED';
       case 'CLOSED': return 'UNDER_EVALUATION';
       case 'EVALUATED': return 'UNDER_EVALUATION';
+      case 'UNDER_EVALUATION': return 'UNDER_EVALUATION';
       case 'AWARDED': return 'COMPLETED';
+      case 'COMPLETED': return 'COMPLETED';
+      case 'CANCELLED': return 'CANCELLED';
       default: return 'DRAFT';
     }
   };
@@ -315,44 +334,46 @@ export default function RFQPage() {
             <input
               type="text"
               placeholder="Search RFQs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white placeholder:text-gray-600"
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             />
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              style={{ color: '#111827' }}
             >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="ISSUED">Issued</option>
-              <option value="UNDER_EVALUATION">Under Evaluation</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="" style={{ color: '#111827' }}>All Status</option>
+              <option value="DRAFT" style={{ color: '#111827' }}>Draft</option>
+              <option value="PENDING_APPROVAL" style={{ color: '#111827' }}>Pending Approval</option>
+              <option value="APPROVED" style={{ color: '#111827' }}>Approved</option>
+              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
+              <option value="ISSUED" style={{ color: '#111827' }}>Issued</option>
+              <option value="UNDER_EVALUATION" style={{ color: '#111827' }}>Under Evaluation</option>
+              <option value="COMPLETED" style={{ color: '#111827' }}>Completed</option>
+              <option value="CANCELLED" style={{ color: '#111827' }}>Cancelled</option>
             </select>
           </div>
           <div>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
               value={filters.itemType}
               onChange={(e) => setFilters(prev => ({ ...prev, itemType: e.target.value }))}
+              style={{ color: '#111827' }}
             >
-              <option value="">All Types</option>
-              <option value="STOCK">Stock Items</option>
-              <option value="SERVICE">Services</option>
-              <option value="NON_STOCK">Non-Stock Items</option>
+              <option value="" style={{ color: '#111827' }}>All Types</option>
+              <option value="STOCK" style={{ color: '#111827' }}>Stock Items</option>
+              <option value="SERVICE" style={{ color: '#111827' }}>Services</option>
+              <option value="NON_STOCK" style={{ color: '#111827' }}>Non-Stock Items</option>
             </select>
           </div>
           <div>
             <button
               onClick={() => setFilters({ status: '', itemType: '', search: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               Clear Filters
             </button>

@@ -354,10 +354,9 @@ export default function ServiceVendors() {
               onChange={(e) => handleFilterChange('status', e.target.value)}
             >
               <option value="">All Status</option>
+              <option value="PENDING">Pending</option>
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
-              <option value="SUSPENDED">Suspended</option>
-              <option value="PENDING">Pending</option>
             </select>
           </div>
 
