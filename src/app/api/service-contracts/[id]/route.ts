@@ -109,4 +109,46 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // Check if contract exists
+    const existingContract = await prisma.serviceContract.findUnique({
+      where: { id }
+    });
+
+    if (!existingContract) {
+      return NextResponse.json(
+        { error: 'Service contract not found' },
+        { status: 404 }
+      );
+    }
+
+    // Only allow deleting DRAFT contracts
+    if (existingContract.status !== 'DRAFT') {
+      return NextResponse.json(
+        { error: 'Only draft contracts can be deleted' },
+        { status: 400 }
+      );
+    }
+
+    // Delete the contract
+    await prisma.serviceContract.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ message: 'Service contract deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting service contract:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete service contract' },
+      { status: 500 }
+    );
+  }
 } 

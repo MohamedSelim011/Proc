@@ -164,6 +164,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate requiredByDate if provided
+    if (requestedDeliveryDate) {
+      const selectedDate = new Date(requestedDeliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (isNaN(selectedDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid date format for required by date' },
+          { status: 400 }
+        );
+      }
+      
+      if (selectedDate < today) {
+        return NextResponse.json(
+          { error: 'Required by date must be today or in the future' },
+          { status: 400 }
+        );
+      }
+      
+      if (selectedDate.getFullYear() < 1900) {
+        return NextResponse.json(
+          { error: 'Date cannot be before year 1900' },
+          { status: 400 }
+        );
+      }
+      
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() + 10);
+      if (selectedDate > maxDate) {
+        return NextResponse.json(
+          { error: 'Date cannot be more than 10 years in the future' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Calculate total estimated cost
     const totalEstimatedCost = items.reduce(
       (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate)),

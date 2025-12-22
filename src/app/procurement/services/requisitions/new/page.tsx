@@ -299,7 +299,29 @@ export default function NewServiceRequisition() {
         break;
       case 4:
         if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
-        if (!formData.requiredByDate) newErrors.requiredByDate = 'Required by date is required';
+        if (!formData.requiredByDate) {
+          newErrors.requiredByDate = 'Required by date is required';
+        } else {
+          const selectedDate = new Date(formData.requiredByDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (isNaN(selectedDate.getTime())) {
+            newErrors.requiredByDate = 'Invalid date format';
+          } else {
+            if (selectedDate.getFullYear() < 1900) {
+              newErrors.requiredByDate = 'Date cannot be before year 1900';
+            } else if (selectedDate < today) {
+              newErrors.requiredByDate = 'Required date must be today or in the future';
+            } else {
+              const maxDate = new Date();
+              maxDate.setFullYear(maxDate.getFullYear() + 10);
+              if (selectedDate > maxDate) {
+                newErrors.requiredByDate = 'Date cannot be more than 10 years in the future';
+              }
+            }
+          }
+        }
         if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
         break;
     }
@@ -1117,9 +1139,73 @@ export default function NewServiceRequisition() {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  min={new Date().toISOString().split('T')[0]}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.requiredByDate ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   value={formData.requiredByDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, requiredByDate: e.target.value }))}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    setFormData(prev => ({ ...prev, requiredByDate: inputValue }));
+                    
+                    // Clear error when user starts typing
+                    if (errors.requiredByDate) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.requiredByDate;
+                        return newErrors;
+                      });
+                    }
+                    
+                    // Validate date if provided
+                    if (inputValue) {
+                      const selectedDate = new Date(inputValue);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      
+                      if (isNaN(selectedDate.getTime())) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Invalid date format' }));
+                      } else if (selectedDate.getFullYear() < 1900) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be before year 1900' }));
+                      } else if (selectedDate < today) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Required date must be today or in the future' }));
+                      } else {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 10);
+                        if (selectedDate > maxDate) {
+                          setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be more than 10 years in the future' }));
+                        } else {
+                          setErrors(prev => {
+                            const newErrors = { ...prev };
+                            delete newErrors.requiredByDate;
+                            return newErrors;
+                          });
+                        }
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const inputValue = e.target.value;
+                    if (inputValue) {
+                      const selectedDate = new Date(inputValue);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      
+                      if (isNaN(selectedDate.getTime())) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Invalid date format' }));
+                      } else if (selectedDate.getFullYear() < 1900) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be before year 1900' }));
+                      } else if (selectedDate < today) {
+                        setErrors(prev => ({ ...prev, requiredByDate: 'Required date must be today or in the future' }));
+                      } else {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 10);
+                        if (selectedDate > maxDate) {
+                          setErrors(prev => ({ ...prev, requiredByDate: 'Date cannot be more than 10 years in the future' }));
+                        }
+                      }
+                    }
+                  }}
                 />
                 {errors.requiredByDate && (
                   <p className="mt-1 text-sm text-red-600">{errors.requiredByDate}</p>
