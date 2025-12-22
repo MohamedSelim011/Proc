@@ -1009,6 +1009,40 @@ async function main() {
     serviceRequisitions: serviceRequisitions.length,
     serviceContracts: serviceContractData.length,
   })
+
+  // ===========================================
+  // SEED KPI TARGETS
+  // ===========================================
+  console.log('\n🎯 Seeding KPI targets...')
+
+  const defaultTargets = [
+    { kpiKey: 'procurementCycleTime', target: 30 },
+    { kpiKey: 'onTimeDeliveryRate', target: 95 },
+    { kpiKey: 'vendorComplianceRate', target: 90 },
+    { kpiKey: 'invoiceProcessingTime', target: 15 },
+    { kpiKey: 'threeWayMatchSuccessRate', target: 85 },
+    { kpiKey: 'costVarianceVsBudget', target: 5 },
+    { kpiKey: 'vendorPerformanceScore', target: 80 },
+    { kpiKey: 'pendingApprovalRate', target: 10 },
+    { kpiKey: 'stockItemDeliveryAccuracy', target: 95 },
+    { kpiKey: 'nonStockServiceQualityRating', target: 4.0 },
+    { kpiKey: 'inventoryTurnoverRate', target: 4 },
+    { kpiKey: 'dashboardUpdateTimeliness', target: 95 },
+    { kpiKey: 'topVendorSpendContribution', target: 60 },
+  ]
+
+  for (const targetData of defaultTargets) {
+    await prisma.kPITarget.upsert({
+      where: { kpiKey: targetData.kpiKey },
+      update: {},
+      create: {
+        kpiKey: targetData.kpiKey,
+        target: targetData.target,
+      },
+    })
+  }
+
+  console.log(`✅ Seeded ${defaultTargets.length} KPI targets`)
 }
 
 main()

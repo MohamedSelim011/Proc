@@ -262,16 +262,18 @@ async function calculateInvoiceProcessingTime(dateRange: any) {
     }
   });
 
-  const processingTimes = processedInvoices.map(invoice => {
-    const submissionDate = invoice.invoiceDate;
-    const paymentDate = invoice.updatedAt; // Assuming payment updates the record
+  const processingTimes = processedInvoices
+    .filter(invoice => invoice.paymentDate) // Only include invoices with payment date
+    .map(invoice => {
+      const submissionDate = invoice.invoiceDate;
+      const paymentDate = invoice.paymentDate!; // Use actual payment date
     
-    const processingTimeInDays = Math.floor(
-      (paymentDate.getTime() - submissionDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+      const processingTimeInDays = Math.floor(
+        (paymentDate.getTime() - submissionDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
     
-    return processingTimeInDays;
-  });
+      return processingTimeInDays;
+    });
 
   const averageProcessingTime = processingTimes.length > 0 
     ? processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length 
@@ -434,7 +436,9 @@ async function calculatePendingApprovalRate(dateRange: any) {
           gte: dateRange.start,
           lte: dateRange.end
         },
-        status: 'PENDING'
+        status: {
+          in: ['DRAFT', 'SUBMITTED'] // Pending approval invoices
+        }
       }
     })
   ]);

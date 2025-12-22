@@ -1313,3 +1313,12 @@ enum NotificationStatus {
   FAILED
   CANCELLED
 }
+
+model KPITarget {
+  id        String   @id @default(cuid())
+  kpiKey    String   @unique // e.g., 'procurementCycleTime', 'onTimeDeliveryRate'
+  target    Decimal  // The target value for this KPI
+  updatedBy String?  // User who last updated the target
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
