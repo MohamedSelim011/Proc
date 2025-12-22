@@ -15,8 +15,12 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
+    // Build where clause - show both SERVICE and NON_STOCK itemTypes
+    // (Service Requisitions page manages both service and non-stock item requisitions)
     const where: any = {
-      itemType: 'SERVICE' // Only service PRs
+      itemType: {
+        in: ['SERVICE', 'NON_STOCK']
+      }
     };
     
     if (status) {
@@ -31,7 +35,10 @@ export async function GET(request: NextRequest) {
       where.departmentId = departmentId;
     }
 
+    // Filter by servicePR.serviceType when serviceType filter is provided
+    // The serviceType values are specific service types like "Construction", "Installation", etc.
     if (serviceType) {
+      // Filter by servicePR.serviceType (e.g., "Construction", "Installation", "Fabrication", etc.)
       where.servicePR = {
         serviceType: serviceType
       };
@@ -77,6 +84,24 @@ export async function GET(request: NextRequest) {
       prisma.purchaseRequisition.count({ where })
     ]);
 
+    // Get distinct service types for the filter dropdown
+    const distinctServiceTypes = await prisma.servicePR.findMany({
+      where: {
+        serviceType: {
+          not: null
+        }
+      },
+      select: {
+        serviceType: true
+      },
+      distinct: ['serviceType']
+    });
+
+    const serviceTypes = distinctServiceTypes
+      .map(sp => sp.serviceType)
+      .filter((type): type is string => type !== null)
+      .sort();
+
     return NextResponse.json({
       serviceRequisitions: prs,
       pagination: {
@@ -84,7 +109,8 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit)
-      }
+      },
+      serviceTypes
     });
   } catch (error) {
     console.error('Error fetching service requisitions:', error);

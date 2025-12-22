@@ -26,6 +26,27 @@ export function decodeJWT(token: string): any | null {
 }
 
 /**
+ * Check if JWT token is expired (client-side)
+ */
+export function isTokenExpired(token: string): boolean {
+  try {
+    if (!token) return true;
+    
+    const decoded = decodeJWT(token);
+    if (!decoded || !decoded.exp) return true;
+    
+    // exp is in seconds, Date.now() is in milliseconds
+    const expirationTime = decoded.exp * 1000;
+    const currentTime = Date.now();
+    
+    return currentTime >= expirationTime;
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    return true;
+  }
+}
+
+/**
  * Get user role from localStorage or JWT token
  */
 export function getUserRole(): string | null {
@@ -122,7 +143,12 @@ export function verifyJWT(token: string): {
       department: decoded.department,
       employeeId: decoded.employeeId,
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      console.error('JWT token has expired:', error.expiredAt);
+      // Return a special indicator that token is expired
+      throw new Error('TOKEN_EXPIRED');
+    }
     console.error('Error verifying JWT:', error);
     return null;
   }
@@ -140,20 +166,28 @@ export function getAuthenticatedUser(request: NextRequest): {
   department?: string;
   employeeId?: string;
 } | null {
-  // Try Authorization header first
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    return verifyJWT(token);
+  try {
+    // Try Authorization header first
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      return verifyJWT(token);
+    }
+    
+    // Try cookie
+    const token = request.cookies.get('token')?.value;
+    if (token) {
+      return verifyJWT(token);
+    }
+    
+    return null;
+  } catch (error: any) {
+    if (error.message === 'TOKEN_EXPIRED') {
+      // Re-throw to be handled by the route handler
+      throw error;
+    }
+    return null;
   }
-  
-  // Try cookie
-  const token = request.cookies.get('token')?.value;
-  if (token) {
-    return verifyJWT(token);
-  }
-  
-  return null;
 }
 
 /**

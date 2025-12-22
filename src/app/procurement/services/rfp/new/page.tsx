@@ -257,8 +257,12 @@ function NewServiceRFPContent() {
         if (formData.selectedVendors.length === 0) newErrors.selectedVendors = 'At least one vendor must be selected';
         break;
       case 3:
-        if (!formData.serviceLevelAgreements) newErrors.serviceLevelAgreements = 'Service level agreements are required';
-        if (!formData.insuranceRequirements) newErrors.insuranceRequirements = 'Insurance requirements are required';
+        if (!formData.serviceLevelAgreements || !formData.serviceLevelAgreements.trim()) {
+          newErrors.serviceLevelAgreements = 'Service level agreements are required';
+        }
+        if (!formData.insuranceRequirements || !formData.insuranceRequirements.trim()) {
+          newErrors.insuranceRequirements = 'Insurance requirements are required';
+        }
         break;
     }
 
@@ -326,19 +330,19 @@ function NewServiceRFPContent() {
         },
         body: JSON.stringify({
           prId: formData.serviceRequisitionId,
-          title: formData.title,
-          description: formData.description,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
           submissionDeadline: submissionDeadline,
           evaluationCriteria: formData.evaluationCriteria,
           termsAndConditions: {
-            serviceLevelAgreements: formData.serviceLevelAgreements,
-            penaltyClause: formData.penaltyClause,
-            insuranceRequirements: formData.insuranceRequirements,
-            liabilityTerms: formData.liabilityTerms,
-            confidentialityClause: formData.confidentialityClause,
+            serviceLevelAgreements: formData.serviceLevelAgreements.trim(),
+            penaltyClause: formData.penaltyClause.trim(),
+            insuranceRequirements: formData.insuranceRequirements.trim(),
+            liabilityTerms: formData.liabilityTerms.trim(),
+            confidentialityClause: formData.confidentialityClause.trim(),
             paymentTerms: formData.paymentTerms,
             contractDuration: formData.contractDuration,
-            scopeOfWork: formData.scopeOfWork
+            scopeOfWork: formData.scopeOfWork.trim()
           },
           invitedVendors: formData.selectedVendors.map(vendor => vendor.id),
           createdBy: 'SYSTEM'
@@ -757,9 +761,32 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={4}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
+                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2 ${
+                  errors.serviceLevelAgreements ? 'border-red-300' : ''
+                }`}
                 value={formData.serviceLevelAgreements}
-                onChange={(e) => setFormData(prev => ({ ...prev, serviceLevelAgreements: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, serviceLevelAgreements: value }));
+                  // Clear error when user starts typing
+                  if (errors.serviceLevelAgreements && value.trim()) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.serviceLevelAgreements;
+                      return newErrors;
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  const trimmed = e.target.value.trim();
+                  if (trimmed !== e.target.value) {
+                    setFormData(prev => ({ ...prev, serviceLevelAgreements: trimmed }));
+                  }
+                  // Validate on blur
+                  if (!trimmed) {
+                    setErrors(prev => ({ ...prev, serviceLevelAgreements: 'Service level agreements are required' }));
+                  }
+                }}
                 placeholder="Define service level requirements, response times, availability, etc."
               />
               {errors.serviceLevelAgreements && (
@@ -773,9 +800,32 @@ function NewServiceRFPContent() {
               </label>
               <textarea
                 rows={4}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2"
+                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 px-3 py-2 ${
+                  errors.insuranceRequirements ? 'border-red-300' : ''
+                }`}
                 value={formData.insuranceRequirements}
-                onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, insuranceRequirements: value }));
+                  // Clear error when user starts typing
+                  if (errors.insuranceRequirements && value.trim()) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.insuranceRequirements;
+                      return newErrors;
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  const trimmed = e.target.value.trim();
+                  if (trimmed !== e.target.value) {
+                    setFormData(prev => ({ ...prev, insuranceRequirements: trimmed }));
+                  }
+                  // Validate on blur
+                  if (!trimmed) {
+                    setErrors(prev => ({ ...prev, insuranceRequirements: 'Insurance requirements are required' }));
+                  }
+                }}
                 placeholder="Specify required insurance coverage, amounts, and validity periods"
               />
               {errors.insuranceRequirements && (
@@ -835,8 +885,10 @@ function NewServiceRFPContent() {
               
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">RFP Type</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formData.rfpType}</dd>
+                  <dt className="text-sm font-medium text-gray-500">Service Requisition</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {serviceRequisitions.find(pr => pr.id === formData.serviceRequisitionId)?.prNumber || 'N/A'}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Title</dt>

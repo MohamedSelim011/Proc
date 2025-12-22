@@ -33,6 +33,7 @@ interface ServiceRequisition {
   servicePR: {
     id: string;
     serviceScope: string;
+    serviceType?: string;
     technicalSpecifications?: string;
     duration: number;
     durationUnit: string;
@@ -67,6 +68,7 @@ export default function ServiceRequisitions() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>({
     search: '',
     status: '',
@@ -131,6 +133,11 @@ export default function ServiceRequisitions() {
         setRequisitions(data.serviceRequisitions);
         setTotal(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 1);
+        
+        // Update service types from API response
+        if (data.serviceTypes && Array.isArray(data.serviceTypes)) {
+          setServiceTypes(data.serviceTypes);
+        }
         
         console.log('Set requisitions:', data.serviceRequisitions.length);
         console.log('Set total:', data.pagination?.total);
@@ -338,8 +345,11 @@ export default function ServiceRequisitions() {
               onChange={(e) => handleFilterChange('serviceType', e.target.value)}
             >
               <option value="">All Types</option>
-              <option value="NON_STOCK">Non-Stock Items</option>
-              <option value="SERVICE">Services</option>
+              {serviceTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -423,7 +433,7 @@ export default function ServiceRequisitions() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap min-w-[150px]">
                     <div className="text-sm text-gray-900">
-                      {requisition.itemType === 'SERVICE' ? 'Services' : 'Non-Stock Items'}
+                      {requisition.servicePR?.serviceType || (requisition.itemType === 'SERVICE' ? 'Services' : 'Non-Stock Items')}
                     </div>
                     <div className="text-sm text-gray-500">
                       {requisition.servicePR?.items?.length || 0} item(s)

@@ -259,7 +259,7 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total RFQs</p>
-              <p className="text-2xl font-bold text-gray-900 truncate">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Issued</p>
-              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.issued}</p>
+              <p className="text-2xl font-bold text-wujha-primary">{stats.issued}</p>
             </div>
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Under Evaluation</p>
-              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.underEvaluation}</p>
+              <p className="text-2xl font-bold text-wujha-primary">{stats.underEvaluation}</p>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Completed</p>
-              <p className="text-2xl font-bold text-green-600 truncate">{stats.completed}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
             </div>
           </div>
         </div>
@@ -307,8 +307,8 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total Value</p>
-              <p className="text-lg font-bold text-wujha-primary truncate" title={stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}>
-                {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}
+              <p className="text-sm font-bold text-wujha-primary leading-tight break-words" title={stats.totalValue > 0 ? `${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} OMR` : '0.00 OMR'}>
+                {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} OMR` : '0.00 OMR'}
               </p>
             </div>
           </div>
@@ -321,7 +321,7 @@ export default function RFQPage() {
             </div>
             <div className="ml-4 min-w-0 flex-1 flex flex-col">
               <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Avg Responses</p>
-              <p className="text-2xl font-bold text-wujha-primary truncate">{stats.avgResponseRate.toFixed(1)}</p>
+              <p className="text-2xl font-bold text-wujha-primary">{stats.avgResponseRate.toFixed(1)}</p>
             </div>
           </div>
         </div>

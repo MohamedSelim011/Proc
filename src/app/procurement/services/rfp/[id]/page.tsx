@@ -122,6 +122,7 @@ export default function ServiceRFPDetailPage() {
   const fetchRFPDetails = async () => {
     try {
       const response = await fetch(`/api/services/rfp/${params?.id}`);
+      // Token expiration is handled globally by fetchInterceptor
       const data = await response.json();
       
       if (response.ok) {
@@ -142,6 +143,19 @@ export default function ServiceRFPDetailPage() {
     try {
       // Get token from localStorage
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Check if token is expired
+      if (token && typeof window !== 'undefined') {
+        const { isTokenExpired } = await import('@/lib/jwt');
+        if (isTokenExpired(token)) {
+          showToast('error', 'Your session has expired. Please sign in again.');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+      }
+      
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       
       // Add Authorization header if token exists
@@ -159,7 +173,15 @@ export default function ServiceRFPDetailPage() {
         fetchRFPDetails();
       } else {
         const data = await response.json();
-        showToast('error', data.error || 'Failed to request approval');
+        // Check if error is about expired token
+        if (data.error && data.error.includes('session has expired')) {
+          showToast('error', data.error);
+          setTimeout(() => {
+            window.location.href = '/signin';
+          }, 2000);
+        } else {
+          showToast('error', data.error || 'Failed to request approval');
+        }
       }
     } catch (error) {
       showToast('error', 'Failed to request approval');
@@ -170,6 +192,20 @@ export default function ServiceRFPDetailPage() {
     try {
       // Get token from localStorage
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Check if token is expired
+      if (token && typeof window !== 'undefined') {
+        const { isTokenExpired } = await import('@/lib/jwt');
+        if (isTokenExpired(token)) {
+          showToast('error', 'Your session has expired. Please sign in again.');
+          // Redirect to sign in page after a short delay
+          setTimeout(() => {
+            window.location.href = '/signin';
+          }, 2000);
+          return;
+        }
+      }
+      
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       
       // Add Authorization header if token exists
@@ -187,7 +223,15 @@ export default function ServiceRFPDetailPage() {
         fetchRFPDetails();
       } else {
         const data = await response.json();
-        showToast('error', data.error || 'Failed to approve RFP');
+        // Check if error is about expired token
+        if (data.error && data.error.includes('session has expired')) {
+          showToast('error', data.error);
+          setTimeout(() => {
+            window.location.href = '/signin';
+          }, 2000);
+        } else {
+          showToast('error', data.error || 'Failed to approve RFP');
+        }
       }
     } catch (error) {
       showToast('error', 'Failed to approve RFP');

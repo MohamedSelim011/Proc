@@ -221,11 +221,11 @@ export default function ServiceContractDetail() {
           .header {
             text-align: center;
             margin-bottom: 40px;
-            border-bottom: 3px solid #2563eb;
+            border-bottom: 3px solid #FF5722;
             padding-bottom: 20px;
           }
           .header h1 {
-            color: #1e40af;
+            color: #FF5722;
             font-size: 28px;
             margin-bottom: 10px;
           }
@@ -238,12 +238,12 @@ export default function ServiceContractDetail() {
             page-break-inside: avoid;
           }
           .section-title {
-            background: #eff6ff;
+            background: #FFF3E0;
             padding: 12px 15px;
             font-size: 18px;
             font-weight: 600;
-            color: #1e40af;
-            border-left: 4px solid #2563eb;
+            color: #E64A19;
+            border-left: 4px solid #FF5722;
             margin-bottom: 15px;
           }
           .info-grid {
@@ -271,7 +271,7 @@ export default function ServiceContractDetail() {
           }
           .info-value.large {
             font-size: 20px;
-            color: #059669;
+            color: #FF5722;
             font-weight: 700;
           }
           table {
@@ -302,21 +302,21 @@ export default function ServiceContractDetail() {
             text-transform: uppercase;
           }
           .status-active { background: #d1fae5; color: #065f46; }
-          .status-draft { background: #f3f4f6; color: #374151; }
+          .status-draft { background: #FFF3E0; color: #E64A19; }
           .terms-box {
-            background: #fef3c7;
-            border-left: 4px solid #f59e0b;
+            background: #FFF3E0;
+            border-left: 4px solid #FF5722;
             padding: 15px;
             margin-top: 15px;
             border-radius: 4px;
           }
           .terms-box h4 {
-            color: #92400e;
+            color: #E64A19;
             font-size: 14px;
             margin-bottom: 8px;
           }
           .terms-box p {
-            color: #78350f;
+            color: #BF360C;
             font-size: 13px;
           }
           .footer {
@@ -450,21 +450,21 @@ export default function ServiceContractDetail() {
         <div class="section">
           <div class="section-title">Contract Terms & Conditions</div>
           ${contract.slaTerms ? `
-            <div class="terms-box" style="background: #dbeafe; border-color: #3b82f6;">
-              <h4 style="color: #1e40af;">SLA Terms</h4>
-              <p style="color: #1e3a8a;">${typeof contract.slaTerms === 'string' ? contract.slaTerms : JSON.stringify(contract.slaTerms, null, 2)}</p>
+            <div class="terms-box" style="background: #FFF3E0; border-color: #FF5722;">
+              <h4 style="color: #E64A19;">SLA Terms</h4>
+              <p style="color: #BF360C;">${typeof contract.slaTerms === 'string' ? contract.slaTerms : JSON.stringify(contract.slaTerms, null, 2)}</p>
             </div>
           ` : ''}
           ${contract.penaltyClause ? `
-            <div class="terms-box" style="background: #fee2e2; border-color: #ef4444;">
-              <h4 style="color: #991b1b;">Penalty Clause</h4>
-              <p style="color: #7f1d1d;">${contract.penaltyClause}</p>
+            <div class="terms-box" style="background: #FFEBEE; border-color: #F44336;">
+              <h4 style="color: #C62828;">Penalty Clause</h4>
+              <p style="color: #B71C1C;">${contract.penaltyClause}</p>
             </div>
           ` : ''}
           ${contract.insuranceRequirements ? `
-            <div class="terms-box" style="background: #d1fae5; border-color: #10b981;">
-              <h4 style="color: #065f46;">Insurance Requirements</h4>
-              <p style="color: #064e3b;">${typeof contract.insuranceRequirements === 'string' ? contract.insuranceRequirements : JSON.stringify(contract.insuranceRequirements, null, 2)}</p>
+            <div class="terms-box" style="background: #FFF3E0; border-color: #FF5722;">
+              <h4 style="color: #E64A19;">Insurance Requirements</h4>
+              <p style="color: #BF360C;">${typeof contract.insuranceRequirements === 'string' ? contract.insuranceRequirements : JSON.stringify(contract.insuranceRequirements, null, 2)}</p>
             </div>
           ` : ''}
         </div>
@@ -494,7 +494,7 @@ export default function ServiceContractDetail() {
         <div class="no-print" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
           <button
             onclick="window.print()"
-            style="background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+            style="background: #FF5722; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
           >
             Print / Save as PDF
           </button>
@@ -564,7 +564,10 @@ export default function ServiceContractDetail() {
           </button>
           {contract.status === 'DRAFT' && (
             <>
-              <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+              <button 
+                onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </button>
@@ -846,7 +849,10 @@ export default function ServiceContractDetail() {
                 </>
               )}
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <button 
+              onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
               <Edit className="h-4 w-4 mr-2" />
               Edit Contract
             </button>

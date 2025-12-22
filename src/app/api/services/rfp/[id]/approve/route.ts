@@ -10,7 +10,22 @@ export async function POST(
     const { id } = await params;
 
     // Get authenticated user
-    const user = getAuthenticatedUser(request);
+    let user;
+    try {
+      user = getAuthenticatedUser(request);
+    } catch (error: any) {
+      if (error.message === 'TOKEN_EXPIRED') {
+        return NextResponse.json(
+          { error: 'Your session has expired. Please sign in again.' },
+          { status: 401 }
+        );
+      }
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
