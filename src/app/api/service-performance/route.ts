@@ -9,10 +9,16 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const contractId = searchParams.get('contractId');
     const evaluationPeriod = searchParams.get('evaluationPeriod');
+    const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || '';
+    const vendor = searchParams.get('vendor') || '';
+    const performanceRange = searchParams.get('performanceRange') || '';
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    const contractAndConditions: any[] = [];
+    const contractOrConditions: any[] = [];
 
     if (contractId) {
       where.contractId = contractId;
@@ -20,6 +26,101 @@ export async function GET(request: NextRequest) {
 
     if (evaluationPeriod) {
       where.evaluationPeriod = evaluationPeriod;
+    }
+
+    // Search functionality - search across contract number, vendor name, and contract type
+    // Only apply search if it has at least 1 character (to avoid matching everything)
+    if (search && search.trim().length > 0) {
+      const searchTerm = search.trim();
+      // Each condition must be a complete object that can be used in OR
+      contractOrConditions.push(
+        { contractNumber: { contains: searchTerm, mode: 'insensitive' } },
+        { vendor: { nameEn: { contains: searchTerm, mode: 'insensitive' } } },
+        { vendor: { nameAr: { contains: searchTerm, mode: 'insensitive' } } },
+        { vendor: { vendorCode: { contains: searchTerm, mode: 'insensitive' } } },
+        { contractType: { contains: searchTerm, mode: 'insensitive' } }
+      );
+    }
+
+    // Filter by vendor
+    if (vendor) {
+      const isVendorId = (vendor.startsWith('c') && vendor.length === 25) || vendor.startsWith('VEN-');
+      
+      if (isVendorId) {
+        if (vendor.startsWith('VEN-')) {
+          contractAndConditions.push({
+            vendor: {
+              vendorCode: vendor
+            }
+          });
+        } else {
+          contractAndConditions.push({
+            vendorId: vendor
+          });
+        }
+      } else {
+        contractAndConditions.push({
+          vendor: {
+            OR: [
+              { nameEn: { contains: vendor, mode: 'insensitive' } },
+              { nameAr: { contains: vendor, mode: 'insensitive' } },
+              { vendorCode: { contains: vendor, mode: 'insensitive' } }
+            ]
+          }
+        });
+      }
+    }
+
+    // Combine contract conditions: if we have both search (OR) and vendor (AND), combine them
+    if (contractOrConditions.length > 0 && contractAndConditions.length > 0) {
+      // Both search and vendor filters - combine with AND
+      where.contract = {
+        AND: [
+          { OR: contractOrConditions },
+          ...contractAndConditions
+        ]
+      };
+    } else if (contractOrConditions.length > 0) {
+      // Only search filter
+      where.contract = {
+        OR: contractOrConditions
+      };
+    } else if (contractAndConditions.length > 0) {
+      // Only vendor filter
+      if (contractAndConditions.length === 1) {
+        where.contract = contractAndConditions[0];
+      } else {
+        where.contract = {
+          AND: contractAndConditions
+        };
+      }
+    }
+
+    console.log('Service Performance Query:', {
+      search,
+      vendor,
+      performanceRange,
+      contractOrConditionsCount: contractOrConditions.length,
+      contractAndConditionsCount: contractAndConditions.length,
+      whereClause: JSON.stringify(where, null, 2)
+    });
+
+    // Filter by performance range (overallScore)
+    if (performanceRange) {
+      const rangeMap: Record<string, { min: number; max: number }> = {
+        'excellent': { min: 90, max: 100 },
+        'good': { min: 75, max: 89.99 },
+        'average': { min: 60, max: 74.99 },
+        'poor': { min: 0, max: 59.99 }
+      };
+      
+      const range = rangeMap[performanceRange];
+      if (range) {
+        where.overallScore = {
+          gte: range.min,
+          lte: range.max
+        };
+      }
     }
 
     const [performances, total] = await Promise.all([
@@ -88,12 +189,29 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!contractId || !evaluationPeriod || !startDate || !endDate) {
+    if (!contractId || !startDate || !endDate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
+
+    // Check if a performance report already exists for this contract
+    const existingPerformance = await prisma.servicePerformance.findFirst({
+      where: {
+        contractId: contractId
+      }
+    });
+
+    if (existingPerformance) {
+      return NextResponse.json(
+        { error: 'A performance report already exists for this contract. Each contract can only have one performance evaluation.' },
+        { status: 400 }
+      );
+    }
+    
+    // Set default evaluation period if not provided
+    const finalEvaluationPeriod = evaluationPeriod || 'Final';
 
     // Validate scores are between 0 and 100
     if (
@@ -118,7 +236,7 @@ export async function POST(request: NextRequest) {
     const performance = await prisma.servicePerformance.create({
       data: {
         contractId,
-        evaluationPeriod,
+        evaluationPeriod: finalEvaluationPeriod,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         qualityScore,

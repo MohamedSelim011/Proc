@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Briefcase,
   ClipboardList,
-  Send
+  Send,
+  TrendingUp
 } from 'lucide-react';
 
 export interface NavigationItem {
@@ -119,6 +120,7 @@ const navigation: NavigationItem[] = [
       { name: 'RFPs', href: '/procurement/services/rfp', icon: Send },
       { name: 'Contracts', href: '/procurement/services/contracts', icon: CreditCard },
       { name: 'Receipts', href: '/procurement/services/receipts', icon: Receipt },
+      { name: 'Performance', href: '/procurement/services/performance', icon: TrendingUp },
     //   { name: 'Delivery', href: '/procurement/services/delivery', icon: Truck },
     //   { name: 'Performance', href: '/procurement/services/performance', icon: BarChart3 },
     //   { name: 'Invoices', href: '/procurement/services/invoices', icon: Receipt },

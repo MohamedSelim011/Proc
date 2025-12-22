@@ -32,7 +32,6 @@ interface ServiceContract {
 
 interface PerformanceFormData {
   contractId: string;
-  evaluationPeriod: string;
   startDate: string;
   endDate: string;
   qualityScore: number;
@@ -67,7 +66,6 @@ function NewPerformanceReportContent() {
 
   const [formData, setFormData] = useState<PerformanceFormData>({
     contractId: contractId || '',
-    evaluationPeriod: 'Monthly',
     startDate: '',
     endDate: '',
     qualityScore: 0,
@@ -98,13 +96,21 @@ function NewPerformanceReportContent() {
 
   const fetchContracts = async () => {
     try {
-      const response = await fetch('/api/service-contracts?status=ACTIVE');
+      // Fetch completed contracts that don't have performance reports yet
+      const response = await fetch('/api/service-contracts?status=COMPLETED&excludeEvaluated=true');
       const data = await response.json();
       if (response.ok) {
-        setContracts(data.contracts || []);
+        const contractsList = data.contracts || [];
+        setContracts(contractsList);
+        
+        // If no contracts available, show a message
+        if (contractsList.length === 0) {
+          showToast('info', 'No contracts available for performance evaluation. All completed contracts have already been evaluated.');
+        }
       }
     } catch (error) {
       console.error('Error fetching contracts:', error);
+      showToast('error', 'Failed to fetch contracts. Please try again.');
     }
   };
 
@@ -224,7 +230,15 @@ function NewPerformanceReportContent() {
         },
         body: JSON.stringify({
           ...formData,
-          evaluatedBy: 'current-user-id' // This should come from user context
+          evaluationPeriod: 'Final', // Set default since contracts are completed
+          evaluatedBy: (() => {
+            try {
+              const userData = JSON.parse(localStorage.getItem('user') || '{}');
+              return userData.employeeId || userData.id || 'SYSTEM';
+            } catch {
+              return 'SYSTEM';
+            }
+          })()
         }),
       });
 
@@ -287,11 +301,16 @@ function NewPerformanceReportContent() {
               <select
                 value={formData.contractId}
                 onChange={(e) => handleContractChange(e.target.value)}
+                disabled={contracts.length === 0}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.contractId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
-                } text-gray-900 bg-white`}
+                } text-gray-900 bg-white ${contracts.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <option value="">Select a service contract</option>
+                <option value="">
+                  {contracts.length === 0 
+                    ? 'No contracts available (all have been evaluated)' 
+                    : 'Select a service contract'}
+                </option>
                 {contracts.map((contract) => (
                   <option key={contract.id} value={contract.id}>
                     {contract.contractNumber} - {contract.vendor.nameEn}
@@ -327,26 +346,6 @@ function NewPerformanceReportContent() {
                 </div>
               </div>
             )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Evaluation Period
-              </label>
-              <select
-                value={formData.evaluationPeriod}
-                onChange={(e) => handleInputChange('evaluationPeriod', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
-              >
-                <option value="Weekly">Weekly</option>
-                <option value="Monthly">Monthly</option>
-                <option value="Quarterly">Quarterly</option>
-                <option value="Annual">Annual</option>
-              </select>
-            </div>
-
-            <div>
-              {/* Spacer */}
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">

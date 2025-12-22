@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
+    const itemType = searchParams.get('itemType') || '';
     const prId = searchParams.get('prId') || '';
 
     const skip = (page - 1) * limit;
@@ -66,6 +67,31 @@ export async function GET(request: NextRequest) {
       });
     }
     if (prId) where.prId = prId;
+    
+    // Filter by item type (from Purchase Requisition)
+    if (itemType) {
+      // Map frontend itemType values to database enum values
+      const itemTypeMapping: Record<string, string> = {
+        'STOCK': 'STOCK',
+        'NON_STOCK': 'NON_STOCK',
+        'SERVICE': 'SERVICE'
+      };
+      
+      const mappedItemType = itemTypeMapping[itemType.toUpperCase()] || itemType.toUpperCase();
+      
+      // Filter RFQs by the related Purchase Requisition's itemType
+      // Only include RFQs that have a related PR with the specified itemType
+      where.pr = {
+        ...(where.pr || {}),
+        itemType: mappedItemType
+      };
+      
+      console.log('RFQ ItemType Filter:', {
+        requestedItemType: itemType,
+        mappedItemType,
+        whereClause: where.pr
+      });
+    }
 
     console.log('RFQ Query Where Clause:', JSON.stringify(where, null, 2));
 

@@ -780,6 +780,223 @@ async function main() {
     console.log('⚠️  Approvals may already exist, skipping...')
   }
 
+  // ===========================================
+  // SEED SERVICE CONTRACTS (with ended contracts)
+  // ===========================================
+  console.log('\n📋 Seeding Service Contracts...')
+
+  // First, create Service Requisitions (Purchase Requisitions with SERVICE itemType)
+  const servicePRData = [
+    {
+      prNumber: 'SPR-2023-001',
+      requesterId: 'emp001',
+      departmentId: 'dept001',
+      itemType: 'SERVICE' as const,
+      priority: 'NORMAL' as const,
+      status: 'APPROVED' as const,
+      estimatedCost: 25000.00,
+      budgetCode: 'SERV-2023-Q1',
+      justification: 'IT infrastructure maintenance and support services',
+      serviceScope: 'Annual IT infrastructure maintenance and 24/7 support',
+      serviceCategory: 'IT Services',
+      serviceType: 'Maintenance',
+      duration: 365,
+      durationUnit: 'DAYS' as const,
+    },
+    {
+      prNumber: 'SPR-2023-002',
+      requesterId: 'emp002',
+      departmentId: 'dept002',
+      itemType: 'SERVICE' as const,
+      priority: 'HIGH' as const,
+      status: 'APPROVED' as const,
+      estimatedCost: 15000.00,
+      budgetCode: 'SERV-2023-Q2',
+      justification: 'Security services for office premises',
+      serviceScope: '24/7 security guard services and access control',
+      serviceCategory: 'Security Services',
+      serviceType: 'Guarding',
+      duration: 180,
+      durationUnit: 'DAYS' as const,
+    },
+    {
+      prNumber: 'SPR-2022-001',
+      requesterId: 'emp001',
+      departmentId: 'dept001',
+      itemType: 'SERVICE' as const,
+      priority: 'NORMAL' as const,
+      status: 'APPROVED' as const,
+      estimatedCost: 18000.00,
+      budgetCode: 'SERV-2022-Q3',
+      justification: 'Management consulting for process improvement',
+      serviceScope: 'Strategic planning and process optimization consulting',
+      serviceCategory: 'Professional Services',
+      serviceType: 'Consulting',
+      duration: 90,
+      durationUnit: 'DAYS' as const,
+    },
+  ]
+
+  const serviceRequisitions = []
+  for (const prData of servicePRData) {
+    // Check if PR already exists
+    let existingPR = await prisma.purchaseRequisition.findUnique({
+      where: { prNumber: prData.prNumber },
+      include: { servicePR: true },
+    })
+
+    if (!existingPR) {
+      // Create Purchase Requisition
+      const pr = await prisma.purchaseRequisition.create({
+        data: {
+          prNumber: prData.prNumber,
+          requesterId: prData.requesterId,
+          departmentId: prData.departmentId,
+          itemType: prData.itemType,
+          priority: prData.priority,
+          status: prData.status,
+          estimatedCost: prData.estimatedCost,
+          budgetCode: prData.budgetCode,
+          justification: prData.justification,
+          servicePR: {
+            create: {
+              serviceScope: prData.serviceScope,
+              serviceCategory: prData.serviceCategory,
+              serviceType: prData.serviceType,
+              duration: prData.duration,
+              durationUnit: prData.durationUnit,
+              deliverables: [],
+              performanceMetrics: undefined,
+              slaRequirements: undefined,
+              insuranceRequired: false,
+              certificationRequired: false,
+              paymentSchedule: 'MONTHLY',
+              retentionPercentage: 0,
+            },
+          },
+        },
+        include: { servicePR: true },
+      })
+      serviceRequisitions.push(pr)
+      console.log(`✅ Created Service Requisition: ${pr.prNumber}`)
+    } else {
+      serviceRequisitions.push(existingPR)
+      console.log(`✅ Service Requisition already exists: ${prData.prNumber}`)
+    }
+  }
+
+  // Create Service Contracts with past end dates (COMPLETED status)
+  const serviceContractData = [
+    {
+      contractNumber: 'SC-2023-001',
+      prId: serviceRequisitions[0].id,
+      vendorId: vendors[3].id, // Zubair Corporation (IT vendor)
+      contractType: 'MAINTENANCE_CONTRACT',
+      startDate: new Date('2023-01-01'),
+      endDate: new Date('2023-12-31'), // Ended in 2023
+      totalValue: 25000.00,
+      currency: 'OMR',
+      paymentTerms: 'Monthly payments, Net 30 days',
+      status: 'COMPLETED' as const,
+      signedAt: new Date('2022-12-15'),
+      slaTerms: {
+        responseTime: '4 hours',
+        resolutionTime: '24 hours',
+        availability: '99.5%',
+        support: '24/7',
+      },
+      insuranceRequirements: {
+        generalLiability: '500,000 OMR',
+        professionalIndemnity: '250,000 OMR',
+      },
+      performanceBond: 2500.00,
+      retentionAmount: 1250.00,
+    },
+    {
+      contractNumber: 'SC-2023-002',
+      prId: serviceRequisitions[1].id,
+      vendorId: vendors[1].id, // Bahwan Engineering Company
+      contractType: 'SERVICE_AGREEMENT',
+      startDate: new Date('2023-04-01'),
+      endDate: new Date('2023-09-30'), // Ended in 2023
+      totalValue: 15000.00,
+      currency: 'OMR',
+      paymentTerms: 'Monthly payments, Net 30 days',
+      status: 'COMPLETED' as const,
+      signedAt: new Date('2023-03-20'),
+      slaTerms: {
+        responseTime: 'Immediate',
+        availability: '100%',
+        coverage: '24/7',
+        guardsPerShift: 2,
+      },
+      insuranceRequirements: {
+        generalLiability: '1,000,000 OMR',
+        workersCompensation: 'Required',
+      },
+      performanceBond: 1500.00,
+      retentionAmount: 750.00,
+    },
+    {
+      contractNumber: 'SC-2022-001',
+      prId: serviceRequisitions[2].id,
+      vendorId: vendors[0].id, // Al Turki Trading LLC
+      contractType: 'CONSULTING_CONTRACT',
+      startDate: new Date('2022-07-01'),
+      endDate: new Date('2022-09-30'), // Ended in 2022
+      totalValue: 18000.00,
+      currency: 'OMR',
+      paymentTerms: 'Milestone-based payments, Net 30 days',
+      status: 'COMPLETED' as const,
+      signedAt: new Date('2022-06-20'),
+      slaTerms: {
+        deliverables: 'On-time delivery of all milestones',
+        quality: 'Minimum 4.5/5.0 client satisfaction',
+        reporting: 'Weekly progress reports',
+      },
+      insuranceRequirements: {
+        professionalIndemnity: '500,000 OMR',
+        generalLiability: '250,000 OMR',
+      },
+      performanceBond: 1800.00,
+      retentionAmount: 900.00,
+    },
+  ]
+
+  for (const contractData of serviceContractData) {
+    // Check if contract already exists
+    const existingContract = await prisma.serviceContract.findUnique({
+      where: { contractNumber: contractData.contractNumber },
+    })
+
+    if (!existingContract) {
+      await prisma.serviceContract.create({
+        data: {
+          contractNumber: contractData.contractNumber,
+          prId: contractData.prId,
+          vendorId: contractData.vendorId,
+          contractType: contractData.contractType,
+          startDate: contractData.startDate,
+          endDate: contractData.endDate,
+          totalValue: contractData.totalValue,
+          currency: contractData.currency,
+          paymentTerms: contractData.paymentTerms,
+          status: contractData.status,
+          signedAt: contractData.signedAt,
+          slaTerms: contractData.slaTerms,
+          insuranceRequirements: contractData.insuranceRequirements,
+          performanceBond: contractData.performanceBond,
+          retentionAmount: contractData.retentionAmount,
+        },
+      })
+      console.log(`✅ Created Service Contract: ${contractData.contractNumber} (Ended: ${contractData.endDate.toLocaleDateString()})`)
+    } else {
+      console.log(`✅ Service Contract already exists: ${contractData.contractNumber}`)
+    }
+  }
+
+  console.log('✅ Service Contracts seeding completed!\n')
+
   console.log('✅ Seed completed successfully with Omani data!')
   console.log({
     categories: categories.length + subcategories.length,
@@ -789,6 +1006,8 @@ async function main() {
     rfqs: rfqs.length,
     purchaseOrders: purchaseOrders.length,
     goodsReceipts: goodsReceipts.length,
+    serviceRequisitions: serviceRequisitions.length,
+    serviceContracts: serviceContractData.length,
   })
 }
 

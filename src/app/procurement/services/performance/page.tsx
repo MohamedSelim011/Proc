@@ -11,7 +11,6 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  Calendar,
   FileText,
   Star,
   Target,
@@ -31,11 +30,11 @@ interface ServicePerformance {
   performanceScore: number;
   slaCompliance: number;
   deliverableStatus: 'ON_TRACK' | 'DELAYED' | 'COMPLETED' | 'AT_RISK';
-  nextMilestone: string;
-  nextMilestoneDate: string;
   issuesCount: number;
   lastReportDate: string;
   status: string;
+  overallScore?: number;
+  evaluationPeriod?: string;
 }
 
 interface Filters {
@@ -66,6 +65,12 @@ export default function ServicePerformance() {
     });
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.search, filters.status, filters.vendor, filters.performanceRange]);
+
+  // Fetch when page or filters change
   useEffect(() => {
     fetchPerformanceData();
   }, [currentPage, filters]);
@@ -74,44 +79,87 @@ export default function ServicePerformance() {
     try {
       setLoading(true);
       
-      // Use POs as active service contracts and generate performance data
-      const response = await fetch('/api/purchase-orders?status=APPROVED');
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10'
+      });
+      
+      if (filters.search && filters.search.trim()) {
+        params.append('search', filters.search.trim());
+      }
+      if (filters.status) params.append('status', filters.status);
+      if (filters.vendor && filters.vendor.trim()) {
+        params.append('vendor', filters.vendor.trim());
+      }
+      if (filters.performanceRange) params.append('performanceRange', filters.performanceRange);
+      
+      console.log('Fetching performance data with filters:', {
+        search: filters.search,
+        status: filters.status,
+        vendor: filters.vendor,
+        performanceRange: filters.performanceRange,
+        url: `/api/service-performance?${params.toString()}`
+      });
+      
+      const response = await fetch(`/api/service-performance?${params.toString()}`);
       const data = await response.json();
 
       if (response.ok) {
-        // Transform POs to performance monitoring format
-        const performanceData = (data.purchaseOrders || []).map((po: any) => {
-          const performanceScore = Math.random() * 2 + 3; // 3-5 score
-          const slaCompliance = Math.random() * 20 + 80; // 80-100%
-          const issuesCount = Math.floor(Math.random() * 5);
+        // Transform API response to match the interface
+        let performanceData = (data.performances || []).map((perf: any) => {
+          const overallScore = parseFloat(perf.overallScore?.toString() || '0');
+          
+          // Calculate SLA compliance as average of all SLA fields
+          const slaData = perf.slaCompliance || {};
+          const availability = slaData.availability !== undefined ? parseFloat(slaData.availability.toString()) : null;
+          const responseTime = slaData.responseTime !== undefined ? parseFloat(slaData.responseTime.toString()) : null;
+          const resolutionTime = slaData.resolutionTime !== undefined ? parseFloat(slaData.resolutionTime.toString()) : null;
+          
+          // Calculate average SLA compliance from all provided fields
+          // Include a field if it exists in the data (even if it's 0)
+          const slaValues: number[] = [];
+          if (availability !== null) slaValues.push(availability);
+          if (responseTime !== null) slaValues.push(responseTime);
+          if (resolutionTime !== null) slaValues.push(resolutionTime);
+          
+          // Calculate average, defaulting to 0 if no values provided
+          const slaCompliance = slaValues.length > 0 
+            ? slaValues.reduce((sum, val) => sum + val, 0) / slaValues.length 
+            : 0;
           
           // Determine deliverable status based on performance
           let deliverableStatus: ServicePerformance['deliverableStatus'];
-          if (performanceScore >= 4.5 && slaCompliance >= 95) deliverableStatus = 'COMPLETED';
-          else if (performanceScore >= 4.0 && slaCompliance >= 90) deliverableStatus = 'ON_TRACK';
-          else if (performanceScore >= 3.5 && slaCompliance >= 80) deliverableStatus = 'DELAYED';
+          if (overallScore >= 90 && slaCompliance >= 95) deliverableStatus = 'COMPLETED';
+          else if (overallScore >= 75 && slaCompliance >= 90) deliverableStatus = 'ON_TRACK';
+          else if (overallScore >= 60 && slaCompliance >= 80) deliverableStatus = 'DELAYED';
           else deliverableStatus = 'AT_RISK';
 
           return {
-            id: po.id,
-            contractNumber: po.poNumber,
-            vendor: po.vendor,
-            serviceType: 'Professional Services',
-            reportingPeriod: 'Monthly',
-            performanceScore,
+            id: perf.id,
+            contractNumber: perf.contract?.contractNumber || 'N/A',
+            vendor: perf.contract?.vendor || { id: '', nameEn: 'N/A' },
+            serviceType: perf.contract?.contractType || 'N/A',
+            reportingPeriod: perf.evaluationPeriod || 'Monthly',
+            performanceScore: overallScore / 20, // Convert 0-100 to 0-5 scale for display
             slaCompliance,
             deliverableStatus,
-            nextMilestone: 'Phase 2 Completion',
-            nextMilestoneDate: po.expectedDeliveryDate || new Date().toISOString(),
-            issuesCount,
-            lastReportDate: po.updatedAt,
-            status: po.status
+            issuesCount: 0,
+            lastReportDate: perf.evaluatedAt || new Date().toISOString(),
+            status: perf.contract?.status || 'N/A'
           };
         });
 
+        // Apply frontend filters for deliverable status (since it's calculated, not stored)
+        if (filters.status) {
+          performanceData = performanceData.filter(p => p.deliverableStatus === filters.status);
+        }
+
+        // Update total and pagination based on filtered results
+        const filteredTotal = performanceData.length;
         setPerformances(performanceData);
-        setTotal(performanceData.length);
-        setTotalPages(Math.ceil(performanceData.length / 10));
+        // If we applied frontend filtering, use the filtered count; otherwise use API pagination
+        setTotal(filters.status ? filteredTotal : (data.pagination?.total || 0));
+        setTotalPages(filters.status ? Math.ceil(filteredTotal / 10) : (data.pagination?.totalPages || 1));
       }
     } catch (error) {
       console.error('Error fetching performance data:', error);
@@ -391,9 +439,6 @@ export default function ServicePerformance() {
                 Deliverable Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Next Milestone
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -401,7 +446,7 @@ export default function ServicePerformance() {
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center">
+                <td colSpan={6} className="px-6 py-4 text-center">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-wujha-primary"></div>
                     <span className="ml-2 text-sm text-gray-500">Loading...</span>
@@ -463,47 +508,20 @@ export default function ServicePerformance() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {performance.nextMilestone}
-                    </div>
-                    <div className="text-sm text-gray-500 flex items-center">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {formatDate(performance.nextMilestoneDate)}
-                    </div>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <Link
-                        href={`/procurement/services/performance/${performance.id}`}
-                        className="text-wujha-primary hover:text-wujha-primary-hover"
-                        title="View Performance Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        href={`/procurement/services/performance/${performance.id}/report`}
-                        className="text-green-600 hover:text-green-900"
-                        title="Create Performance Report"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Link>
-                      {performance.deliverableStatus === 'COMPLETED' && (
-                        <Link
-                          href={`/procurement/services/performance/${performance.id}/accept`}
-                          className="text-purple-600 hover:text-purple-900"
-                          title="Service Acceptance"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Link>
-                      )}
-                    </div>
+                    <Link
+                      href={`/procurement/services/performance/${performance.id}`}
+                      className="text-wujha-primary hover:text-wujha-primary-hover"
+                      title="View Performance Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Link>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                   No active services found for performance monitoring.
                 </td>
               </tr>

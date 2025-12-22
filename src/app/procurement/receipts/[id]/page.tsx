@@ -779,7 +779,15 @@ export default function GoodsReceiptView() {
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                <button 
+                  onClick={() => {
+                    if (receipt?.po?.id || receipt?.poId) {
+                      router.push(`/procurement/purchase-orders/${receipt.po?.id || receipt.poId}`);
+                    }
+                  }}
+                  disabled={!receipt?.po?.id && !receipt?.poId}
+                  className="w-full px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Eye className="h-4 w-4 inline mr-2" />
                   View PO Details
                 </button>

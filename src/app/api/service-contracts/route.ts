@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const contractType = searchParams.get('contractType') || '';
     const vendor = searchParams.get('vendor') || '';
+    const excludeEvaluated = searchParams.get('excludeEvaluated') === 'true';
 
     const skip = (page - 1) * limit;
 
@@ -63,6 +64,15 @@ export async function GET(request: NextRequest) {
     
     if (status) {
       andConditions.push({ status });
+    }
+
+    // Exclude contracts that already have performance reports
+    if (excludeEvaluated) {
+      andConditions.push({
+        performances: {
+          none: {}
+        }
+      });
     }
 
     if (contractType) {
