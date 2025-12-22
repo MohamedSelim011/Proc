@@ -248,7 +248,21 @@ export default function InvoicesPage() {
 
       if (response.ok) {
         // Refresh invoices to show updated status
-        showToast('success', `Invoice ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully`);
+        let message = '';
+        switch (status) {
+          case 'APPROVED':
+            message = 'Invoice approved successfully';
+            break;
+          case 'REJECTED':
+            message = 'Invoice rejected successfully';
+            break;
+          case 'SUBMITTED':
+            message = 'Invoice submitted for review successfully';
+            break;
+          default:
+            message = `Invoice status changed to ${status} successfully`;
+        }
+        showToast('success', message);
         await fetchInvoices();
         closeApprovalModal();
       } else {
