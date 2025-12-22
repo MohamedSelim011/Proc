@@ -168,12 +168,40 @@ export async function POST(request: NextRequest) {
     const count = await prisma.rFQ.count();
     const rfqNumber = `RFQ-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+    // Validate closing date
+    const closingDateInput = body.closingDate || body.submissionDeadline;
+    let closingDate: Date;
+    
+    if (closingDateInput) {
+      closingDate = new Date(closingDateInput);
+      
+      // Validate date format
+      if (isNaN(closingDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid closing date format' },
+          { status: 400 }
+        );
+      }
+      
+      // Validate that closing date is not in the past
+      const now = new Date();
+      if (closingDate < now) {
+        return NextResponse.json(
+          { error: 'Closing date cannot be in the past' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Default to 7 days from now if not provided
+      closingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+
     // Create RFQ with additional fields
     const rfqData: any = {
       rfqNumber,
       title: body.title,
       description: body.description,
-      closingDate: body.closingDate ? new Date(body.closingDate) : (body.submissionDeadline ? new Date(body.submissionDeadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+      closingDate,
       status: body.status || 'DRAFT',
       createdBy: body.createdBy || null
     };

@@ -218,6 +218,16 @@ export default function EditRFQPage() {
     
     if (!formData.submissionDeadline) {
       newErrors.submissionDeadline = 'Submission deadline is required';
+    } else {
+      // Validate that submission deadline is not in the past
+      const closingDate = new Date(formData.submissionDeadline);
+      const now = new Date();
+      
+      if (isNaN(closingDate.getTime())) {
+        newErrors.submissionDeadline = 'Please enter a valid date';
+      } else if (closingDate < now) {
+        newErrors.submissionDeadline = 'Submission deadline cannot be in the past';
+      }
     }
     
     setErrors(newErrors);
@@ -470,13 +480,52 @@ export default function EditRFQPage() {
                 Submission Deadline *
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 value={formData.submissionDeadline}
-                onChange={(e) => handleInputChange('submissionDeadline', e.target.value)}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  handleInputChange('submissionDeadline', selectedDate);
+                  
+                  // Validate in real-time
+                  if (selectedDate) {
+                    const closingDate = new Date(selectedDate);
+                    const now = new Date();
+                    
+                    if (closingDate < now) {
+                      setErrors(prev => ({ ...prev, submissionDeadline: 'Submission deadline cannot be in the past' }));
+                    } else {
+                      // Clear error if valid
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.submissionDeadline;
+                        return newErrors;
+                      });
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const selectedDate = e.target.value;
+                  if (selectedDate) {
+                    const closingDate = new Date(selectedDate);
+                    const now = new Date();
+                    
+                    if (closingDate < now) {
+                      setErrors(prev => ({ ...prev, submissionDeadline: 'Submission deadline cannot be in the past' }));
+                    }
+                  }
+                }}
                 required
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                min={new Date().toISOString().slice(0, 16)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                  errors.submissionDeadline ? 'border-red-300 ring-red-100' : 'border-gray-300'
+                }`}
               />
+              {errors.submissionDeadline && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <span className="mr-1">⚠</span>
+                  {errors.submissionDeadline}
+                </p>
+              )}
             </div>
           </div>
         </div>

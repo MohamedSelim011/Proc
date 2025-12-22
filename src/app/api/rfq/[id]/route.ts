@@ -124,13 +124,38 @@ export async function PUT(
       );
     }
 
+    // Validate closing date if provided
+    let closingDate = existingRFQ.closingDate;
+    if (body.closingDate) {
+      const newClosingDate = new Date(body.closingDate);
+      
+      // Validate date format
+      if (isNaN(newClosingDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid closing date format' },
+          { status: 400 }
+        );
+      }
+      
+      // Validate that closing date is not in the past
+      const now = new Date();
+      if (newClosingDate < now) {
+        return NextResponse.json(
+          { error: 'Closing date cannot be in the past' },
+          { status: 400 }
+        );
+      }
+      
+      closingDate = newClosingDate;
+    }
+
     // Update RFQ basic fields
     const rfq = await prisma.rFQ.update({
       where: { id: params.id },
       data: {
         title: body.title || existingRFQ.title,
         description: body.description || existingRFQ.description,
-        closingDate: body.closingDate ? new Date(body.closingDate) : existingRFQ.closingDate,
+        closingDate,
         evaluationCriteria: body.evaluationCriteria || existingRFQ.evaluationCriteria,
         termsAndConditions: body.termsAndConditions || existingRFQ.termsAndConditions,
         updatedAt: new Date()

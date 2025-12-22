@@ -162,6 +162,16 @@ export default function NewRFQPage() {
     
     if (!formData.closingDate) {
       newErrors.closingDate = 'Closing date is required';
+    } else {
+      // Validate that closing date is not in the past
+      const closingDate = new Date(formData.closingDate);
+      const now = new Date();
+      
+      if (isNaN(closingDate.getTime())) {
+        newErrors.closingDate = 'Please enter a valid date';
+      } else if (closingDate < now) {
+        newErrors.closingDate = 'Closing date cannot be in the past';
+      }
     }
 
     if (formData.selectedVendors.length === 0) {
@@ -372,11 +382,51 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="datetime-local"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                  errors.closingDate ? 'border-red-300 ring-red-100' : 'border-gray-300'
+                }`}
                 value={formData.closingDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, closingDate: e.target.value }))}
+                min={new Date().toISOString().slice(0, 16)}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  setFormData(prev => ({ ...prev, closingDate: selectedDate }));
+                  
+                  // Validate in real-time
+                  if (selectedDate) {
+                    const closingDate = new Date(selectedDate);
+                    const now = new Date();
+                    
+                    if (closingDate < now) {
+                      setErrors(prev => ({ ...prev, closingDate: 'Closing date cannot be in the past' }));
+                    } else {
+                      // Clear error if valid
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.closingDate;
+                        return newErrors;
+                      });
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const selectedDate = e.target.value;
+                  if (selectedDate) {
+                    const closingDate = new Date(selectedDate);
+                    const now = new Date();
+                    
+                    if (closingDate < now) {
+                      setErrors(prev => ({ ...prev, closingDate: 'Closing date cannot be in the past' }));
+                    }
+                  }
+                }}
                 required
               />
+              {errors.closingDate && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <span className="mr-1">⚠</span>
+                  {errors.closingDate}
+                </p>
+              )}
             </div>
             
             <div className="md:col-span-2">

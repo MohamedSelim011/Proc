@@ -253,60 +253,60 @@ export default function RFQPage() {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
               <FileText className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Total RFQs</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total RFQs</p>
               <p className="text-2xl font-bold text-gray-900 truncate">{stats.total}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
               <Send className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Issued</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Issued</p>
               <p className="text-2xl font-bold text-wujha-primary truncate">{stats.issued}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
               <Clock className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Under Evaluation</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Under Evaluation</p>
               <p className="text-2xl font-bold text-wujha-primary truncate">{stats.underEvaluation}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Completed</p>
               <p className="text-2xl font-bold text-green-600 truncate">{stats.completed}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
               <Calendar className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Total Value</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total Value</p>
               <p className="text-lg font-bold text-wujha-primary truncate" title={stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}>
                 {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString()} OMR` : '0 OMR'}
               </p>
@@ -315,12 +315,12 @@ export default function RFQPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
+          <div className="flex items-start">
+            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
               <Users className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Avg Responses</p>
+            <div className="ml-4 min-w-0 flex-1 flex flex-col">
+              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Avg Responses</p>
               <p className="text-2xl font-bold text-wujha-primary truncate">{stats.avgResponseRate.toFixed(1)}</p>
             </div>
           </div>
