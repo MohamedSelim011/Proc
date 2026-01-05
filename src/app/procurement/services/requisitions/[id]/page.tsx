@@ -12,7 +12,6 @@ import {
   Clock, 
   FileText,
   Edit,
-  Trash2,
   Download,
   Settings,
   DollarSign,
@@ -907,19 +906,13 @@ export default function ServiceRequisitionDetail() {
             Download
           </button>
           {sr.status === 'DRAFT' && (
-            <>
-              <button 
-                onClick={handleEdit}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </button>
-              <button className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </button>
-            </>
+            <button 
+              onClick={handleEdit}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </button>
           )}
         </div>
       </div>
