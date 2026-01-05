@@ -12,7 +12,6 @@ import {
   Clock, 
   FileText,
   Edit,
-  Trash2,
   Download,
   DollarSign,
   Shield,
@@ -108,8 +107,6 @@ export default function ServiceContractDetail() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activating, setActivating] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -201,36 +198,6 @@ export default function ServiceContractDetail() {
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      setError('');
-
-      const response = await fetch(`/api/service-contracts/${params.id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess('Contract deleted successfully!');
-        setShowDeleteModal(false);
-        // Redirect to contracts list after a short delay
-        setTimeout(() => {
-          router.push('/procurement/services/contracts');
-        }, 1500);
-      } else {
-        setError(data.error || 'Failed to delete contract');
-        setShowDeleteModal(false);
-      }
-    } catch (error) {
-      console.error('Error deleting contract:', error);
-      setError('Failed to delete contract');
-      setShowDeleteModal(false);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleExportPDF = () => {
     // Create a print-friendly version
@@ -596,22 +563,13 @@ export default function ServiceContractDetail() {
             Export PDF
           </button>
           {contract.status === 'DRAFT' && (
-            <>
-              <button 
-                onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </button>
-            </>
+            <button 
+              onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </button>
           )}
         </div>
       </div>
@@ -919,55 +877,6 @@ export default function ServiceContractDetail() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
-                <h3 className="text-lg font-medium text-gray-900">
-                  Confirm Deletion
-                </h3>
-              </div>
-              
-              <p className="text-sm text-gray-600 mb-6">
-                Are you sure you want to delete contract <strong>{contract?.contractNumber}</strong>? This action cannot be undone.
-              </p>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setError('');
-                  }}
-                  disabled={deleting}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                >
-                  {deleting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Contract
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 
