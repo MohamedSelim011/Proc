@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/toast';
 import { 
   ArrowLeft, 
   Edit, 
@@ -88,6 +89,7 @@ interface GoodsReceipt {
 export default function GoodsReceiptView() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [receipt, setReceipt] = useState<GoodsReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -392,29 +394,58 @@ export default function GoodsReceiptView() {
     }, 250);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!receipt) return;
-    
-    // Create a new window for PDF export (download)
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow pop-ups to export this document');
-      return;
-    }
 
-    const htmlContent = generateProfessionalDocument();
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    
-    // Wait for content to load, then trigger print dialog (user can save as PDF)
-    setTimeout(() => {
-      printWindow.print();
-      // Auto-close after a delay to improve UX
+    try {
+      showToast('info', 'Generating PDF...');
+      
+      // Use the API endpoint to download the file (with cache busting)
+      const response = await fetch(`/api/goods-receipts/${receipt.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Goods Receipt');
+        return;
+      }
+
+      // Check if response is PDF
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Goods_Receipt_${receipt.grNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Goods_Receipt_${receipt.grNumber}.pdf`);
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Clean up
       setTimeout(() => {
-        printWindow.close();
-      }, 1000);
-    }, 250);
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading goods receipt:', error);
+      showToast('error', 'Failed to download Goods Receipt');
+    }
   };
 
   const handleGenerateReport = () => {

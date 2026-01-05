@@ -279,306 +279,58 @@ export default function PurchaseOrderDetailPage() {
     });
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!po) return;
 
-    // Create a new window for PDF download
-    const downloadWindow = window.open('', '_blank');
-    if (!downloadWindow) return;
+    try {
+      showToast('info', 'Generating PDF...');
+      
+      // Use the API endpoint to download the file (with cache busting)
+      const response = await fetch(`/api/purchase-orders/${po.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Purchase Order');
+        return;
+      }
 
-    // Format delivery address - handle undefined values
-    const deliveryAddressText = po.deliveryAddress 
-      ? (typeof po.deliveryAddress === 'string' 
-          ? po.deliveryAddress 
-          : [
-              po.deliveryAddress.building,
-              po.deliveryAddress.street,
-              po.deliveryAddress.city,
-              po.deliveryAddress.governorate,
-              po.deliveryAddress.postalCode,
-              po.deliveryAddress.country
-            ].filter(Boolean).join(', ') || 'Not specified')
-      : 'Not specified';
+      // Check if response is PDF
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
 
-    // Generate HTML content for PDF download
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Purchase Order ${po.poNumber}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 20px;
-              color: #000;
-              background: white;
-              font-size: 12px;
-            }
-            .download-buttons {
-              position: fixed;
-              top: 10px;
-              right: 10px;
-              display: flex;
-              gap: 10px;
-              z-index: 1000;
-              background: white;
-              padding: 10px;
-              border-radius: 8px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            @media print {
-              .download-buttons {
-                display: none;
-              }
-            }
-            .download-btn {
-              padding: 8px 16px;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              background: white;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-            }
-            .download-btn:hover {
-              background: #f5f5f5;
-            }
-            .download-btn.primary {
-              background: #f97316;
-              color: white;
-              border-color: #f97316;
-            }
-            .download-btn.primary:hover {
-              background: #ea580c;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #f97316;
-              padding-bottom: 20px;
-            }
-            .company-name {
-              font-size: 24px;
-              font-weight: bold;
-              color: #f97316;
-              margin-bottom: 5px;
-            }
-            .document-title {
-              font-size: 18px;
-              font-weight: bold;
-              color: #333;
-              margin-bottom: 10px;
-            }
-            .po-info {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 30px;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              background: #f9fafb;
-              padding: 15px;
-              border-radius: 8px;
-            }
-            .info-title {
-              font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 10px;
-              color: #f97316;
-              border-bottom: 1px solid #e5e7eb;
-              padding-bottom: 5px;
-            }
-            .info-item {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 8px;
-              font-size: 12px;
-            }
-            .info-label {
-              color: #6b7280;
-              font-weight: 500;
-            }
-            .info-value {
-              color: #111827;
-              font-weight: 600;
-            }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            .items-table th {
-              background: #f97316;
-              color: white;
-              padding: 10px;
-              text-align: left;
-              font-size: 11px;
-              font-weight: bold;
-            }
-            .items-table td {
-              padding: 10px;
-              border-bottom: 1px solid #e5e7eb;
-              font-size: 11px;
-            }
-            .items-table tr:nth-child(even) {
-              background: #f9fafb;
-            }
-            .total-row {
-              background: #fef3c7 !important;
-              font-weight: bold;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 10px;
-              font-weight: bold;
-            }
-            .footer {
-              margin-top: 30px;
-              padding-top: 20px;
-              border-top: 2px solid #e5e7eb;
-              font-size: 10px;
-              color: #6b7280;
-              text-align: center;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="download-buttons">
-            <button class="download-btn primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
-            <button class="download-btn secondary" onclick="window.close()">✕ Close</button>
-          </div>
-
-          <div class="header">
-            <div class="company-name">WUJHA PROCUREMENT</div>
-            <div class="document-title">PURCHASE ORDER</div>
-            <div>PO Number: ${po.poNumber}</div>
-            <div>Generated: ${new Date().toLocaleDateString()}</div>
-          </div>
-
-          <div class="po-info">
-            <div class="info-section">
-              <div class="info-title">Purchase Order Details</div>
-              <div class="info-item">
-                <span class="info-label">PO Number:</span>
-                <span class="info-value">${po.poNumber}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Order Date:</span>
-                <span class="info-value">${formatDate(po.orderDate)}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Delivery Date:</span>
-                <span class="info-value">${po.deliveryDate ? formatDate(po.deliveryDate) : 'Not specified'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Status:</span>
-                <span class="info-value">
-                  <span class="status-badge" style="background: ${po.status === 'COMPLETED' ? '#10b981' : po.status === 'APPROVED' ? '#3b82f6' : po.status === 'DRAFT' ? '#6b7280' : '#f59e0b'}; color: white;">${po.status}</span>
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Payment Terms:</span>
-                <span class="info-value">${po.paymentTerms || 'Standard'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Currency:</span>
-                <span class="info-value">${po.currency}</span>
-              </div>
-              ${po.pr ? `
-              <div class="info-item">
-                <span class="info-label">PR Number:</span>
-                <span class="info-value">${po.pr.prNumber || 'N/A'}</span>
-              </div>
-              ${po.pr.departmentId ? `
-              <div class="info-item">
-                <span class="info-label">Department:</span>
-                <span class="info-value">${po.pr.departmentId}</span>
-              </div>
-              ` : ''}
-              ${po.pr.requestor ? `
-              <div class="info-item">
-                <span class="info-label">Requestor:</span>
-                <span class="info-value">${po.pr.requestor}</span>
-              </div>
-              ` : ''}
-              ` : ''}
-            </div>
-
-            <div class="info-section">
-              <div class="info-title">Vendor Information</div>
-              <div class="info-item">
-                <span class="info-label">Vendor Name:</span>
-                <span class="info-value">${po.vendor.nameEn}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Email:</span>
-                <span class="info-value">${po.vendor.email}</span>
-              </div>
-              ${po.vendor.phone ? `
-              <div class="info-item">
-                <span class="info-label">Phone:</span>
-                <span class="info-value">${po.vendor.phone}</span>
-              </div>
-              ` : ''}
-              <div class="info-item">
-                <span class="info-label">Delivery Address:</span>
-                <span class="info-value" style="text-align: right; max-width: 200px;">${deliveryAddressText}</span>
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f97316;">Order Items</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Item Code</th>
-                  <th>Item Name</th>
-                  <th>Quantity</th>
-                  <th>Unit Price</th>
-                  <th>Total Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${po.items.map(item => `
-                  <tr>
-                    <td>${item.item.itemCode || 'N/A'}</td>
-                    <td>${item.item.nameEn || 'N/A'}</td>
-                    <td>${item.quantity}${item.item.unit ? ' ' + item.item.unit : ''}</td>
-                    <td>${formatCurrency(item.unitPrice, po.currency)}</td>
-                    <td>${formatCurrency(item.totalPrice, po.currency)}</td>
-                  </tr>
-                `).join('')}
-                <tr class="total-row">
-                  <td colspan="4" style="text-align: right; padding-right: 20px;">Total Amount:</td>
-                  <td style="font-size: 14px;">${formatCurrency(po.totalAmount, po.currency)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          ${po.notes ? `
-          <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f97316;">Notes</h3>
-            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-size: 11px;">
-              ${po.notes}
-            </div>
-          </div>
-          ` : ''}
-
-          <div class="footer">
-            <p>This is a computer-generated document. No signature is required.</p>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    downloadWindow.document.write(htmlContent);
-    downloadWindow.document.close();
+      // Get the blob from the response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Purchase_Order_${po.poNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Purchase_Order_${po.poNumber}.pdf`);
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading purchase order:', error);
+      showToast('error', 'Failed to download Purchase Order');
+    }
   };
 
   const confirmStatusUpdate = async () => {

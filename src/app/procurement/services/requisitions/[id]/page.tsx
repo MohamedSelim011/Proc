@@ -128,12 +128,63 @@ export default function ServiceRequisitionDetail() {
     });
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!sr) return;
 
-    // Create a new window for PDF download
-    const downloadWindow = window.open('', '_blank');
-    if (!downloadWindow) return;
+    try {
+      showToast('info', 'Generating PDF...');
+      
+      // Use the API endpoint to download the file (with cache busting)
+      const response = await fetch(`/api/services/requisitions/${sr.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Service Requisition');
+        return;
+      }
+
+      // Check if response is PDF
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Service_Requisition_${sr.prNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Service_Requisition_${sr.prNumber}.pdf`);
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading service requisition:', error);
+      showToast('error', 'Failed to download Service Requisition');
+    }
+  };
+
+  // Legacy function kept for reference but not used
+  const generateHTMLContent = () => {
+    if (!sr) return '';
 
     // Format deliverables and performance metrics
     const formatArray = (arr: any): string => {
@@ -606,10 +657,7 @@ export default function ServiceRequisitionDetail() {
         </body>
       </html>
     `;
-
-    downloadWindow.document.write(htmlContent);
-    downloadWindow.document.close();
-    downloadWindow.focus();
+    return htmlContent;
   };
 
   const handleEdit = () => {

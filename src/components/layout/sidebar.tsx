@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { getUserData } from '@/lib/jwt';
 import {
   LayoutDashboard,
@@ -203,19 +204,20 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white h-full">
-          <div className="flex items-center justify-between px-6 py-6 bg-wujha-primary flex-shrink-0">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-white rounded mr-3 flex items-center justify-center">
-                <span className="text-wujha-primary font-bold text-sm">W</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-white">WUJHA</h1>
-                <p className="text-xs text-white/80">Procurement</p>
-              </div>
+          <div className="flex items-center justify-between px-6 py-6 bg-white flex-shrink-0 border-b border-gray-200">
+            <div className="flex flex-col items-center">
+              <Image 
+                src="/Wujha-logo.webp" 
+                alt="Wujha Logo" 
+                width={120} 
+                height={50} 
+                className="object-contain mb-2"
+              />
+              <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">Procurement</p>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-white/80 hover:text-white"
+              className="text-gray-600 hover:text-gray-900"
             >
               <X className="h-6 w-6" />
             </button>
@@ -314,13 +316,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:h-full">
         <div className="flex flex-col flex-grow bg-white shadow-lg border-r border-gray-200 h-full">
           {/* Wujha Header */}
-          <div className="flex items-center px-6 py-6 bg-wujha-primary flex-shrink-0">
-            <div className="w-8 h-8 bg-white rounded mr-3 flex items-center justify-center">
-              <span className="text-wujha-primary font-bold text-sm">W</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-white">WUJHA</h1>
-              <p className="text-xs text-white/80 uppercase tracking-wide">Procurement</p>
+          <div className="flex items-center justify-center px-6 py-6 bg-white flex-shrink-0 border-b border-gray-200">
+            <div className="flex flex-col items-center">
+              <Image 
+                src="/Wujha-logo.webp" 
+                alt="Wujha Logo" 
+                width={120} 
+                height={50} 
+                className="object-contain mb-2"
+              />
+              <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">Procurement</p>
             </div>
           </div>
 

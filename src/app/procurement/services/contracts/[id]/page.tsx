@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/toast';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -102,6 +103,7 @@ const contractTypeColors = {
 export default function ServiceContractDetail() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [contract, setContract] = useState<ServiceContract | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -199,10 +201,63 @@ export default function ServiceContractDetail() {
   };
 
 
-  const handleExportPDF = () => {
-    // Create a print-friendly version
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !contract) return;
+  const handleExportPDF = async () => {
+    if (!contract) return;
+
+    try {
+      showToast('info', 'Generating PDF...');
+      
+      // Use the API endpoint to download the file (with cache busting)
+      const response = await fetch(`/api/service-contracts/${contract.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Service Contract');
+        return;
+      }
+
+      // Check if response is PDF
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Service_Contract_${contract.contractNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Service_Contract_${contract.contractNumber}.pdf`);
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading service contract:', error);
+      showToast('error', 'Failed to download Service Contract');
+    }
+  };
+
+  // Legacy function kept for reference but not used
+  const generateHTMLContent = () => {
+    if (!contract) return '';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -508,9 +563,7 @@ export default function ServiceContractDetail() {
       </body>
       </html>
     `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    return htmlContent;
   };
 
   if (loading) {
