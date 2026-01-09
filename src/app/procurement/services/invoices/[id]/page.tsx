@@ -121,262 +121,49 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!invoice) return;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    try {
+      showToast('info', 'Generating PDF...');
+      const response = await fetch(`/api/invoices/${invoice.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Invoice - ${invoice.invoiceNumber}</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-            max-width: 900px;
-            margin: 0 auto;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 3px solid #f97316;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-          }
-          .invoice-title {
-            font-size: 32px;
-            font-weight: bold;
-            color: #1f2937;
-          }
-          .invoice-number {
-            font-size: 20px;
-            color: #6b7280;
-            margin-top: 10px;
-          }
-          .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-          }
-          .section {
-            border: 1px solid #e5e7eb;
-            padding: 20px;
-            border-radius: 8px;
-          }
-          .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #374151;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #f97316;
-            padding-bottom: 5px;
-          }
-          .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-          }
-          .info-label {
-            font-weight: bold;
-            color: #6b7280;
-          }
-          .info-value {
-            color: #1f2937;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
-          th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          th {
-            background-color: #f9fafb;
-            font-weight: bold;
-            color: #374151;
-          }
-          .amount-section {
-            margin-top: 30px;
-            text-align: right;
-          }
-          .amount-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 10px;
-          }
-          .amount-label {
-            width: 200px;
-            font-weight: bold;
-            color: #6b7280;
-          }
-          .amount-value {
-            width: 150px;
-            text-align: right;
-            color: #1f2937;
-          }
-          .total-row {
-            border-top: 2px solid #f97316;
-            padding-top: 10px;
-            margin-top: 10px;
-            font-size: 18px;
-            font-weight: bold;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 600;
-          }
-          @media print {
-            .no-print { display: none; }
-            body { padding: 20px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="invoice-title">SERVICE INVOICE</div>
-          <div class="invoice-number">${invoice.invoiceNumber}</div>
-        </div>
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Invoice');
+        return;
+      }
 
-        <div class="grid">
-          <div class="section">
-            <div class="section-title">Vendor Information</div>
-            <div class="info-row">
-              <span class="info-label">Vendor Code:</span>
-              <span class="info-value">${invoice.vendor.vendorCode}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Name (EN):</span>
-              <span class="info-value">${invoice.vendor.nameEn}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Name (AR):</span>
-              <span class="info-value">${invoice.vendor.nameAr}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Email:</span>
-              <span class="info-value">${invoice.vendor.email}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Mobile:</span>
-              <span class="info-value">${invoice.vendor.mobile}</span>
-            </div>
-          </div>
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
 
-          <div class="section">
-            <div class="section-title">Invoice Details</div>
-            <div class="info-row">
-              <span class="info-label">Invoice Date:</span>
-              <span class="info-value">${new Date(invoice.invoiceDate).toLocaleDateString()}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Due Date:</span>
-              <span class="info-value">${new Date(invoice.dueDate).toLocaleDateString()}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Status:</span>
-              <span class="info-value">${invoice.status}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Payment Status:</span>
-              <span class="info-value">${invoice.paymentStatus}</span>
-            </div>
-            ${invoice.po ? `
-            <div class="info-row">
-              <span class="info-label">PO Number:</span>
-              <span class="info-value">${invoice.po.poNumber}</span>
-            </div>
-            ` : ''}
-          </div>
-        </div>
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Invoice_${invoice.invoiceNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
 
-        ${invoice.description ? `
-        <div class="section" style="margin-bottom: 20px;">
-          <div class="section-title">Description</div>
-          <p>${invoice.description}</p>
-        </div>
-        ` : ''}
-
-        ${invoice.items && invoice.items.length > 0 ? `
-        <div class="section">
-          <div class="section-title">Items</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Item Code</th>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${invoice.items.map(item => `
-                <tr>
-                  <td>${item.item.itemCode}</td>
-                  <td>${item.item.nameEn}</td>
-                  <td>${item.quantity}</td>
-                  <td>${(Number(item.unitPrice) || 0).toFixed(2)} ${invoice.currency}</td>
-                  <td>${(Number(item.totalPrice) || 0).toFixed(2)} ${invoice.currency}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
-
-        <div class="amount-section">
-          <div class="amount-row">
-            <span class="amount-label">Subtotal:</span>
-            <span class="amount-value">${((Number(invoice.totalAmount) || 0) - (Number(invoice.taxAmount) || 0) + (Number(invoice.discountAmount) || 0)).toFixed(2)} ${invoice.currency}</span>
-          </div>
-          ${(Number(invoice.discountAmount) || 0) > 0 ? `
-          <div class="amount-row">
-            <span class="amount-label">Discount:</span>
-            <span class="amount-value">-${(Number(invoice.discountAmount) || 0).toFixed(2)} ${invoice.currency}</span>
-          </div>
-          ` : ''}
-          ${(Number(invoice.taxAmount) || 0) > 0 ? `
-          <div class="amount-row">
-            <span class="amount-label">Tax:</span>
-            <span class="amount-value">${(Number(invoice.taxAmount) || 0).toFixed(2)} ${invoice.currency}</span>
-          </div>
-          ` : ''}
-          <div class="amount-row total-row">
-            <span class="amount-label">Total Amount:</span>
-            <span class="amount-value">${(Number(invoice.totalAmount) || 0).toFixed(2)} ${invoice.currency}</span>
-          </div>
-        </div>
-
-        ${invoice.paymentTerms ? `
-        <div class="section" style="margin-top: 30px;">
-          <div class="section-title">Payment Terms</div>
-          <p>${invoice.paymentTerms}</p>
-        </div>
-        ` : ''}
-
-        <div class="no-print" style="margin-top: 40px; text-align: center;">
-          <button onclick="window.print()" style="padding: 10px 30px; background-color: #f97316; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-right: 10px;">
-            Print Invoice
-          </button>
-          <button onclick="window.close()" style="padding: 10px 30px; background-color: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
-            Close
-          </button>
-        </div>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      showToast('error', 'Failed to download Invoice');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -662,3 +449,4 @@ export default function ServiceInvoiceDetailPage({ params }: { params: Promise<{
     </div>
   );
 }
+

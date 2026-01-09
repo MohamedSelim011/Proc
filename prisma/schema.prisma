@@ -434,7 +434,7 @@ model ServiceRFP {
   description        String?   @db.Text
   issueDate          DateTime  @default(now())
   closingDate        DateTime
-  status             RFQStatus @default(DRAFT)
+  status             RFPStatus @default(DRAFT)
   createdBy          String
   evaluationCriteria String?   @db.Text
   termsAndConditions String?   @db.Text
@@ -877,6 +877,18 @@ enum RFQStatus {
   UNDER_EVALUATION
   COMPLETED
   CANCELLED
+}
+
+enum RFPStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PUBLISHED
+  SENT
+  CLOSED
+  EVALUATED
+  AWARDED
+  REJECTED
 }
 
 enum RFQResponseStatus {

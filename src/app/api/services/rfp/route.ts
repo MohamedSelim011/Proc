@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { RFPStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
+
+const validRFPStatuses = new Set(Object.values(RFPStatus));
+
+const toValidRFPStatus = (rawStatus: string | null): RFPStatus | undefined => {
+  if (!rawStatus) return undefined;
+  const normalized = rawStatus.trim().toUpperCase();
+  return validRFPStatuses.has(normalized as RFPStatus)
+    ? (normalized as RFPStatus)
+    : undefined;
+};
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const prId = searchParams.get('prId');
-    const status = searchParams.get('status') || '';
+    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
@@ -15,8 +26,9 @@ export async function GET(request: NextRequest) {
       where.prId = prId;
     }
 
-    if (status) {
-      where.status = status;
+    const requestedStatus = toValidRFPStatus(status);
+    if (requestedStatus) {
+      where.status = requestedStatus;
     }
 
     const skip = (page - 1) * limit;
@@ -71,9 +83,15 @@ export async function GET(request: NextRequest) {
       prisma.serviceRFP.count({ where }),
       // Get stats counts (without filters to get accurate totals)
       Promise.all([
-        prisma.serviceRFP.count({ where: { status: 'DRAFT' } }),
-        prisma.serviceRFP.count({ where: { status: 'SENT' } }),
-        prisma.serviceRFP.count({ where: { status: 'EVALUATED' } }),
+        validRFPStatuses.has('DRAFT' as RFPStatus)
+          ? prisma.serviceRFP.count({ where: { status: 'DRAFT' } })
+          : Promise.resolve(0),
+        validRFPStatuses.has('SENT' as RFPStatus)
+          ? prisma.serviceRFP.count({ where: { status: 'SENT' } })
+          : Promise.resolve(0),
+        validRFPStatuses.has('EVALUATED' as RFPStatus)
+          ? prisma.serviceRFP.count({ where: { status: 'EVALUATED' } })
+          : Promise.resolve(0),
         prisma.serviceRFP.count()
       ]).then(([draft, sent, evaluated, total]) => ({
         draft,

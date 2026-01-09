@@ -152,293 +152,49 @@ export default function PurchaseRequisitionDetail() {
     }, 0);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!pr) return;
 
-    // Create a new window for PDF download
-    const downloadWindow = window.open('', '_blank');
-    if (!downloadWindow) return;
+    try {
+      showToast('info', 'Generating PDF...');
+      const response = await fetch(`/api/purchase-requisitions/${pr.id}/download?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
 
-    // Generate HTML content for PDF download
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Purchase Requisition ${pr.prNumber}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 20px;
-              color: #000;
-              background: white;
-              font-size: 12px;
-            }
-            .download-buttons {
-              position: fixed;
-              top: 10px;
-              right: 10px;
-              display: flex;
-              gap: 10px;
-              z-index: 1000;
-              background: white;
-              padding: 10px;
-              border-radius: 8px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            @media print {
-              .download-buttons {
-                display: none;
-              }
-            }
-            .download-btn {
-              padding: 8px 16px;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              background: white;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-            }
-            .download-btn:hover {
-              background: #f5f5f5;
-            }
-            .download-btn.primary {
-              background: #f97316;
-              color: white;
-              border-color: #f97316;
-            }
-            .download-btn.primary:hover {
-              background: #ea580c;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #f97316;
-              padding-bottom: 20px;
-            }
-            .company-name {
-              font-size: 24px;
-              font-weight: bold;
-              color: #f97316;
-              margin-bottom: 5px;
-            }
-            .document-title {
-              font-size: 18px;
-              font-weight: bold;
-              color: #333;
-              margin-bottom: 10px;
-            }
-            .pr-info {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 30px;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              background: #f9fafb;
-              padding: 15px;
-              border-radius: 8px;
-            }
-            .info-title {
-              font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 10px;
-              color: #f97316;
-              border-bottom: 1px solid #e5e7eb;
-              padding-bottom: 5px;
-            }
-            .info-item {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 8px;
-              font-size: 12px;
-            }
-            .info-label {
-              color: #6b7280;
-              font-weight: 500;
-            }
-            .info-value {
-              color: #111827;
-              font-weight: 600;
-            }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            .items-table th {
-              background: #f97316;
-              color: white;
-              padding: 10px;
-              text-align: left;
-              font-size: 11px;
-              font-weight: bold;
-            }
-            .items-table td {
-              padding: 10px;
-              border-bottom: 1px solid #e5e7eb;
-              font-size: 11px;
-            }
-            .items-table tr:nth-child(even) {
-              background: #f9fafb;
-            }
-            .total-row {
-              background: #fef3c7 !important;
-              font-weight: bold;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 10px;
-              font-weight: bold;
-            }
-            .footer {
-              margin-top: 30px;
-              padding-top: 20px;
-              border-top: 2px solid #e5e7eb;
-              font-size: 10px;
-              color: #6b7280;
-              text-align: center;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="download-buttons">
-            <button class="download-btn primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
-            <button class="download-btn secondary" onclick="window.close()">✕ Close</button>
-          </div>
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        showToast('error', errorData.error || 'Failed to download Purchase Requisition');
+        return;
+      }
 
-          <div class="header">
-            <div class="company-name">WUJHA PROCUREMENT</div>
-            <div class="document-title">PURCHASE REQUISITION</div>
-            <div>PR Number: ${pr.prNumber}</div>
-            <div>Generated: ${new Date().toLocaleDateString()}</div>
-          </div>
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        showToast('error', 'Server returned non-PDF content');
+        return;
+      }
 
-          <div class="pr-info">
-            <div class="info-section">
-              <div class="info-title">Requisition Details</div>
-              <div class="info-item">
-                <span class="info-label">PR Number:</span>
-                <span class="info-value">${pr.prNumber}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Status:</span>
-                <span class="info-value">
-                  <span class="status-badge" style="background: ${pr.status === 'APPROVED' ? '#10b981' : pr.status === 'PENDING_APPROVAL' ? '#f59e0b' : pr.status === 'DRAFT' ? '#6b7280' : pr.status === 'REJECTED' ? '#ef4444' : '#3b82f6'}; color: white;">${pr.status}</span>
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Priority:</span>
-                <span class="info-value">
-                  <span class="status-badge" style="background: ${pr.priority === 'URGENT' ? '#ef4444' : pr.priority === 'HIGH' ? '#f59e0b' : pr.priority === 'NORMAL' ? '#3b82f6' : '#10b981'}; color: white;">${pr.priority}</span>
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Item Type:</span>
-                <span class="info-value">${pr.itemType.replace('_', ' ')}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Department:</span>
-                <span class="info-value">${pr.departmentId || 'N/A'}</span>
-              </div>
-              ${pr.projectId ? `
-              <div class="info-item">
-                <span class="info-label">Project ID:</span>
-                <span class="info-value">${pr.projectId}</span>
-              </div>
-              ` : ''}
-              <div class="info-item">
-                <span class="info-label">Required By Date:</span>
-                <span class="info-value">${formatDate(pr.requiredByDate)}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Budget Code:</span>
-                <span class="info-value">${pr.budgetCode || 'N/A'}</span>
-              </div>
-              ${pr.costCenter ? `
-              <div class="info-item">
-                <span class="info-label">Cost Center:</span>
-                <span class="info-value">${pr.costCenter}</span>
-              </div>
-              ` : ''}
-              ${pr.boqReference ? `
-              <div class="info-item">
-                <span class="info-label">BOQ Reference:</span>
-                <span class="info-value">${pr.boqReference}</span>
-              </div>
-              ` : ''}
-            </div>
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Purchase_Requisition_${pr.prNumber}.pdf`;
+      link.style.display = 'none';
+      link.setAttribute('download', `Purchase_Requisition_${pr.prNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
 
-            <div class="info-section">
-              <div class="info-title">Requestor Information</div>
-              ${pr.requesterId ? `
-              <div class="info-item">
-                <span class="info-label">Requester ID:</span>
-                <span class="info-value">${pr.requesterId}</span>
-              </div>
-              ` : ''}
-              <div class="info-item">
-                <span class="info-label">Created By:</span>
-                <span class="info-value">${pr.creatorName || pr.createdBy || 'N/A'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Created Date:</span>
-                <span class="info-value">${formatDate(pr.createdAt)}</span>
-              </div>
-              ${pr.justification ? `
-              <div class="info-item" style="flex-direction: column; align-items: flex-start;">
-                <span class="info-label" style="margin-bottom: 5px;">Justification:</span>
-                <span class="info-value" style="text-align: left; font-weight: normal;">${pr.justification}</span>
-              </div>
-              ` : ''}
-            </div>
-          </div>
-
-          <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #f97316;">Requested Items</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Item Code</th>
-                  <th>Item Name</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th>Unit Price</th>
-                  <th>Total Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${pr.items.map(item => `
-                  <tr>
-                    <td>${item.item.itemCode || 'N/A'}</td>
-                    <td>${item.item.nameEn || 'N/A'}</td>
-                    <td>${item.item.category?.nameEn || 'N/A'}</td>
-                    <td>${item.quantity}${item.item.unitOfMeasure ? ' ' + item.item.unitOfMeasure : ''}</td>
-                    <td>${formatCurrency(item.estimatedPrice)}</td>
-                    <td>${formatCurrency((Number(item.quantity) || 0) * (Number(item.estimatedPrice) || 0))}</td>
-                  </tr>
-                `).join('')}
-                <tr class="total-row">
-                  <td colspan="5" style="text-align: right; padding-right: 20px;">Total Estimated Cost:</td>
-                  <td style="font-size: 14px;">${formatCurrency(calculateTotalCost())}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            <p>This is a computer-generated document. No signature is required.</p>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    downloadWindow.document.write(htmlContent);
-    downloadWindow.document.close();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        showToast('success', 'PDF downloaded successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading purchase requisition:', error);
+      showToast('error', 'Failed to download Purchase Requisition');
+    }
   };
 
   useEffect(() => {
@@ -780,3 +536,4 @@ export default function PurchaseRequisitionDetail() {
     </div>
   );
 }
+
