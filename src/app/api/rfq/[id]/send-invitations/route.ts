@@ -140,6 +140,14 @@ export async function POST(
     })) || [];
 
     // Send emails
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_URL;
+    if (!baseUrl) {
+      return NextResponse.json(
+        { error: 'Base URL not configured' },
+        { status: 500 }
+      );
+    }
+
     const result = await sendRFQInvitationToVendors({
       rfqId: rfq.id,
       rfqNumber: rfq.rfqNumber,
@@ -149,7 +157,7 @@ export async function POST(
       items,
       termsAndConditions: rfq.termsAndConditions || undefined,
       vendors: vendorsToEmail,
-      baseUrl: process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
+      baseUrl
     });
 
     // Update RFQ status to PUBLISHED if it was APPROVED

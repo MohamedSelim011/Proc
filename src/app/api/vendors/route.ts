@@ -165,8 +165,6 @@ export async function POST(request: NextRequest) {
         bankName: body.bankName,
         bankAccount: body.bankAccount,
         iban: body.iban,
-        contactEmail: body.contactEmail,
-        contactPhone: body.contactPhone,
         businessType: body.businessType,
         yearEstablished: body.yearEstablished,
         numberOfEmployees: body.numberOfEmployees,

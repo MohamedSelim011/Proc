@@ -165,10 +165,10 @@ export async function POST(
     }
 
     console.log(`Sending invitations to ${validVendorData.length} vendors for RFP ${rfp.rfpNumber}`);
-    const baseUrl: string = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_URL || request.headers.get('origin');
+    const baseUrl: string = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_URL;
     if (!baseUrl) {
       return NextResponse.json(
-        { error: 'Base URL not found' },
+        { error: 'Base URL not configured' },
         { status: 500 }
       );
     }

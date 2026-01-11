@@ -34,8 +34,6 @@ interface VendorFormData {
   bankAccount?: string;
   iban?: string;
   primaryContactName: string;
-  contactEmail?: string;
-  contactPhone?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   performanceScore?: number;
 }
@@ -118,8 +116,6 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
           bankAccount: data.bankAccount,
           iban: data.iban,
           primaryContactName: data.primaryContactName || '',
-          contactEmail: data.contactEmail,
-          contactPhone: data.contactPhone,
           status: data.status || 'ACTIVE',
           performanceScore: data.performanceScore ?? 0
         });
@@ -161,6 +157,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+    const normalizedEmail = formData.email.trim();
 
     if (!formData.vendorCode.trim()) {
       newErrors.vendorCode = 'Vendor code is required';
@@ -171,9 +168,9 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
     if (!formData.nameAr.trim()) {
       newErrors.nameAr = 'Vendor name (Arabic) is required';
     }
-    if (!formData.email.trim()) {
+    if (!normalizedEmail) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       newErrors.email = 'Invalid email format';
     }
     const mobileError = validatePhoneNumber(formData.mobile);
@@ -217,7 +214,10 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          email: formData.email.trim()
+        }),
       });
 
       const data = await response.json();
@@ -434,6 +434,24 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <p className="mt-1 text-xs text-gray-500">
                 Enter a valid phone number (minimum 7 digits, digits only)
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Primary Contact Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.primaryContactName}
+                onChange={(e) => handleInputChange('primaryContactName', e.target.value)}
+                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
+                  errors.primaryContactName ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
+                } text-gray-900 bg-white`}
+                placeholder="Full name"
+              />
+              {errors.primaryContactName && (
+                <p className="mt-1 text-sm text-red-600">{errors.primaryContactName}</p>
+              )}
             </div>
 
             <div>
@@ -740,62 +758,6 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 onChange={(e) => handleInputChange('iban', e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="OM XX XXXX XXXXXXXXXXXX"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Person Information */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Contact Person Information
-          </h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact Person Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.primaryContactName}
-                onChange={(e) => handleInputChange('primaryContactName', e.target.value)}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
-                  errors.primaryContactName ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
-                } text-gray-900 bg-white`}
-                placeholder="Full name"
-              />
-              {errors.primaryContactName && (
-                <p className="mt-1 text-sm text-red-600">{errors.primaryContactName}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact Email
-              </label>
-              <input
-                type="email"
-                value={formData.contactEmail || ''}
-                onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
-                placeholder="contact@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact Phone
-              </label>
-              <input
-                type="tel"
-                value={formData.contactPhone || ''}
-                onChange={(e) => {
-                  // Filter phone number to only allow digits and formatting characters
-                  const filteredValue = filterPhoneNumber(e.target.value);
-                  handleInputChange('contactPhone', filteredValue);
-                }}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
-                placeholder="+968 XXXX XXXX"
               />
             </div>
           </div>

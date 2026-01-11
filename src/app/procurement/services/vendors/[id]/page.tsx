@@ -38,8 +38,6 @@ interface Vendor {
   bankName?: string;
   bankAccount?: string;
   iban?: string;
-  contactEmail?: string;
-  contactPhone?: string;
   businessType: string;
   yearEstablished: number;
   numberOfEmployees: number;
@@ -438,43 +436,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
               )}
             </div>
           </div>
-
-          {/* Contact Person Information */}
-          {(vendor.contactEmail || vendor.contactPhone) && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Contact Person Information</h2>
-              <div className="space-y-4">
-                {vendor.contactEmail && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center">
-                      <Mail className="h-4 w-4 mr-1" />
-                      Contact Email
-                    </label>
-                    <a
-                      href={`mailto:${vendor.contactEmail}`}
-                      className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
-                    >
-                      {vendor.contactEmail}
-                    </a>
-                  </div>
-                )}
-                {vendor.contactPhone && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center">
-                      <Phone className="h-4 w-4 mr-1" />
-                      Contact Phone
-                    </label>
-                    <a
-                      href={`tel:${vendor.contactPhone}`}
-                      className="mt-1 text-sm text-wujha-primary hover:text-wujha-primary-hover"
-                    >
-                      {vendor.contactPhone}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Banking Information */}
           {(vendor.bankName || vendor.bankAccount || vendor.iban) && (

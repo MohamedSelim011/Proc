@@ -975,13 +975,52 @@ export default function ServiceRequisitionDetail() {
                 {sr.itemType === 'SERVICE' ? 'Service Requisition' : 'Non-Stock Item Requisition'} Details
               </p>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[sr.priority as keyof typeof priorityColors]}`}>
-                {sr.priority}
-              </span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[sr.status as keyof typeof statusColors]}`}>
-                {sr.status}
-              </span>
+            <div className="flex flex-col items-end gap-3">
+              <div className="flex items-center space-x-3">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[sr.priority as keyof typeof priorityColors]}`}>
+                  {sr.priority}
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[sr.status as keyof typeof statusColors]}`}>
+                  {sr.status}
+                </span>
+              </div>
+              {sr.status === 'DRAFT' && (
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={handleSubmitRequisition}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Submit for Approval
+                  </button>
+                  <button 
+                    onClick={handleEdit}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Requisition
+                  </button>
+                </div>
+              )}
+              {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (userRole.toUpperCase() === 'SUPER_ADMIN' || userRole.toUpperCase() === 'ADMIN' || userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || userRole.toUpperCase() === 'APPROVER' || userRole.toUpperCase() === 'DEPARTMENT_MANAGER') && (
+                <button
+                  onClick={handleApproveRequisition}
+                  disabled={approving}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {approving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1335,58 +1374,6 @@ export default function ServiceRequisitionDetail() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      {sr.status === 'DRAFT' && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
-          <div className="flex space-x-3">
-            <button
-              onClick={handleSubmitRequisition}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Submit for Approval
-            </button>
-            <button 
-              onClick={handleEdit}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Requisition
-            </button>
-          </div>
-        </div>
-      )}
-
-      {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (userRole.toUpperCase() === 'SUPER_ADMIN' || userRole.toUpperCase() === 'ADMIN' || userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || userRole.toUpperCase() === 'APPROVER' || userRole.toUpperCase() === 'DEPARTMENT_MANAGER') && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
-          <div className="flex space-x-3">
-            <button
-              onClick={handleApproveRequisition}
-              disabled={approving}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {approving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Approving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </>
-              )}
-            </button>
-            {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Request Changes
-            </button> */}
           </div>
         </div>
       )}

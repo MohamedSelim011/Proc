@@ -183,10 +183,6 @@ model Vendor {
   bankAccount String?
   iban        String?
 
-  // Additional Contact Information
-  contactEmail String?
-  contactPhone String?
-
   // Business Details
   businessType          String
   yearEstablished       Int
