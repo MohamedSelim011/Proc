@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         startDate: new Date(body.startDate),
         endDate: new Date(body.endDate),
         totalValue: body.totalValue,
+        serviceAmount: body.serviceAmount ?? body.totalValue,
         currency: body.currency || 'OMR',
         paymentTerms: body.paymentTerms,
         slaTerms: body.slaTerms,

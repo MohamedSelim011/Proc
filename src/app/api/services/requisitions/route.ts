@@ -58,6 +58,11 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         include: {
+          items: {
+            include: {
+              item: true,
+            },
+          },
           servicePR: {
             include: {
               items: {
@@ -154,7 +159,9 @@ export async function POST(request: NextRequest) {
       retentionPercentage,
       preferredVendors,
       milestones,
-      items
+      items,
+      materialItems,
+      isMixed
     } = body;
 
     if (!departmentId || !requesterId || !serviceScope || !items || items.length === 0) {
@@ -162,6 +169,16 @@ export async function POST(request: NextRequest) {
         { error: 'Required fields missing' },
         { status: 400 }
       );
+    }
+
+    // Mixed requisitions are valid only when both service and material lines exist
+    if (isMixed) {
+      if (!Array.isArray(materialItems) || materialItems.length === 0) {
+        return NextResponse.json(
+          { error: 'Mixed requisitions require at least one material line' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate requiredByDate if provided
@@ -201,11 +218,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate total estimated cost
-    const totalEstimatedCost = items.reduce(
+    // Calculate service and material costs separately
+    const serviceEstimatedCost = items.reduce(
       (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate)),
       0
     );
+    const materialEstimatedCost = Array.isArray(materialItems)
+      ? materialItems.reduce(
+          (sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)),
+          0
+        )
+      : 0;
+    const totalEstimatedCost = serviceEstimatedCost + materialEstimatedCost;
 
     // Generate PR number
     const prCount = await prisma.purchaseRequisition.count();
@@ -332,6 +356,25 @@ export async function POST(request: NextRequest) {
             performanceMetrics: item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0 ? item.performanceMetrics : null
           }
         });
+      }
+
+      // Create material PR items for mixed requisitions
+      if (Array.isArray(materialItems) && materialItems.length > 0) {
+        for (const material of materialItems) {
+          if (!material.itemId || Number(material.quantity || 0) <= 0 || Number(material.estimatedPrice || 0) <= 0) {
+            throw new Error('Invalid material line in mixed requisition');
+          }
+          await tx.pRItem.create({
+            data: {
+              prId: pr.id,
+              itemId: material.itemId,
+              quantity: Number(material.quantity),
+              estimatedPrice: Number(material.estimatedPrice),
+              specifications: material.specifications || null,
+              requiredDate: material.requiredDate ? new Date(material.requiredDate) : null,
+            },
+          });
+        }
       }
 
       return pr;

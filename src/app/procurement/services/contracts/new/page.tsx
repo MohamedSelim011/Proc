@@ -56,6 +56,17 @@ interface ServiceRequisition {
       };
     }>;
   };
+  items?: Array<{
+    id: string;
+    quantity: number;
+    estimatedPrice: string;
+    item: {
+      id: string;
+      itemCode: string;
+      nameEn: string;
+      unitOfMeasure: string;
+    };
+  }>;
 }
 
 interface Vendor {
@@ -76,6 +87,7 @@ interface ContractFormData {
   startDate: string;
   endDate: string;
   totalValue: number;
+  serviceAmount: number;
   currency: string;
   paymentTerms: string;
   slaTerms?: string;
@@ -106,6 +118,7 @@ function NewServiceContractContent() {
     startDate: '',
     endDate: '',
     totalValue: 0,
+    serviceAmount: 0,
     currency: 'OMR',
     paymentTerms: 'Net 30 days',
     slaTerms: '',
@@ -159,11 +172,14 @@ function NewServiceContractContent() {
       const response = await fetch(`/api/services/requisitions/${id}`);
       const data = await response.json();
       if (response.ok) {
+        const serviceAmount = calculateServiceAmount(data);
+        const totalAmount = parseFloat(data.estimatedCost) || 0;
         setSelectedPR(data);
         setContractFormData(prev => ({
           ...prev,
           prId: id,
-          totalValue: parseFloat(data.estimatedCost) || 0
+          totalValue: totalAmount,
+          serviceAmount: serviceAmount > 0 ? serviceAmount : totalAmount
         }));
         
         // Check for awarded RFP and auto-select winning vendor
@@ -174,6 +190,17 @@ function NewServiceContractContent() {
     } finally {
       setLoadingPR(false);
     }
+  };
+
+  const calculateServiceAmount = (pr: ServiceRequisition): number => {
+    const serviceItems = pr?.servicePR?.items || [];
+    if (serviceItems.length === 0) return 0;
+    return serviceItems.reduce((sum, item) => {
+      const qty = parseFloat(item.quantity || '0');
+      const rate = parseFloat(item.estimatedRate || '0');
+      const duration = item.duration || 1;
+      return sum + qty * rate * duration;
+    }, 0);
   };
 
   const checkRFPForAwardedVendor = async (prId: string) => {
@@ -219,6 +246,8 @@ function NewServiceContractContent() {
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
     if (formData.totalValue <= 0) newErrors.totalValue = 'Total value must be greater than 0';
+    if (formData.serviceAmount <= 0) newErrors.serviceAmount = 'Service amount must be greater than 0';
+    if (formData.serviceAmount > formData.totalValue) newErrors.serviceAmount = 'Service amount cannot exceed total value';
     if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
 
     setErrors(newErrors);
@@ -522,6 +551,25 @@ function NewServiceContractContent() {
                 />
                 {errors.totalValue && (
                   <p className="mt-1 text-sm text-red-600">{errors.totalValue}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Service Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                    errors.serviceAmount ? 'border-red-300' : 'border-wujha-primary'
+                  }`}
+                  value={formData.serviceAmount}
+                  onChange={(e) => setContractFormData(prev => ({ ...prev, serviceAmount: parseFloat(e.target.value) || 0 }))}
+                />
+                {errors.serviceAmount && (
+                  <p className="mt-1 text-sm text-red-600">{errors.serviceAmount}</p>
                 )}
               </div>
 

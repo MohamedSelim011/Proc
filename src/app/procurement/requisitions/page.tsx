@@ -51,6 +51,7 @@ interface PaginationInfo {
 
 export default function PurchaseRequisitionsPage() {
   const { showToast } = useToast();
+  const [showNewReqMenu, setShowNewReqMenu] = useState(false);
   const [requisitions, setRequisitions] = useState<PurchaseRequisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -300,13 +301,40 @@ export default function PurchaseRequisitionsPage() {
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-          <Link
-            href="/procurement/requisitions/new"
-            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Requisition
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => setShowNewReqMenu((prev) => !prev)}
+              className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Requisition
+            </button>
+            {showNewReqMenu && (
+              <div className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                <Link
+                  href="/procurement/requisitions/new"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Material Requisition
+                </Link>
+                <Link
+                  href="/procurement/services/requisitions/new"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service Requisition
+                </Link>
+                <Link
+                  href="/procurement/services/requisitions/new?mode=mixed"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service + Materials
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

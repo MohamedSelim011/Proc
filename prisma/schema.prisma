@@ -1055,6 +1055,7 @@ model ServiceContract {
   startDate             DateTime
   endDate               DateTime
   totalValue            Decimal
+  serviceAmount         Decimal?              // Service-only portion; for service-only contracts equals totalValue
   currency              String                @default("OMR")
   paymentTerms          String
   slaTerms              Json?
@@ -1371,6 +1372,7 @@ model ServiceContractVersion {
   startDate             DateTime
   endDate               DateTime
   totalValue            Decimal
+  serviceAmount         Decimal?
   currency              String
   paymentTerms          String
   slaTerms              Json?

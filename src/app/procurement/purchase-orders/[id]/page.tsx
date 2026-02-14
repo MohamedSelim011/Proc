@@ -62,12 +62,14 @@ interface PurchaseOrder {
   orderDate: string;
   deliveryDate?: string;
   deliveryAddress?: string | {
-    building: string;
-    street: string;
-    city: string;
-    governorate: string;
-    postalCode: string;
-    country: string;
+    building?: string;
+    street?: string;
+    city?: string;
+    governorate?: string;
+    postalCode?: string;
+    country?: string;
+    type?: string;
+    note?: string;
   };
   paymentTerms?: string;
   notes?: string;
@@ -277,6 +279,35 @@ export default function PurchaseOrderDetailPage() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const isAutoCreatedFromContract = (address: PurchaseOrder['deliveryAddress']) => {
+    if (!address || typeof address === 'string') return false;
+    return (
+      address.type === 'AUTO_FROM_CONTRACT' ||
+      (typeof address.note === 'string' &&
+        address.note.toLowerCase().includes('auto-generated') &&
+        address.note.toLowerCase().includes('contract'))
+    );
+  };
+
+  const formatDeliveryAddress = (address: PurchaseOrder['deliveryAddress']) => {
+    if (!address) return '';
+    if (typeof address === 'string') return address;
+    if (address.type === 'AUTO_FROM_CONTRACT') {
+      return address.note || 'Auto-generated from contract activation';
+    }
+
+    const parts = [
+      address.building,
+      address.street,
+      address.city,
+      address.governorate,
+      address.postalCode,
+      address.country,
+    ].filter(Boolean);
+
+    return parts.length > 0 ? parts.join(', ') : (address.note || 'N/A');
   };
 
   const handleDownloadPDF = async () => {
@@ -778,6 +809,13 @@ export default function PurchaseOrderDetailPage() {
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Information</h3>
                 <div className="space-y-3">
+                  {isAutoCreatedFromContract(po.deliveryAddress) && (
+                    <div className="rounded-md bg-wujha-primary/10 border border-wujha-primary/30 px-3 py-2">
+                      <p className="text-xs font-medium text-wujha-primary">
+                        Auto-created from contract activation
+                      </p>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Vendor Name:</span>
                     <span className="text-sm font-medium text-gray-900">{po.vendor.nameEn}</span>
@@ -803,10 +841,7 @@ export default function PurchaseOrderDetailPage() {
                       <span className="text-sm text-gray-600">Delivery Address:</span>
                       <p className="text-sm font-medium text-gray-900 mt-1">
                         <MapPin className="h-4 w-4 inline mr-1" />
-                        {typeof po.deliveryAddress === 'string' 
-                          ? po.deliveryAddress 
-                          : `${po.deliveryAddress.building}, ${po.deliveryAddress.street}, ${po.deliveryAddress.city}, ${po.deliveryAddress.governorate}, ${po.deliveryAddress.postalCode}, ${po.deliveryAddress.country}`
-                        }
+                        {formatDeliveryAddress(po.deliveryAddress)}
                       </p>
                     </div>
                   )}

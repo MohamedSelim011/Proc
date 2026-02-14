@@ -13,6 +13,7 @@ export interface ContractVersionData {
   startDate: Date
   endDate: Date
   totalValue: number
+  serviceAmount?: number
   currency: string
   paymentTerms: string
   slaTerms?: any
@@ -71,6 +72,7 @@ export async function createContractVersion(input: CreateVersionInput) {
       startDate: contract.startDate,
       endDate: contract.endDate,
       totalValue: contract.totalValue,
+      serviceAmount: contract.serviceAmount,
       currency: contract.currency,
       paymentTerms: contract.paymentTerms,
       slaTerms: contract.slaTerms,
@@ -154,6 +156,7 @@ export async function compareContractVersions(
     'startDate',
     'endDate',
     'totalValue',
+    'serviceAmount',
     'currency',
     'paymentTerms',
     'penaltyClause',
@@ -298,6 +301,7 @@ export async function restoreContractVersion(
       startDate: version.startDate,
       endDate: version.endDate,
       totalValue: version.totalValue,
+      serviceAmount: version.serviceAmount ?? version.totalValue,
       currency: version.currency,
       paymentTerms: version.paymentTerms,
       slaTerms: version.slaTerms,

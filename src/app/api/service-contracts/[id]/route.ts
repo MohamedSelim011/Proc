@@ -16,6 +16,11 @@ export async function GET(
         vendor: true,
         pr: {
           include: {
+            items: {
+              include: {
+                item: true
+              }
+            },
             servicePR: {
               include: {
                 items: {
@@ -116,6 +121,7 @@ export async function PUT(
         startDate: body.startDate ? new Date(body.startDate) : undefined,
         endDate: body.endDate ? new Date(body.endDate) : undefined,
         totalValue: body.totalValue,
+        serviceAmount: body.serviceAmount ?? body.totalValue,
         currency: body.currency,
         paymentTerms: body.paymentTerms,
         slaTerms: body.slaTerms,

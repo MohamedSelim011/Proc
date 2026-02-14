@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -41,6 +41,21 @@ interface Milestone {
   acceptanceCriteria: string;
 }
 
+interface MaterialItem {
+  itemId: string;
+  quantity: number;
+  estimatedPrice: number;
+  specifications?: string;
+  requiredDate?: string;
+}
+
+interface InventoryItem {
+  id: string;
+  itemCode: string;
+  nameEn: string;
+  unitOfMeasure: string;
+}
+
 interface ServicePRFormData {
   // Step 1: Service Details
   serviceCategory: string;
@@ -55,6 +70,7 @@ interface ServicePRFormData {
   technicalSpecifications?: string;
   items: ServiceItem[];
   milestones: Milestone[];
+  materialItems: MaterialItem[];
 
   // Step 3: Commercial Details
   estimatedCost: number;
@@ -82,12 +98,16 @@ interface Vendor {
 
 export default function NewServiceRequisition() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isMixedMode = (searchParams.get('mode') || '').toLowerCase() === 'mixed';
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [itemErrors, setItemErrors] = useState<Record<number, Record<string, string>>>({});
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
 
@@ -100,6 +120,7 @@ export default function NewServiceRequisition() {
     detailedScope: '',
     items: [],
     milestones: [],
+    materialItems: [],
     estimatedCost: 0,
     paymentTerms: 'NET_30',
     paymentSchedule: 'MILESTONE',
@@ -255,9 +276,48 @@ export default function NewServiceRequisition() {
     }));
   };
 
+  const addMaterialItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      materialItems: [
+        ...prev.materialItems,
+        {
+          itemId: '',
+          quantity: 1,
+          estimatedPrice: 0,
+          specifications: '',
+          requiredDate: '',
+        },
+      ],
+    }));
+  };
+
+  const removeMaterialItem = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      materialItems: prev.materialItems.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateMaterialItem = (index: number, field: keyof MaterialItem, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      materialItems: prev.materialItems.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
   const calculateTotalCost = () => {
     return formData.items.reduce((sum, item) => 
       sum + (item.quantity * item.estimatedRate * item.duration), 0
+    );
+  };
+
+  const calculateMaterialCost = () => {
+    return formData.materialItems.reduce(
+      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)),
+      0
     );
   };
 
@@ -290,6 +350,21 @@ export default function NewServiceRequisition() {
             newErrors.items = 'Please fill in all required service item fields';
           } else {
             setItemErrors({});
+          }
+        }
+        if (isMixedMode) {
+          if (formData.materialItems.length === 0) {
+            newErrors.materialItems = 'Mixed requisitions require at least one material line';
+          } else {
+            const hasInvalidMaterial = formData.materialItems.some(
+              (item) =>
+                !item.itemId ||
+                Number(item.quantity || 0) <= 0 ||
+                Number(item.estimatedPrice || 0) <= 0
+            );
+            if (hasInvalidMaterial) {
+              newErrors.materialItems = 'Please complete all material lines (item, quantity, unit price)';
+            }
           }
         }
         break;
@@ -389,6 +464,14 @@ export default function NewServiceRequisition() {
         retentionPercentage: 10,
         preferredVendors: formData.preferredVendors,
         milestones: formData.milestones,
+        isMixed: isMixedMode,
+        materialItems: formData.materialItems.map((item) => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          estimatedPrice: item.estimatedPrice,
+          specifications: item.specifications,
+          requiredDate: item.requiredDate || null,
+        })),
         items: formData.items.map(item => ({
           quantity: item.quantity,
           estimatedRate: item.estimatedRate,
@@ -427,13 +510,16 @@ export default function NewServiceRequisition() {
   // Fetch vendors on component mount
   useEffect(() => {
     fetchVendors();
+    if (isMixedMode) {
+      fetchInventoryItems();
+    }
   }, []);
 
   // Auto-calculate estimated cost when items change
   useEffect(() => {
-    const totalCost = calculateTotalCost();
+    const totalCost = calculateTotalCost() + (isMixedMode ? calculateMaterialCost() : 0);
     setFormData(prev => ({ ...prev, estimatedCost: totalCost }));
-  }, [formData.items]);
+  }, [formData.items, formData.materialItems, isMixedMode]);
 
   const fetchVendors = async () => {
     try {
@@ -450,13 +536,32 @@ export default function NewServiceRequisition() {
     }
   };
 
+  const fetchInventoryItems = async () => {
+    try {
+      setLoadingItems(true);
+      const response = await fetch('/api/items');
+      const data = await response.json();
+      if (response.ok) {
+        setInventoryItems(data.items || []);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory items:', error);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
   return (
     <div className="max-w-8xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Create Service Requisition</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isMixedMode ? 'Create Service + Materials Requisition' : 'Create Service Requisition'}
+        </h1>
         <p className="mt-2 text-sm text-gray-600">
-          Follow the steps below to create a new service requisition
+          {isMixedMode
+            ? 'Create one requisition with both service scope and material lines'
+            : 'Follow the steps below to create a new service requisition'}
         </p>
       </div>
 
@@ -893,6 +998,106 @@ export default function NewServiceRequisition() {
               )}
             </div>
 
+            {/* Material Lines (mixed mode) */}
+            {isMixedMode && (
+              <div className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-md font-medium text-gray-900">Material Lines</h4>
+                  <button
+                    type="button"
+                    onClick={addMaterialItem}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Material
+                  </button>
+                </div>
+
+                {errors.materialItems && (
+                  <p className="mb-3 text-sm text-red-600">{errors.materialItems}</p>
+                )}
+
+                {formData.materialItems.map((material, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-sm font-medium text-gray-900">Material {index + 1}</h5>
+                      <button
+                        type="button"
+                        onClick={() => removeMaterialItem(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700">Item *</label>
+                        <select
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          value={material.itemId}
+                          onChange={(e) => updateMaterialItem(index, 'itemId', e.target.value)}
+                          disabled={loadingItems}
+                        >
+                          <option value="">{loadingItems ? 'Loading items...' : 'Select item'}</option>
+                          {inventoryItems.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.itemCode} - {item.nameEn} ({item.unitOfMeasure})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Quantity *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          value={material.quantity}
+                          onChange={(e) => updateMaterialItem(index, 'quantity', Number(e.target.value) || 0)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Unit Price *</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          value={material.estimatedPrice}
+                          onChange={(e) => updateMaterialItem(index, 'estimatedPrice', Number(e.target.value) || 0)}
+                        />
+                      </div>
+
+                      <div className="lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700">Specifications</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          value={material.specifications || ''}
+                          onChange={(e) => updateMaterialItem(index, 'specifications', e.target.value)}
+                          placeholder="Material specifications"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Required Date</label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          value={material.requiredDate || ''}
+                          onChange={(e) => updateMaterialItem(index, 'requiredDate', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Total Cost Display */}
             {formData.items.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4">
@@ -902,9 +1107,14 @@ export default function NewServiceRequisition() {
                     <span className="text-sm font-medium text-gray-900">Total Estimated Cost</span>
                   </div>
                   <span className="text-lg font-bold text-gray-900">
-                    {formatCurrency(calculateTotalCost())}
+                    {formatCurrency(calculateTotalCost() + (isMixedMode ? calculateMaterialCost() : 0))}
                   </span>
                 </div>
+                {isMixedMode && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    Service: {formatCurrency(calculateTotalCost())} | Materials: {formatCurrency(calculateMaterialCost())}
+                  </div>
+                )}
               </div>
             )}
           </div>

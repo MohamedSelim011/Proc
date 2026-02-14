@@ -12,6 +12,11 @@ export async function GET(
     const purchaseRequisition = await prisma.purchaseRequisition.findUnique({
       where: { id },
       include: {
+        items: {
+          include: {
+            item: true
+          }
+        },
         servicePR: {
           include: {
             items: {
@@ -89,6 +94,11 @@ export async function PATCH(
         updatedAt: new Date()
       },
       include: {
+        items: {
+          include: {
+            item: true
+          }
+        },
         servicePR: {
           include: {
             items: {
@@ -187,6 +197,11 @@ export async function PUT(
         }
       },
       include: {
+        items: {
+          include: {
+            item: true
+          }
+        },
         servicePR: {
           include: {
             items: {

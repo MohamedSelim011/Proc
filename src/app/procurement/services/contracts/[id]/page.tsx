@@ -32,6 +32,7 @@ interface ServiceContract {
   startDate: string;
   endDate: string;
   totalValue: number;
+  serviceAmount?: number;
   currency: string;
   paymentTerms: string;
   slaTerms?: string | object;
@@ -87,6 +88,17 @@ interface ServiceContract {
         };
       }>;
     };
+    items?: Array<{
+      id: string;
+      quantity: number;
+      estimatedPrice: string;
+      item: {
+        id: string;
+        itemCode: string;
+        nameEn: string;
+        unitOfMeasure: string;
+      };
+    }>;
   };
   approval?: {
     id: string;
@@ -170,6 +182,13 @@ export default function ServiceContractDetail() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const getMaterialAmount = () => {
+    if (!contract?.pr?.items || contract.pr.items.length === 0) return 0;
+    return contract.pr.items.reduce((sum, item) => {
+      return sum + Number(item.quantity || 0) * Number(item.estimatedPrice || 0);
+    }, 0);
   };
 
   const formatJsonField = (value: string | object | undefined): string => {
@@ -940,6 +959,20 @@ export default function ServiceContractDetail() {
             </div>
 
             <div>
+              <dt className="text-sm font-medium text-gray-500">Service Amount</dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {formatCurrency(contract.serviceAmount ?? contract.totalValue)} {contract.currency}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Material Amount</dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {formatCurrency(getMaterialAmount())} {contract.currency}
+              </dd>
+            </div>
+
+            <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <Clock className="h-4 w-4 mr-2" />
                 Payment Terms
@@ -1050,6 +1083,52 @@ export default function ServiceContractDetail() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.duration} {item.durationUnit}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Material Items (for mixed requisitions) */}
+        {contract.pr.items && contract.pr.items.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Material Items</h3>
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Item
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Unit Price
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Line Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {contract.pr.items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900">{item.item.itemCode}</div>
+                        <div className="text-sm text-gray-500">{item.item.nameEn}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.quantity} {item.item.unitOfMeasure}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(Number(item.estimatedPrice || 0))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatCurrency(Number(item.quantity || 0) * Number(item.estimatedPrice || 0))}
                       </td>
                     </tr>
                   ))}
