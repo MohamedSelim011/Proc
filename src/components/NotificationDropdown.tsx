@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, CheckCheck, Clock, FileText, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { apiFetch } from '@/lib/apiFetch'
@@ -15,6 +16,36 @@ interface Notification {
   createdAt: string
 }
 
+/** URL for opening the document linked to a notification */
+function getNotificationUrl(documentType: string, documentId: string): string | null {
+  const type = (documentType || '').toUpperCase().replace(/-/g, '_')
+  switch (type) {
+    case 'SERVICE_CONTRACT':
+      return `/procurement/services/contracts/${documentId}`
+    case 'PR':
+    case 'PURCHASE_REQUISITION':
+      return `/procurement/requisitions/${documentId}`
+    case 'PO':
+    case 'PURCHASE_ORDER':
+      return `/procurement/purchase-orders/${documentId}`
+    default:
+      return `/procurement/services/contracts/${documentId}` // fallback for unknown types that might be contracts
+  }
+}
+
+/** Human-friendly label for document type */
+function getDocumentTypeLabel(documentType: string): string {
+  const type = (documentType || '').toUpperCase().replace(/-/g, '_')
+  const labels: Record<string, string> = {
+    SERVICE_CONTRACT: 'Service contract',
+    PR: 'Purchase requisition',
+    PURCHASE_REQUISITION: 'Purchase requisition',
+    PO: 'Purchase order',
+    PURCHASE_ORDER: 'Purchase order',
+  }
+  return labels[type] || documentType || 'Document'
+}
+
 interface NotificationDropdownProps {
   onClose: () => void
   onNotificationRead: () => void
@@ -24,6 +55,7 @@ export function NotificationDropdown({
   onClose,
   onNotificationRead,
 }: NotificationDropdownProps) {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -88,11 +120,23 @@ export function NotificationDropdown({
   }
 
   const getNotificationMessage = (notification: Notification) => {
-    const type = notification.documentType
-    if (notification.raciType === 'INFORMED') {
-      return `Update on ${type} #${notification.documentId.slice(0, 8)}`
+    const label = getDocumentTypeLabel(notification.documentType)
+    const shortId = notification.documentId.slice(0, 8)
+    if ((notification.raciType || '').toUpperCase() === 'ACCOUNTABLE') {
+      return `Approval required: ${label} #${shortId}`
     }
-    return `Action required for ${type} #${notification.documentId.slice(0, 8)}`
+    return `Update on ${label} #${shortId}`
+  }
+
+  const handleNotificationClick = async (notification: Notification) => {
+    const url = getNotificationUrl(notification.documentType, notification.documentId)
+    if (url) {
+      onClose()
+      router.push(url)
+    }
+    if (!notification.isRead) {
+      await markAsRead(notification.id)
+    }
   }
 
   return (
@@ -134,10 +178,18 @@ export function NotificationDropdown({
             {notifications.map((notification) => (
               <div
                 key={notification.id}
+                role="button"
+                tabIndex={0}
                 className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
                   !notification.isRead ? 'bg-blue-50' : ''
                 }`}
-                onClick={() => !notification.isRead && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleNotificationClick(notification)
+                  }
+                }}
               >
                 <div className="flex gap-3">
                   <div className="flex-shrink-0 mt-1">
