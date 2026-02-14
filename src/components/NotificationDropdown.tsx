@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Bell, CheckCheck, Clock, FileText, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { apiFetch } from '@/lib/apiFetch'
 
 interface Notification {
   id: string
@@ -32,10 +33,10 @@ export function NotificationDropdown({
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications?limit=20')
+      const response = await apiFetch('/api/notifications?limit=20')
       if (response.ok) {
         const data = await response.json()
-        setNotifications(data.notifications || [])
+        setNotifications(Array.isArray(data) ? data : (data.notifications || []))
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -46,11 +47,9 @@ export function NotificationDropdown({
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/notifications/${notificationId}/mark-read`,
-        {
-          method: 'PATCH',
-        }
+        { method: 'PATCH' }
       )
 
       if (response.ok) {
@@ -68,8 +67,9 @@ export function NotificationDropdown({
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications', {
+      const response = await apiFetch('/api/notifications', {
         method: 'PATCH',
+        body: JSON.stringify({ markAllAsRead: true }),
       })
 
       if (response.ok) {

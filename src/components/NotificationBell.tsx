@@ -3,19 +3,20 @@
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 import { NotificationDropdown } from './NotificationDropdown'
+import { apiFetch } from '@/lib/apiFetch'
 
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch unread notification count
+  // Fetch unread notification count (use apiFetch so JWT is sent)
   const fetchUnreadCount = async () => {
     try {
-      const response = await fetch('/api/notifications/unread-count')
+      const response = await apiFetch('/api/notifications/unread-count')
       if (response.ok) {
         const data = await response.json()
-        setUnreadCount(data.count || 0)
+        setUnreadCount(data.count ?? 0)
       }
     } catch (error) {
       console.error('Error fetching unread count:', error)
