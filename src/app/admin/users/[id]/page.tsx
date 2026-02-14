@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   User,
   Loader2,
@@ -484,7 +486,7 @@ export default function UserDetailsPage() {
                   <Input
                     type="text"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                     className="text-gray-900 bg-white"
                     placeholder="Enter new password"
                   />

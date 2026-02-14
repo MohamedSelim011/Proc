@@ -1300,10 +1300,10 @@ export default function ServiceRequisitionDetail() {
                       {item.quantity || 0} {item.serviceItem?.unitOfMeasure || 'units'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(parseFloat(item.estimatedRate || 0))}
+                      {formatCurrency(parseFloat(String(item.estimatedRate ?? 0)))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency((parseFloat(item.quantity || 0) * parseFloat(item.estimatedRate || 0) * (item.duration || 1)))}
+                      {formatCurrency((parseFloat(String(item.quantity ?? 0)) * parseFloat(String(item.estimatedRate ?? 0)) * (item.duration || 1)))}
                     </td>
                   </tr>
                 ))
