@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ChevronLeft, 
@@ -96,7 +96,7 @@ interface Vendor {
   email: string;
 }
 
-export default function NewServiceRequisition() {
+function NewServiceRequisitionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMixedMode = (searchParams.get('mode') || '').toLowerCase() === 'mixed';
@@ -1579,5 +1579,19 @@ export default function NewServiceRequisition() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewServiceRequisition() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wujha-primary"></div>
+        </div>
+      }
+    >
+      <NewServiceRequisitionContent />
+    </Suspense>
   );
 }
