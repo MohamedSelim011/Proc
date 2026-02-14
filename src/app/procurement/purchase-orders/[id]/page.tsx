@@ -41,6 +41,7 @@ interface PurchaseOrder {
   pr: {
     id: string;
     prNumber: string;
+    itemType?: string;
     departmentId: string;
     requestor: string;
   };
@@ -308,6 +309,16 @@ export default function PurchaseOrderDetailPage() {
     ].filter(Boolean);
 
     return parts.length > 0 ? parts.join(', ') : (address.note || 'N/A');
+  };
+
+  const getRequisitionLink = () => {
+    if (!po?.pr) return '/procurement/requisitions';
+    const isServicePR =
+      po.pr.itemType === 'SERVICE' ||
+      (po.pr.prNumber || '').toUpperCase().startsWith('SPR-');
+    return isServicePR
+      ? `/procurement/services/requisitions/${po.pr.id}`
+      : `/procurement/requisitions/${po.pr.id}`;
   };
 
   const handleDownloadPDF = async () => {
@@ -858,7 +869,7 @@ export default function PurchaseOrderDetailPage() {
                         <p className="text-xs text-blue-700">Requestor: {po.pr.requestor}</p>
                       </div>
                       <Link
-                        href={`/procurement/requisitions/${po.pr.id}`}
+                        href={getRequisitionLink()}
                         className="text-wujha-info hover:text-wujha-info/80"
                       >
                         <FileText className="h-4 w-4" />

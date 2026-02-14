@@ -81,6 +81,21 @@ interface ServiceRequisition {
       };
     }>;
   };
+  items?: Array<{
+    id: string;
+    quantity: number;
+    estimatedPrice: string;
+    specifications?: string;
+    item: {
+      id: string;
+      itemCode: string;
+      nameEn: string;
+      unitOfMeasure: string;
+      category?: {
+        nameEn: string;
+      };
+    };
+  }>;
 }
 
 const statusColors = {
@@ -1248,6 +1263,11 @@ export default function ServiceRequisitionDetail() {
             {sr.itemType === 'SERVICE' ? 'Service Requirements' : 'Non-Stock Items'}
           </h3>
           <p className="mt-1 text-sm text-gray-500">{sr.servicePR?.items?.length || 0} item(s) requested</p>
+          {(sr.items?.length || 0) > 0 && (
+            <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-wujha-primary/10 text-wujha-primary">
+              Mixed Requisition (Service + Materials)
+            </span>
+          )}
         </div>
 
         <div className="overflow-hidden">
@@ -1328,6 +1348,64 @@ export default function ServiceRequisitionDetail() {
           </table>
         </div>
       </div>
+
+      {/* Material Items (for mixed requisitions) */}
+      {sr.items && sr.items.length > 0 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Material Items</h3>
+            <p className="mt-1 text-sm text-gray-500">{sr.items.length} material line(s)</p>
+          </div>
+          <div className="overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Unit Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sr.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{item.item?.itemCode || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{item.item?.nameEn || 'N/A'}</div>
+                      {item.specifications && (
+                        <div className="text-xs text-gray-400 mt-1">{item.specifications}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.item?.category?.nameEn || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.quantity} {item.item?.unitOfMeasure || 'Unit'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(Number(item.estimatedPrice || 0))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency(Number(item.quantity || 0) * Number(item.estimatedPrice || 0))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Service-Specific Information */}
       {sr.itemType === 'SERVICE' && (
