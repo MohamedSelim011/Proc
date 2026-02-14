@@ -46,15 +46,20 @@ export default function EditUserPage() {
     }
     setCurrentUser(userData)
     fetchUser()
-  }, [status, session, router, userId])
+  }, [router, userId])
 
   const fetchUser = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const data = await response.json()
 
       if (response.ok) {
-        const user = data.user
+        const user = data
         setFormData({
           email: user.email,
           name: user.name,
@@ -94,9 +99,13 @@ export default function EditUserPage() {
     setSubmitting(true)
 
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData),
       })
 
@@ -117,7 +126,7 @@ export default function EditUserPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

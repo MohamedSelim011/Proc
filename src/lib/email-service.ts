@@ -745,3 +745,452 @@ export async function sendPOToVendor(data: {
   }
 }
 
+// ============================================
+// CONTRACT EMAIL TEMPLATES
+// ============================================
+
+// Contract Review Request Email Template (for Vendor)
+export function generateContractReviewEmail(data: {
+  vendorName: string;
+  contractNumber: string;
+  contractType: string;
+  totalValue: number;
+  currency: string;
+  startDate: Date;
+  endDate: Date;
+  paymentTerms: string;
+  acceptLink: string;
+  rejectLink: string;
+  expiryDate: Date;
+}): { html: string; text: string } {
+  const startDateFormatted = new Date(data.startDate).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const endDateFormatted = new Date(data.endDate).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const expiryDateFormatted = new Date(data.expiryDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">Service Contract Review</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
+  </div>
+  
+  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+    <p style="font-size: 16px; margin-top: 0;">Dear <strong>${data.vendorName}</strong>,</p>
+    
+    <p style="font-size: 16px;">We are pleased to share the following Service Contract for your review and acceptance:</p>
+    
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e3a8a;">
+      <p style="margin: 5px 0;"><strong>Contract Number:</strong> ${data.contractNumber}</p>
+      <p style="margin: 5px 0;"><strong>Contract Type:</strong> ${data.contractType}</p>
+      <p style="margin: 5px 0;"><strong>Total Value:</strong> <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${data.currency} ${data.totalValue.toLocaleString()}</span></p>
+      <p style="margin: 5px 0;"><strong>Contract Period:</strong> ${startDateFormatted} to ${endDateFormatted}</p>
+      <p style="margin: 5px 0;"><strong>Payment Terms:</strong> ${data.paymentTerms}</p>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>⏰ Response Required:</strong> Please review and respond by <strong>${expiryDateFormatted}</strong>
+      </p>
+    </div>
+    
+    <div style="margin: 30px 0;">
+      <h3 style="color: #1e3a8a; margin-bottom: 15px;">Action Required</h3>
+      <p style="margin: 0 0 20px 0;">Click the button below to review the contract and submit your response:</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${data.acceptLink}" 
+           style="display: inline-block; background: #1e3a8a; color: white; padding: 18px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);">
+          📄 Review Contract & Respond
+        </a>
+      </div>
+      
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666; font-weight: bold;">If the button doesn't work, copy and paste this link into your browser:</p>
+        <p style="margin: 0; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; color: #1e3a8a; word-break: break-all;">
+          ${data.acceptLink}
+        </p>
+      </div>
+    </div>
+    
+    <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e3a8a;">
+      <h4 style="margin: 0 0 10px 0; color: #1e3a8a;">Important Notes:</h4>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li>The link will take you to a secure page where you can review all contract details</li>
+        <li>You can choose to <strong>Accept</strong> the contract or <strong>Request Changes</strong></li>
+        <li>If you request changes, you'll be able to provide detailed comments</li>
+        <li>This link is unique and secure - do not share it with others</li>
+        <li>After the expiry date, this link will no longer be valid</li>
+      </ul>
+    </div>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+      <p style="font-size: 14px; color: #666; margin: 5px 0;">
+        If you have any questions, please contact our procurement team at <a href="mailto:${process.env.SMTP_FROM_EMAIL}" style="color: #1e3a8a;">${process.env.SMTP_FROM_EMAIL}</a>
+      </p>
+    </div>
+  </div>
+  
+  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #666;">
+      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+  `;
+
+  const text = `
+Service Contract Review Request
+
+Dear ${data.vendorName},
+
+We are pleased to share the following Service Contract for your review and acceptance:
+
+Contract Number: ${data.contractNumber}
+Contract Type: ${data.contractType}
+Total Value: ${data.currency} ${data.totalValue.toLocaleString()}
+Contract Period: ${startDateFormatted} to ${endDateFormatted}
+Payment Terms: ${data.paymentTerms}
+
+⏰ RESPONSE REQUIRED BY: ${expiryDateFormatted}
+
+ACTION REQUIRED:
+Click the link below to review the contract and submit your response:
+
+📄 Review Contract & Respond:
+${data.acceptLink}
+
+(Copy and paste the link above into your browser if it doesn't open automatically)
+
+Important Notes:
+- The link will take you to a secure page where you can review all contract details
+- You can choose to Accept the contract or Request Changes
+- If you request changes, you'll be able to provide detailed comments
+- If you accept, the contract will proceed to the signing phase
+- If you request changes, please provide detailed comments about your concerns
+- This link is unique and secure - do not share it with others
+- After the expiry date, this link will no longer be valid
+
+If you have any questions, please contact our procurement team at ${process.env.SMTP_FROM_EMAIL}
+
+Best regards,
+Wujha Procurement Team
+  `;
+
+  return { html, text };
+}
+
+// Send Contract Review Request to Vendor
+export async function sendContractReviewToVendor(data: {
+  vendorEmail: string;
+  vendorName: string;
+  contractNumber: string;
+  contractType: string;
+  totalValue: number;
+  currency: string;
+  startDate: Date;
+  endDate: Date;
+  paymentTerms: string;
+  acceptLink: string;
+  rejectLink: string;
+  expiryDate: Date;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { html, text } = generateContractReviewEmail(data);
+
+    const emailResult = await sendEmail({
+      to: data.vendorEmail,
+      subject: `Contract Review Required: ${data.contractNumber} - ${data.contractType}`,
+      html,
+      text,
+    });
+
+    return emailResult;
+  } catch (error) {
+    console.error('Error sending contract review email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+// Contract Approved - Internal Notification
+export function generateContractApprovedEmail(data: {
+  contractNumber: string;
+  approverName: string;
+  approvalLevel: string;
+  nextAction: string;
+  contractUrl: string;
+}): { html: string; text: string } {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">✓ Contract Approved</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
+  </div>
+  
+  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+    <p style="font-size: 16px; margin-top: 0;">Good news!</p>
+    
+    <p style="font-size: 16px;">Contract <strong>${data.contractNumber}</strong> has been approved by <strong>${data.approverName}</strong> at the ${data.approvalLevel} level.</p>
+    
+    <div style="background: #d1fae5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+      <p style="margin: 5px 0;"><strong>Next Action:</strong> ${data.nextAction}</p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${data.contractUrl}" 
+         style="display: inline-block; background: #059669; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.3);">
+        View Contract Details
+      </a>
+    </div>
+  </div>
+  
+  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #666;">
+      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+  `;
+
+  const text = `
+Contract Approved
+
+Good news!
+
+Contract ${data.contractNumber} has been approved by ${data.approverName} at the ${data.approvalLevel} level.
+
+Next Action: ${data.nextAction}
+
+View contract details: ${data.contractUrl}
+
+Best regards,
+Wujha Procurement System
+  `;
+
+  return { html, text };
+}
+
+// Vendor Accepted Contract - Internal Notification
+export function generateVendorAcceptedEmail(data: {
+  contractNumber: string;
+  vendorName: string;
+  respondedAt: Date;
+  contractUrl: string;
+}): { html: string; text: string } {
+  const respondedAtFormatted = new Date(data.respondedAt).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">🎉 Contract Accepted by Vendor</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
+  </div>
+  
+  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+    <p style="font-size: 16px; margin-top: 0;">Excellent news!</p>
+    
+    <p style="font-size: 16px;"><strong>${data.vendorName}</strong> has accepted Contract <strong>${data.contractNumber}</strong>.</p>
+    
+    <div style="background: #d1fae5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+      <p style="margin: 5px 0;"><strong>Accepted At:</strong> ${respondedAtFormatted}</p>
+      <p style="margin: 5px 0;"><strong>Status:</strong> Ready for signing and activation</p>
+    </div>
+    
+    <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h4 style="margin: 0 0 10px 0; color: #1e3a8a;">Next Steps:</h4>
+      <ol style="margin: 0; padding-left: 20px;">
+        <li>Prepare final contract documents for signing</li>
+        <li>Coordinate signing ceremony or digital signature</li>
+        <li>Activate the contract in the system</li>
+      </ol>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${data.contractUrl}" 
+         style="display: inline-block; background: #059669; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.3);">
+        View Contract Details
+      </a>
+    </div>
+  </div>
+  
+  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #666;">
+      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+  `;
+
+  const text = `
+Contract Accepted by Vendor
+
+Excellent news!
+
+${data.vendorName} has accepted Contract ${data.contractNumber}.
+
+Accepted At: ${respondedAtFormatted}
+Status: Ready for signing and activation
+
+Next Steps:
+1. Prepare final contract documents for signing
+2. Coordinate signing ceremony or digital signature
+3. Activate the contract in the system
+
+View contract details: ${data.contractUrl}
+
+Best regards,
+Wujha Procurement System
+  `;
+
+  return { html, text };
+}
+
+// Vendor Rejected Contract - Internal Notification
+export function generateVendorRejectedEmail(data: {
+  contractNumber: string;
+  vendorName: string;
+  comments: string;
+  respondedAt: Date;
+  contractUrl: string;
+}): { html: string; text: string } {
+  const respondedAtFormatted = new Date(data.respondedAt).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">⚠️ Contract Changes Requested</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
+  </div>
+  
+  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+    <p style="font-size: 16px; margin-top: 0;">Attention Required</p>
+    
+    <p style="font-size: 16px;"><strong>${data.vendorName}</strong> has requested changes to Contract <strong>${data.contractNumber}</strong>.</p>
+    
+    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+      <p style="margin: 5px 0;"><strong>Responded At:</strong> ${respondedAtFormatted}</p>
+      <p style="margin: 5px 0;"><strong>Status:</strong> Requires revision</p>
+    </div>
+    
+    <div style="background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h4 style="margin: 0 0 10px 0; color: #dc3545;">Vendor Comments:</h4>
+      <p style="margin: 0; white-space: pre-wrap;">${data.comments}</p>
+    </div>
+    
+    <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h4 style="margin: 0 0 10px 0; color: #1e3a8a;">Next Steps:</h4>
+      <ol style="margin: 0; padding-left: 20px;">
+        <li>Review vendor's comments and concerns</li>
+        <li>Revise contract terms as appropriate</li>
+        <li>Create a new contract version</li>
+        <li>Submit for re-approval through the approval workflow</li>
+        <li>Resend to vendor for review</li>
+      </ol>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${data.contractUrl}" 
+         style="display: inline-block; background: #dc3545; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);">
+        Review & Revise Contract
+      </a>
+    </div>
+  </div>
+  
+  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #666;">
+      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>
+  `;
+
+  const text = `
+Contract Changes Requested by Vendor
+
+Attention Required
+
+${data.vendorName} has requested changes to Contract ${data.contractNumber}.
+
+Responded At: ${respondedAtFormatted}
+Status: Requires revision
+
+Vendor Comments:
+${data.comments}
+
+Next Steps:
+1. Review vendor's comments and concerns
+2. Revise contract terms as appropriate
+3. Create a new contract version
+4. Submit for re-approval through the approval workflow
+5. Resend to vendor for review
+
+Review & revise contract: ${data.contractUrl}
+
+Best regards,
+Wujha Procurement System
+  `;
+
+  return { html, text };
+}
+

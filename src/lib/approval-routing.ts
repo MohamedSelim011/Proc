@@ -4,7 +4,7 @@ import { UserRole, RACIType } from '@prisma/client'
 /**
  * Document types that support approval routing
  */
-export type DocumentType = 'PR' | 'PO' | 'INVOICE' | 'PAYMENT'
+export type DocumentType = 'PR' | 'PO' | 'INVOICE' | 'PAYMENT' | 'SERVICE_CONTRACT'
 
 /**
  * Approval routing context - information about the document being approved
@@ -64,13 +64,13 @@ export async function determineApprovalRule(
     const conditions = rule.conditions as any
 
     // Check amount condition
-    if (conditions.minAmount !== undefined) {
+    if (conditions.minAmount !== undefined && conditions.minAmount !== null) {
       if (!context.amount || context.amount < conditions.minAmount) {
         continue
       }
     }
 
-    if (conditions.maxAmount !== undefined) {
+    if (conditions.maxAmount !== undefined && conditions.maxAmount !== null) {
       if (!context.amount || context.amount > conditions.maxAmount) {
         continue
       }
@@ -180,7 +180,7 @@ export async function buildApprovalRoutingPlan(
     } else if (routing.raciType === RACIType.INFORMED) {
       eligibleApprovers.forEach((id) => notifyUsers.add(id))
     } else if (routing.raciType === RACIType.CONSULTED) {
-      consultUsers.add(...eligibleApprovers)
+      eligibleApprovers.forEach((id) => consultUsers.add(id))
     }
   }
 
@@ -217,26 +217,41 @@ export async function initializeApprovalWorkflow(
 }
 
 /**
+ * Options for canUserApproveAtLevel when approval is already known (e.g. from contract)
+ */
+export interface CanApproveAtLevelOptions {
+  /** When provided, approval is fetched by id instead of documentId (avoids wrong record) */
+  approvalId?: string
+}
+
+/**
  * Check if a user can approve at a specific level
  */
 export async function canUserApproveAtLevel(
   userId: string,
   documentId: string,
-  level: number
+  level: number,
+  options?: CanApproveAtLevelOptions
 ): Promise<boolean> {
-  // Get the document's approval record
-  const approval = await prisma.approval.findFirst({
-    where: {
-      OR: [
-        { purchaseRequisitionId: documentId },
-        { purchaseOrderId: documentId },
-        { invoiceId: documentId },
-      ],
-    },
-    include: {
-      approvalHistory: true,
-    },
-  })
+  // Get the document's approval record (by id when known to avoid wrong record)
+  const approval = options?.approvalId
+    ? await prisma.approval.findUnique({
+        where: { id: options.approvalId },
+        include: { approvalHistory: true },
+      })
+    : await prisma.approval.findFirst({
+        where: {
+          OR: [
+            { purchaseRequisitionId: documentId },
+            { purchaseOrderId: documentId },
+            { invoiceId: documentId },
+            { serviceContractId: documentId },
+          ],
+        },
+        include: {
+          approvalHistory: true,
+        },
+      })
 
   if (!approval) {
     return false
@@ -256,12 +271,12 @@ export async function canUserApproveAtLevel(
     }
   }
 
-  // Check if user is eligible for this level
+  // Check if user is eligible for this level (only ACCOUNTABLE routings can approve)
   const rule = await prisma.approvalRule.findUnique({
     where: { id: approval.routingRuleId || '' },
     include: {
       routings: {
-        where: { level },
+        where: { level, raciType: RACIType.ACCOUNTABLE },
       },
     },
   })
@@ -282,8 +297,68 @@ export async function canUserApproveAtLevel(
     return false
   }
 
-  // Check if user's role matches the required role for this level
-  return user.role === routing.approverRole
+  // Compare roles as strings to avoid enum/string mismatches (e.g. from DB vs Prisma client)
+  const userRole = String(user.role)
+  const requiredRole = String(routing.approverRole)
+  return userRole === requiredRole
+}
+
+/**
+ * Get the required role and eligible approvers for a specific approval level.
+ * Used to show "who can approve at level N" in the UI and in 403 responses.
+ */
+export async function getEligibleApproversForLevel(
+  documentId: string,
+  level: number
+): Promise<{
+  requiredRole: UserRole
+  eligibleApprovers: { id: string; name: string | null; email: string }[]
+} | null> {
+  const approval = await prisma.approval.findFirst({
+    where: {
+      OR: [
+        { purchaseRequisitionId: documentId },
+        { purchaseOrderId: documentId },
+        { invoiceId: documentId },
+        { serviceContractId: documentId },
+      ],
+    },
+  })
+
+  if (!approval?.routingRuleId) return null
+
+  const rule = await prisma.approvalRule.findUnique({
+    where: { id: approval.routingRuleId },
+    include: {
+      routings: {
+        where: { level, raciType: RACIType.ACCOUNTABLE },
+      },
+    },
+  })
+
+  if (!rule || rule.routings.length === 0) return null
+  const routing = rule.routings[0]
+
+  const users = await prisma.user.findMany({
+    where: {
+      role: routing.approverRole,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  })
+
+  return {
+    requiredRole: routing.approverRole,
+    eligibleApprovers: users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+    })),
+  }
 }
 
 /**
@@ -296,6 +371,7 @@ export async function getApprovalStatus(documentId: string) {
         { purchaseRequisitionId: documentId },
         { purchaseOrderId: documentId },
         { invoiceId: documentId },
+        { serviceContractId: documentId },
       ],
     },
     include: {

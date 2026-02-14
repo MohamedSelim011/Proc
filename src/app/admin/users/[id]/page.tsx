@@ -82,15 +82,20 @@ export default function UserDetailsPage() {
     }
     setCurrentUser(userData)
     fetchUserDetails()
-  }, [status, session, router, userId])
+  }, [router, userId])
 
   const fetchUserDetails = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const data = await response.json()
 
       if (response.ok) {
-        setUser(data.user)
+        setUser(data)
         setAuditLogs(data.auditLogs || [])
         setPasswordHistory(data.passwordHistory || [])
       } else {
@@ -110,9 +115,13 @@ export default function UserDetailsPage() {
     }
 
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ newPassword }),
       })
 
@@ -136,9 +145,13 @@ export default function UserDetailsPage() {
     if (!user) return
 
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ isActive: !user.isActive }),
       })
 
@@ -185,7 +198,7 @@ export default function UserDetailsPage() {
     return colors[role] || 'bg-gray-100 text-gray-800'
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

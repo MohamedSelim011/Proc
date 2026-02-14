@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/toast';
+import { getUserData } from '@/lib/jwt';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -16,7 +17,10 @@ import {
   Download,
   DollarSign,
   Shield,
-  Award
+  Award,
+  SendHorizontal,
+  CheckCheck,
+  XCircle
 } from 'lucide-react';
 
 interface ServiceContract {
@@ -39,6 +43,7 @@ interface ServiceContract {
   signedAt?: string;
   createdAt: string;
   updatedAt: string;
+  versionNumber?: number;
   vendor: {
     id: string;
     vendorCode: string;
@@ -83,14 +88,49 @@ interface ServiceContract {
       }>;
     };
   };
+  approval?: {
+    id: string;
+    status: string;
+    level: number;
+    approvalHistory: Array<{
+      id: string;
+      level: number;
+      action: string;
+      approverId: string;
+      approverName: string;
+      comments?: string;
+      timestamp: string;
+    }>;
+  };
+  vendorResponses?: Array<{
+    id: string;
+    versionNumber: number;
+    status: string;
+    responseType?: string;
+    comments?: string;
+    respondedAt?: string;
+    respondedBy?: string;
+    expiresAt: string;
+    createdAt: string;
+  }>;
+  versions?: Array<{
+    id: string;
+    versionNumber: number;
+    changeReason?: string;
+    createdBy: string;
+    createdAt: string;
+  }>;
 }
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  PENDING_APPROVAL: 'bg-yellow-100 text-yellow-800',
+  APPROVED: 'bg-blue-100 text-blue-800',
+  SIGNED: 'bg-purple-100 text-purple-800',
   ACTIVE: 'bg-green-100 text-green-800',
   COMPLETED: 'bg-wujha-primary/10 text-wujha-primary',
   TERMINATED: 'bg-red-100 text-red-800',
-  SUSPENDED: 'bg-yellow-100 text-yellow-800'
+  SUSPENDED: 'bg-orange-100 text-orange-800'
 };
 
 const contractTypeColors = {
@@ -109,6 +149,12 @@ export default function ServiceContractDetail() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activating, setActivating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | 'request-edit' | null>(null);
+  const [approvalComments, setApprovalComments] = useState('');
+  const [processingApproval, setProcessingApproval] = useState(false);
+  const [canApprove, setCanApprove] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -148,10 +194,69 @@ export default function ServiceContractDetail() {
     }
   }, [params.id]);
 
+  // Auto-refresh contract data every 30 seconds when in PENDING_APPROVAL status
+  useEffect(() => {
+    if (contract?.status === 'PENDING_APPROVAL') {
+      const interval = setInterval(() => {
+        fetchContract();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [contract?.status]);
+
+  useEffect(() => {
+    // Check if current user can approve
+    const user = getUserData();
+    setCurrentUser(user);
+    
+    if (user && contract && contract.status === 'PENDING_APPROVAL' && contract.approval) {
+      checkApprovalPermission(user);
+    }
+  }, [contract]);
+
+  const checkApprovalPermission = async (user: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !contract?.approval) return;
+
+      // approval.level represents the level currently waiting for approval
+      const levelWaitingForApproval = contract.approval.level;
+      const userRole = user.role;
+
+      // Check if user's role matches the required role for the current level
+      // Level 1: HEAD_OF_PROCUREMENT, Level 2: BILLING_ENGINEER
+      const canUserApproveThisLevel = 
+        (levelWaitingForApproval === 1 && userRole === 'HEAD_OF_PROCUREMENT') ||
+        (levelWaitingForApproval === 2 && userRole === 'BILLING_ENGINEER' || userRole === 'SUPER_ADMIN' || userRole === 'ADMIN');
+
+      // Check if this level has already been approved (shouldn't happen, but double-check)
+      const levelAlreadyApproved = contract.approval.approvalHistory?.some(
+        h => h.level === levelWaitingForApproval && h.action === 'APPROVED'
+      );
+
+      const finalCanApprove = canUserApproveThisLevel && !levelAlreadyApproved;
+
+      setCanApprove(finalCanApprove);
+    } catch (error) {
+      console.error('Error checking approval permission:', error);
+      setCanApprove(false);
+    }
+  };
+
   const fetchContract = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/service-contracts/${params.id}`);
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`/api/service-contracts/${params.id}`, { headers });
       if (response.ok) {
         const data = await response.json();
         setContract(data);
@@ -165,19 +270,89 @@ export default function ServiceContractDetail() {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    try {
+      setSubmitting(true);
+      setError('');
+      setSuccess('');
+
+      // Get authenticated user from localStorage
+      const user = getUserData();
+      if (!user || !user.id) {
+        showToast('error', 'You must be logged in to submit for approval');
+        setError('Authentication required');
+        setSubmitting(false);
+        return;
+      }
+
+      // Get token for authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showToast('error', 'Authentication token not found');
+        setError('Authentication required');
+        setSubmitting(false);
+        return;
+      }
+
+      const response = await fetch(`/api/service-contracts/${params.id}/submit-approval`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.name || user.email || 'Unknown User'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast('success', data.message || 'Contract submitted for approval successfully!');
+        setSuccess(data.message || 'Contract submitted for approval successfully!');
+        // Refresh the contract data to show updated status
+        setTimeout(() => {
+          fetchContract();
+        }, 1000);
+      } else {
+        showToast('error', data.error || 'Failed to submit contract for approval');
+        setError(data.error || 'Failed to submit contract for approval');
+      }
+    } catch (error) {
+      console.error('Error submitting contract for approval:', error);
+      showToast('error', 'Failed to submit contract for approval');
+      setError('Failed to submit contract for approval');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleActivateContract = async () => {
     try {
       setActivating(true);
       setError('');
       setSuccess('');
 
+      // Get authenticated user
+      const user = getUserData();
+      const token = localStorage.getItem('token');
+      
+      if (!user || !user.id || !token) {
+        showToast('error', 'You must be logged in to activate contract');
+        setError('Authentication required');
+        setActivating(false);
+        return;
+      }
+
       const response = await fetch(`/api/service-contracts/${params.id}/activate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          activatedBy: 'current-user-id' // This should come from user context
+          activatedBy: user.id
         }),
       });
 
@@ -200,6 +375,75 @@ export default function ServiceContractDetail() {
     }
   };
 
+  const handleApprovalAction = async (action: 'approve' | 'reject' | 'request-edit') => {
+    if (action === 'reject' && !approvalComments.trim()) {
+      showToast('error', 'Comments are required when rejecting a contract');
+      return;
+    }
+
+    if (action === 'request-edit' && !approvalComments.trim()) {
+      showToast('error', 'Please provide feedback for the requested edits');
+      return;
+    }
+
+    try {
+      setProcessingApproval(true);
+      setError('');
+      setSuccess('');
+
+      const user = getUserData();
+      const token = localStorage.getItem('token');
+
+      if (!user || !token) {
+        showToast('error', 'Authentication required');
+        return;
+      }
+
+      let endpoint = '';
+      let method = 'POST';
+      let body: any = { comments: approvalComments };
+
+      if (action === 'approve') {
+        endpoint = `/api/service-contracts/${params.id}/approve`;
+      } else if (action === 'reject') {
+        endpoint = `/api/service-contracts/${params.id}/reject`;
+      } else if (action === 'request-edit') {
+        endpoint = `/api/service-contracts/${params.id}/request-edit`;
+      }
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast('success', data.message || `Contract ${action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'returned for edits'} successfully!`);
+        setSuccess(data.message);
+        setApprovalAction(null);
+        setApprovalComments('');
+        
+        // Refresh contract
+        setTimeout(() => {
+          fetchContract();
+        }, 1000);
+      } else {
+        showToast('error', data.error || `Failed to ${action} contract`);
+        setError(data.error);
+      }
+    } catch (error) {
+      console.error(`Error ${action} contract:`, error);
+      showToast('error', `Failed to ${action} contract`);
+      setError(`Failed to ${action} contract`);
+    } finally {
+      setProcessingApproval(false);
+    }
+  };
 
   const handleExportPDF = async () => {
     if (!contract) return;
@@ -207,10 +451,18 @@ export default function ServiceContractDetail() {
     try {
       showToast('info', 'Generating PDF...');
       
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       // Use the API endpoint to download the file (with cache busting)
       const response = await fetch(`/api/service-contracts/${contract.id}/download?t=${Date.now()}`, {
         method: 'GET',
         cache: 'no-store',
+        headers,
       });
       
       if (!response.ok) {
@@ -849,7 +1101,125 @@ export default function ServiceContractDetail() {
             </dd>
           </div>
         )}
+
+        {/* Contract Version Info */}
+        {contract.versionNumber && contract.versionNumber > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Contract Version</h3>
+                <p className="mt-1 text-lg font-semibold text-gray-900">Version {contract.versionNumber}</p>
+              </div>
+              {contract.versions && contract.versions.length > 0 && (
+                <button
+                  onClick={() => router.push(`/procurement/services/contracts/${contract.id}/versions`)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  View Version History →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Approval History */}
+      {contract.approval && contract.approval.approvalHistory && contract.approval.approvalHistory.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Approval History</h3>
+          <div className="space-y-4">
+            {contract.approval.approvalHistory.map((history, index) => (
+              <div key={history.id} className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                <div className="flex-shrink-0">
+                  {history.action === 'APPROVED' ? (
+                    <CheckCheck className="h-6 w-6 text-green-600" />
+                  ) : (
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900">
+                      Level {history.level} - {history.action}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(history.timestamp).toLocaleString('en-OM')}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">
+                    By: <span className="font-medium">{history.approverName}</span>
+                  </p>
+                  {history.comments && (
+                    <p className="mt-2 text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
+                      {history.comments}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Responses */}
+      {contract.vendorResponses && contract.vendorResponses.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Responses</h3>
+          <div className="space-y-4">
+            {contract.vendorResponses.map((response) => (
+              <div key={response.id} className={`p-4 rounded-lg border-2 ${
+                response.status === 'ACCEPTED' 
+                  ? 'bg-green-50 border-green-200' 
+                  : response.status === 'REJECTED'
+                  ? 'bg-red-50 border-red-200'
+                  : response.status === 'PENDING'
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      response.status === 'ACCEPTED' 
+                        ? 'bg-green-100 text-green-800' 
+                        : response.status === 'REJECTED'
+                        ? 'bg-red-100 text-red-800'
+                        : response.status === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {response.status}
+                    </span>
+                    <span className="text-sm text-gray-600">Version {response.versionNumber}</span>
+                  </div>
+                  {response.respondedAt && (
+                    <span className="text-sm text-gray-500">
+                      {new Date(response.respondedAt).toLocaleString('en-OM')}
+                    </span>
+                  )}
+                </div>
+                {response.respondedBy && (
+                  <p className="text-sm text-gray-700 mb-1">
+                    Responded by: <span className="font-medium">{response.respondedBy}</span>
+                  </p>
+                )}
+                {response.comments && (
+                  <div className="mt-2 p-3 bg-white rounded border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Vendor Comments:</p>
+                    <p className="text-sm text-gray-600">{response.comments}</p>
+                  </div>
+                )}
+                {response.status === 'PENDING' && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">
+                      Expires: {new Date(response.expiresAt).toLocaleString('en-OM')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Success/Error Messages */}
       {success && (
@@ -878,32 +1248,380 @@ export default function ServiceContractDetail() {
       {contract.status === 'DRAFT' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
-          <div className="flex space-x-3">
-            <button 
-              onClick={handleActivateContract}
-              disabled={activating}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {activating ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-blue-900">Contract Approval Workflow</h4>
+                  <p className="mt-1 text-sm text-blue-700">
+                    Submit this contract for approval. It will go through the following approval sequence:
+                  </p>
+                  <ol className="mt-2 ml-4 text-sm text-blue-700 list-decimal">
+                    <li>Head of Procurement</li>
+                    <li>Billing Engineer</li>
+                  </ol>
+                  <p className="mt-2 text-sm text-blue-700">
+                    After approval, the contract will be sent to the vendor for acceptance.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <button 
+                onClick={handleSubmitForApproval}
+                disabled={submitting}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <SendHorizontal className="h-4 w-4 mr-2" />
+                    Submit for Approval
+                  </>
+                )}
+              </button>
+              
+              <button 
+                onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Contract
+              </button>
+
+              {/* Only show "Activate Directly" button to HEAD_OF_PROCUREMENT and SYSTEM_ADMIN */}
+              {currentUser && (currentUser.role === 'HEAD_OF_PROCUREMENT' || currentUser.role === 'SYSTEM_ADMIN') && (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Activating...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Activate Contract
+                  <div className="text-gray-400 flex items-center px-2">
+                    <span className="text-sm">or</span>
+                  </div>
+
+                  <button 
+                    onClick={handleActivateContract}
+                    disabled={activating}
+                    className="inline-flex items-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-yellow-50 hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Skip approval and activate directly (not recommended)"
+                  >
+                    {activating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-700 mr-2"></div>
+                        Activating...
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Activate Directly (Skip Approval)
+                      </>
+                    )}
+                  </button>
                 </>
               )}
-            </button>
-            <button 
-              onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Contract
-            </button>
+            </div>
+
+            {/* Only show the warning note if user can see the activate button */}
+            {currentUser && (currentUser.role === 'HEAD_OF_PROCUREMENT' || currentUser.role === 'SYSTEM_ADMIN') && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-700">
+                  <strong>Note:</strong> Direct activation bypasses the approval workflow and vendor negotiation. 
+                  This should only be used for testing or emergency situations.
+                </p>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Pending Approval Status with Progress */}
+      {contract.status === 'PENDING_APPROVAL' && contract.approval && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Approval Progress</h3>
+          
+          {/* Approval Progress Visual */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Approval Level {contract.approval.level} of 2</span>
+              <span className="text-sm text-gray-500">
+                {contract.approval.status === 'PENDING' ? 'Awaiting Approval' : contract.approval.status}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(contract.approval.level / 2) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Approval Levels */}
+          <div className="space-y-3">
+            {/* Level 1 - Head of Procurement */}
+            <div className={`flex items-start space-x-3 p-4 rounded-lg border-2 ${
+              contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED')
+                ? 'bg-green-50 border-green-200'
+                : contract.approval.level === 1
+                ? 'bg-yellow-50 border-yellow-300'
+                : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex-shrink-0 mt-0.5">
+                {contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED') ? (
+                  <CheckCheck className="h-5 w-5 text-green-600" />
+                ) : contract.approval.level === 1 ? (
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                ) : (
+                  <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">Level 1: Head of Procurement</p>
+                  {contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED') && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Approved
+                    </span>
+                  )}
+                  {contract.approval.level === 1 && !contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED') && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Pending
+                    </span>
+                  )}
+                </div>
+                {contract.approval.approvalHistory?.find(h => h.level === 1 && h.action === 'APPROVED') && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    Approved by {contract.approval.approvalHistory.find(h => h.level === 1)?.approverName} on{' '}
+                    {new Date(contract.approval.approvalHistory.find(h => h.level === 1)?.timestamp || '').toLocaleString('en-OM')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Level 2 - Billing Engineer */}
+            <div className={`flex items-start space-x-3 p-4 rounded-lg border-2 ${
+              contract.approval.approvalHistory?.some(h => h.level === 2 && h.action === 'APPROVED')
+                ? 'bg-green-50 border-green-200'
+                : contract.approval.level === 2
+                ? 'bg-yellow-50 border-yellow-300'
+                : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex-shrink-0 mt-0.5">
+                {contract.approval.approvalHistory?.some(h => h.level === 2 && h.action === 'APPROVED') ? (
+                  <CheckCheck className="h-5 w-5 text-green-600" />
+                ) : contract.approval.level === 2 ? (
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                ) : (
+                  <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">Level 2: Billing Engineer</p>
+                  {contract.approval.approvalHistory?.some(h => h.level === 2 && h.action === 'APPROVED') && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Approved
+                    </span>
+                  )}
+                  {contract.approval.level === 2 && !contract.approval.approvalHistory?.some(h => h.level === 2 && h.action === 'APPROVED') && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Pending
+                    </span>
+                  )}
+                </div>
+                {contract.approval.approvalHistory?.find(h => h.level === 2 && h.action === 'APPROVED') && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    Approved by {contract.approval.approvalHistory.find(h => h.level === 2)?.approverName} on{' '}
+                    {new Date(contract.approval.approvalHistory.find(h => h.level === 2)?.timestamp || '').toLocaleString('en-OM')}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> Once all approval levels are complete, the contract will automatically be sent to the vendor for acceptance.
+            </p>
+          </div>
+
+          {/* Approval Action Buttons (Only show if user can approve) */}
+          {canApprove && (
+            <div className="mt-6 border-t border-gray-200 pt-6">
+              <h4 className="text-sm font-medium text-gray-900 mb-4">Take Action</h4>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setApprovalAction('approve')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  Approve
+                </button>
+
+                <button
+                  onClick={() => setApprovalAction('request-edit')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Request Edit
+                </button>
+
+                <button
+                  onClick={() => setApprovalAction('reject')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Approval Action Modal */}
+      {approvalAction && (
+        <div 
+        className="fixed inset-0 backdrop-blur-md transition-opacity z-50 flex items-center justify-center p-4"          
+        onClick={() => {
+            setApprovalAction(null);
+            setApprovalComments('');
+          }}
+        >
+          <div 
+            className="relative bg-white rounded-lg shadow-xl max-w-lg w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                {approvalAction === 'approve' && 'Approve Contract'}
+                {approvalAction === 'reject' && 'Reject Contract'}
+                {approvalAction === 'request-edit' && 'Request Edit'}
+              </h3>
+            </div>
+
+            <div className="px-6 py-4">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  {approvalAction === 'approve' && 'Are you sure you want to approve this contract? It will move to the next approval level.'}
+                  {approvalAction === 'reject' && 'Are you sure you want to reject this contract? It will be returned to DRAFT status.'}
+                  {approvalAction === 'request-edit' && 'The contract will be returned to the creator for edits. Please provide specific feedback on what needs to be changed.'}
+                </p>
+
+                <label htmlFor="approval-comments" className="block text-sm font-medium text-gray-700 mb-2">
+                  {approvalAction === 'approve' ? 'Comments (Optional)' : 'Comments (Required)'}
+                </label>
+                <textarea
+                  id="approval-comments"
+                  rows={4}
+                  className="block w-full p-4 rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary sm:text-sm"
+                  placeholder={
+                    approvalAction === 'approve' 
+                      ? 'Add any comments or notes...'
+                      : approvalAction === 'reject'
+                      ? 'Explain why you are rejecting this contract...'
+                      : 'Specify what changes are needed...'
+                  }
+                  value={approvalComments}
+                  onChange={(e) => setApprovalComments(e.target.value)}
+                  required={approvalAction !== 'approve'}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setApprovalAction(null);
+                  setApprovalComments('');
+                }}
+                disabled={processingApproval}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleApprovalAction(approvalAction)}
+                disabled={processingApproval}
+                className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  approvalAction === 'approve' 
+                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                    : approvalAction === 'reject'
+                    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                    : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                }`}
+              >
+                {processingApproval ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {approvalAction === 'approve' && 'Confirm Approval'}
+                    {approvalAction === 'reject' && 'Confirm Rejection'}
+                    {approvalAction === 'request-edit' && 'Send for Edit'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approved Status - Ready for Vendor */}
+      {contract.status === 'APPROVED' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Approval Completed</h3>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <CheckCheck className="h-5 w-5 text-green-600 mr-3" />
+              <div>
+                <h4 className="text-sm font-medium text-green-900">All Approvals Completed</h4>
+                <p className="mt-1 text-sm text-green-700">
+                  This contract has been approved by all required parties and has been sent to the vendor for acceptance.
+                  Waiting for vendor response.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signed Status */}
+      {contract.status === 'SIGNED' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Contract Status</h3>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center">
+              <CheckCheck className="h-5 w-5 text-green-600 mr-3" />
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-green-900">Contract Signed by Vendor</h4>
+                <p className="mt-1 text-sm text-green-700">
+                  The vendor has accepted this contract. You can now activate it to start execution.
+                </p>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={handleActivateContract}
+            disabled={activating}
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {activating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Activating...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Activate Contract
+              </>
+            )}
+          </button>
         </div>
       )}
 

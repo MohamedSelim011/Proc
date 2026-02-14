@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { createContractVersion } from '@/lib/contract-version-service';
 
 
 export async function GET(
@@ -29,6 +30,26 @@ export async function GET(
               }
             }
           }
+        },
+        approval: {
+          include: {
+            approvalHistory: {
+              orderBy: {
+                createdAt: 'desc'
+              }
+            }
+          }
+        },
+        versions: {
+          orderBy: {
+            versionNumber: 'desc'
+          },
+          take: 5
+        },
+        vendorResponses: {
+          orderBy: {
+            createdAt: 'desc'
+          }
         }
       }
     });
@@ -39,6 +60,14 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    console.log('[GET CONTRACT] Approval data being returned:', {
+      contractId: contract.id,
+      approvalId: contract.approval?.id,
+      approvalLevel: contract.approval?.level,
+      approvalStatus: contract.approval?.status,
+      historyCount: contract.approval?.approvalHistory?.length
+    });
 
     return NextResponse.json(contract);
   } catch (error) {
@@ -100,6 +129,22 @@ export async function PUT(
         pr: true
       }
     });
+
+    // Create a new version snapshot after edit
+    if (body.editedBy) {
+      try {
+        await createContractVersion({
+          contractId: id,
+          changeReason: body.changeReason || 'Contract updated',
+          changeDescription: body.changeDescription || 'Contract details modified',
+          createdBy: body.editedBy,
+          createdByName: body.editedByName
+        });
+      } catch (versionError) {
+        console.error('Error creating version after edit:', versionError);
+        // Continue even if version creation fails
+      }
+    }
 
     return NextResponse.json(updatedContract);
   } catch (error) {

@@ -147,6 +147,7 @@ export default function ServiceContracts() {
   const getStatusColor = (status: string) => {
     const colors = {
       'DRAFT': 'bg-gray-100 text-gray-800',
+      'PENDING_APPROVAL': 'bg-yellow-100 text-yellow-800',
       'APPROVED': 'bg-blue-100 text-blue-800',
       'SIGNED': 'bg-green-100 text-green-800',
       'ACTIVE': 'bg-wujha-primary/10 text-wujha-primary',
@@ -309,6 +310,7 @@ export default function ServiceContracts() {
             >
               <option value="">All Status</option>
               <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="APPROVED">Approved</option>
               <option value="SIGNED">Signed</option>
               <option value="ACTIVE">Active</option>

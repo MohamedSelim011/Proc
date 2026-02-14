@@ -17,6 +17,8 @@ enum UserRole {
   ADMIN // System Administrator - user & system management
   FINANCE_MANAGER // Approves payments, budget oversight
   PROCUREMENT_MANAGER // Approves POs, manages procurement
+  HEAD_OF_PROCUREMENT // Head of Procurement - contract approvals
+  BILLING_ENGINEER // Billing Engineer - contract financial approval
   BUDGET_CONTROLLER // Budget control and monitoring
   PROJECT_MANAGER // Project-level approvals
   SITE_ENGINEER // Site operations and inspections
@@ -673,10 +675,12 @@ model Approval {
   rfqId                 String?
   prId                  String?
   serviceRFPId          String?
+  serviceContractId     String?
   pr                    PurchaseRequisition? @relation(fields: [prId], references: [id])
   po                    PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id])
   rfq                   RFQ?                 @relation(fields: [rfqId], references: [id])
   serviceRFP            ServiceRFP?          @relation("ServiceRFPApprovals", fields: [serviceRFPId], references: [id])
+  serviceContracts      ServiceContract[]
 
   // Approval details
   approverId String
@@ -701,6 +705,7 @@ model Approval {
   @@index([purchaseOrderId])
   @@index([invoiceId])
   @@index([rfqId])
+  @@index([serviceContractId])
   @@index([status])
   @@index([routingRuleId])
 }
@@ -799,17 +804,21 @@ model ApprovalHistory {
   approvalId     String
   approval       Approval        @relation(fields: [approvalId], references: [id], onDelete: Cascade)
   level          Int // Approval level this action occurred at
-  action         String // SUBMITTED, APPROVED, REJECTED, DELEGATED, ESCALATED
-  performedBy    String
+  action         String // SUBMITTED, APPROVED, REJECTED, DELEGATED, ESCALATED, REQUEST_EDIT
+  performedBy    String?
+  approverId     String? // User ID who performed the action
+  approverName   String? // User name for display
   previousStatus ApprovalStatus?
-  newStatus      ApprovalStatus
+  newStatus      ApprovalStatus?
   comments       String?
   metadata       Json? // Additional context
+  timestamp      DateTime? // When the action occurred
 
   createdAt DateTime @default(now())
 
   @@index([approvalId])
   @@index([performedBy])
+  @@index([approverId])
   @@index([level])
 }
 
@@ -1055,14 +1064,26 @@ model ServiceContract {
   insuranceRequirements Json?
   status                ServiceContractStatus @default(DRAFT)
   signedAt              DateTime?
+  
+  // Approval & Versioning
+  versionNumber         Int                   @default(1)
+  approvalId            String?
+  approval              Approval?             @relation(fields: [approvalId], references: [id])
+  createdBy             String?
 
   // Relationships
-  milestones   ServiceMilestone[]
-  receipts     ServiceReceipt[]
-  performances ServicePerformance[]
+  milestones        ServiceMilestone[]
+  receipts          ServiceReceipt[]
+  performances      ServicePerformance[]
+  versions          ServiceContractVersion[]
+  vendorResponses   VendorContractResponse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  @@index([approvalId])
+  @@index([status])
+  @@index([vendorId])
 }
 
 model ServiceMilestone {
@@ -1134,7 +1155,8 @@ model ServicePerformance {
 // Additional enums for services
 enum ServiceContractStatus {
   DRAFT
-  APPROVED
+  PENDING_APPROVAL // Submitted for approval, awaiting approvers
+  APPROVED         // All approval levels completed
   SIGNED
   ACTIVE
   COMPLETED
@@ -1329,4 +1351,95 @@ model KPITarget {
   updatedBy String?  // User who last updated the target
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+// ============================================
+// CONTRACT VERSIONING AND VENDOR NEGOTIATION
+// ============================================
+
+// Contract Version History - Tracks all versions of a contract
+model ServiceContractVersion {
+  id                    String                @id @default(cuid())
+  contractId            String
+  contract              ServiceContract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  versionNumber         Int
+  
+  // Snapshot of contract data at this version
+  contractNumber        String
+  vendorId              String
+  contractType          String
+  startDate             DateTime
+  endDate               DateTime
+  totalValue            Decimal
+  currency              String
+  paymentTerms          String
+  slaTerms              Json?
+  penaltyClause         String?
+  performanceBond       Decimal?
+  retentionAmount       Decimal?
+  insuranceRequirements Json?
+  status                ServiceContractStatus
+  
+  // Version metadata
+  changeReason          String? // Why was this version created?
+  changeDescription     String? // What changed?
+  createdBy             String
+  createdByName         String? // Denormalized for easy display
+  approvalStatus        String? // PENDING, APPROVED, REJECTED
+  approvedBy            String?
+  approvedAt            DateTime?
+  
+  createdAt             DateTime              @default(now())
+  
+  @@unique([contractId, versionNumber])
+  @@index([contractId])
+  @@index([createdAt])
+}
+
+// Vendor Contract Response - Tracks vendor acceptance/rejection of contracts
+model VendorContractResponse {
+  id                String                @id @default(cuid())
+  contractId        String
+  contract          ServiceContract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  
+  // Response tracking
+  responseToken     String                @unique // Secure token for email link
+  vendorEmail       String
+  vendorName        String?
+  
+  // Response details
+  status            VendorResponseStatus  @default(PENDING)
+  responseType      String? // ACCEPT, REJECT, REQUEST_CHANGES
+  comments          String? // Vendor comments/feedback
+  respondedAt       DateTime?
+  respondedBy       String? // Name of person who responded
+  
+  // Email tracking
+  emailSentAt       DateTime?
+  emailOpenedAt     DateTime?
+  reminderSentAt    DateTime?
+  expiresAt         DateTime
+  
+  // Internal tracking
+  processedBy       String? // Internal user who processed the response
+  processedAt       DateTime?
+  internalNotes     String?
+  
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  
+  @@index([contractId])
+  @@index([responseToken])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Vendor Response Status Enum
+enum VendorResponseStatus {
+  PENDING           // Waiting for vendor response
+  ACCEPTED          // Vendor accepted the contract
+  REJECTED          // Vendor rejected with comments
+  EXPIRED           // Response token expired
+  PROCESSED         // Response has been processed by internal team
 }

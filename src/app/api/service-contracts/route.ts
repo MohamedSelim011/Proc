@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { createContractVersion } from '@/lib/contract-version-service';
 
 
 // POST /api/service-contracts - Create new service contract
@@ -27,13 +28,31 @@ export async function POST(request: NextRequest) {
         performanceBond: body.performanceBond,
         retentionAmount: body.retentionAmount,
         insuranceRequirements: body.insuranceRequirements,
-        status: body.status || 'DRAFT'
+        status: body.status || 'DRAFT',
+        versionNumber: 1,
+        createdBy: body.createdBy
       },
       include: {
         vendor: true,
         pr: true
       }
     });
+
+    // Create initial version snapshot
+    if (body.createdBy) {
+      try {
+        await createContractVersion({
+          contractId: contract.id,
+          changeReason: 'Initial contract creation',
+          changeDescription: 'First version of the contract',
+          createdBy: body.createdBy,
+          createdByName: body.createdByName
+        });
+      } catch (versionError) {
+        console.error('Error creating initial version:', versionError);
+        // Continue even if version creation fails
+      }
+    }
 
     return NextResponse.json(contract, { status: 201 });
   } catch (error) {
@@ -134,7 +153,18 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           vendor: true,
-          pr: true
+          pr: true,
+          approval: {
+            include: {
+              approvalHistory: true
+            }
+          },
+          vendorResponses: {
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1
+          }
         },
         orderBy: {
           createdAt: 'desc'

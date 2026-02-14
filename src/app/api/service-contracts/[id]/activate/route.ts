@@ -11,7 +11,7 @@ export async function POST(
     const body = await request.json();
     const { activatedBy } = body;
 
-    // Check if contract exists and is in DRAFT status
+    // Check if contract exists
     const contract = await prisma.serviceContract.findUnique({
       where: { id },
       include: {
@@ -26,21 +26,36 @@ export async function POST(
       );
     }
 
-    if (contract.status !== 'DRAFT') {
+    // Allow activation from two states:
+    // 1. DRAFT - for direct activation (bypassing approval)
+    // 2. SIGNED - for normal flow (after vendor acceptance)
+    if (contract.status !== 'SIGNED' && contract.status !== 'DRAFT') {
       return NextResponse.json(
-        { error: 'Only draft contracts can be activated' },
+        { 
+          error: `Cannot activate contract with status "${contract.status}". Contract must be either SIGNED (after vendor acceptance) or DRAFT (for direct activation).` 
+        },
         { status: 400 }
       );
     }
 
     // Activate the contract and update PR status
+    const updateData: any = {
+      status: 'ACTIVE'
+    };
+
+    // If activating from DRAFT (direct activation), set signedAt
+    if (contract.status === 'DRAFT') {
+      updateData.signedAt = new Date();
+      console.log('[ACTIVATE] Direct activation from DRAFT status');
+    } else {
+      console.log('[ACTIVATE] Normal activation from SIGNED status');
+      // signedAt is already set when vendor accepted
+    }
+
     const [updatedContract, updatedPR] = await prisma.$transaction([
       prisma.serviceContract.update({
         where: { id },
-        data: { 
-          status: 'ACTIVE',
-          signedAt: new Date()
-        }
+        data: updateData
       }),
       prisma.purchaseRequisition.update({
         where: { id: contract.prId },

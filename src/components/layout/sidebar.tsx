@@ -138,10 +138,16 @@ const navigation: NavigationItem[] = [
   },
   {
     name: 'Admin',
-    href: '/admin/users',
+    href: '#', // Make it non-navigable - only expandable
     icon: ShieldCheck,
     description: 'User & System Management',
-    requiredRoles: ['ADMIN', 'SUPER_ADMIN']
+    subItems: [
+      { name: 'Users', href: '/admin/users', icon: Users },
+      { name: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
+      { name: 'Approval Rules', href: '/admin/approval-rules', icon: Settings },
+    ],
+    requiredRoles: ['ADMIN', 'SUPER_ADMIN'],
+    expandable: true // Mark as expandable
   }
 ];
 

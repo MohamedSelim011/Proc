@@ -67,16 +67,24 @@ export default function UsersManagementPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/users')
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const data = await response.json()
 
       if (response.ok) {
-        setUsers(data.users || [])
+        console.log('data.users',  data)
+        setUsers(data || [])
         setFilteredUsers(data.users || [])
       } else {
+        console.log('data.error',  data.error)
         setError(data.error || 'Failed to fetch users')
       }
     } catch (err) {
+      console.log('err',  err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -114,9 +122,13 @@ export default function UsersManagementPage() {
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ isActive: !currentStatus }),
       })
 

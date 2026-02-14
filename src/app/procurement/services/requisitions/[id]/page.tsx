@@ -864,7 +864,10 @@ export default function ServiceRequisitionDetail() {
     if (sr && userRole) {
       const statusMatch = sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL';
       const roleMatch = userRole.toUpperCase() === 'SUPER_ADMIN' || 
+                       userRole.toUpperCase() === 'SYSTEM_ADMIN' || 
                        userRole.toUpperCase() === 'ADMIN' || 
+                       userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' || 
+                       userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' ||
                        userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || 
                        userRole.toUpperCase() === 'APPROVER' || 
                        userRole.toUpperCase() === 'DEPARTMENT_MANAGER';
@@ -1002,7 +1005,16 @@ export default function ServiceRequisitionDetail() {
                   </button>
                 </div>
               )}
-              {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (userRole.toUpperCase() === 'SUPER_ADMIN' || userRole.toUpperCase() === 'ADMIN' || userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || userRole.toUpperCase() === 'APPROVER' || userRole.toUpperCase() === 'DEPARTMENT_MANAGER') && (
+              {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (
+                userRole.toUpperCase() === 'SUPER_ADMIN' || 
+                userRole.toUpperCase() === 'SYSTEM_ADMIN' || 
+                userRole.toUpperCase() === 'ADMIN' || 
+                userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' || 
+                userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' ||
+                userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || 
+                userRole.toUpperCase() === 'APPROVER' || 
+                userRole.toUpperCase() === 'DEPARTMENT_MANAGER'
+              ) && (
                 <button
                   onClick={handleApproveRequisition}
                   disabled={approving}

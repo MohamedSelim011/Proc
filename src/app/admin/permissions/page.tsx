@@ -99,7 +99,12 @@ export default function PermissionsManagementPage() {
       setLoading(true)
 
       // Fetch all permissions
-      const permResponse = await fetch('/api/admin/permissions')
+      const token = localStorage.getItem('token')
+      const permResponse = await fetch('/api/admin/permissions', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const permData = await permResponse.json()
 
       if (permResponse.ok) {
@@ -115,7 +120,12 @@ export default function PermissionsManagementPage() {
       // Fetch role permissions for all roles
       const rolePermsMap: RolePermissions = {}
       for (const role of ROLES) {
-        const response = await fetch(`/api/admin/roles/${role.value}/permissions`)
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/admin/roles/${role.value}/permissions`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         const data = await response.json()
 
         if (response.ok) {
@@ -195,9 +205,13 @@ export default function PermissionsManagementPage() {
             .filter((p) => currentPerms.has(p.code))
             .map((p) => p.id)
 
+          const token = localStorage.getItem('token')
           const response = await fetch(`/api/admin/roles/${role.value}/permissions`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ permissionIds }),
           })
 
