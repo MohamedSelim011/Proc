@@ -17,6 +17,15 @@ export async function GET(
     const sr = await prisma.purchaseRequisition.findUnique({
       where: { id },
       include: {
+        items: {
+          include: {
+            item: {
+              include: {
+                category: true
+              }
+            }
+          }
+        },
         servicePR: {
           include: {
             items: {
@@ -567,6 +576,44 @@ export async function GET(
               </tfoot>
             </table>
           </div>
+
+          ${sr.items && sr.items.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Material Items (Mixed Requisition)</div>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th style="width: 28%;">Item</th>
+                  <th style="width: 18%;">Category</th>
+                  <th style="width: 14%;">Quantity</th>
+                  <th style="width: 14%;">Unit Price</th>
+                  <th style="width: 26%; text-align: right;">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sr.items.map((item: any) => `
+                  <tr>
+                    <td>
+                      <strong>${item.item?.itemCode || 'N/A'}</strong><br>
+                      <span style="color: #6b7280; font-size: 9px;">${item.item?.nameEn || 'N/A'}</span>
+                      ${item.specifications ? `<br><span style="color: #9ca3af; font-size: 8px; font-style: italic;">${String(item.specifications).substring(0, 100)}${String(item.specifications).length > 100 ? '...' : ''}</span>` : ''}
+                    </td>
+                    <td>${item.item?.category?.nameEn || 'N/A'}</td>
+                    <td>${Number(item.quantity || 0)} ${item.item?.unitOfMeasure || 'Unit'}</td>
+                    <td>${formatCurrency(Number(item.estimatedPrice || 0))}</td>
+                    <td style="text-align: right; font-weight: 600;">${formatCurrency(Number(item.quantity || 0) * Number(item.estimatedPrice || 0))}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td colspan="4" style="text-align: right; padding-right: 15px;"><strong>TOTAL MATERIAL COST:</strong></td>
+                  <td style="text-align: right; font-size: 12px; color: #f97316;"><strong>${formatCurrency(sr.items.reduce((sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)), 0))}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          ` : ''}
 
           <div class="footer">
             <p><strong>WUJHA Procurement System</strong> | This is a system-generated document</p>

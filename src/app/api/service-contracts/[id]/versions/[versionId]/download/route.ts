@@ -22,6 +22,15 @@ export async function GET(
             vendor: true,
             pr: {
               include: {
+                items: {
+                  include: {
+                    item: {
+                      include: {
+                        category: true
+                      }
+                    }
+                  }
+                },
                 servicePR: {
                   include: {
                     items: {
@@ -454,6 +463,36 @@ export async function GET(
                     <td>${item.quantity || 0} ${item.serviceItem?.unitOfMeasure || 'units'}</td>
                     <td>${formatCurrency(Number(item.estimatedRate || 0), version.currency)}</td>
                     <td>${item.duration || 1} ${item.durationUnit || 'DAYS'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          ${version.contract.pr?.items && version.contract.pr.items.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Material Items (Mixed Requisition)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${version.contract.pr.items.map((item: any) => `
+                  <tr>
+                    <td>${item.item?.itemCode || 'N/A'}</td>
+                    <td>${item.item?.nameEn || 'N/A'}</td>
+                    <td>${item.item?.category?.nameEn || 'N/A'}</td>
+                    <td>${item.quantity || 0} ${item.item?.unitOfMeasure || 'Unit'}</td>
+                    <td>${formatCurrency(Number(item.estimatedPrice || 0), version.currency)}</td>
+                    <td>${formatCurrency(Number(item.quantity || 0) * Number(item.estimatedPrice || 0), version.currency)}</td>
                   </tr>
                 `).join('')}
               </tbody>
