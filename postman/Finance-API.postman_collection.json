@@ -1,0 +1,117 @@
+{
+  "info": {
+    "name": "Procurement – Finance API",
+    "description": "APIs for the finance system to read POs and service contracts. Use either **Bearer token** (for SSO) or **API key** (X-API-Key or Authorization: ApiKey). Send X-Request-Id to correlate logs when debugging.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "api_key", "value": "" },
+    { "key": "request_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth: Bearer Token",
+      "item": [
+        {
+          "name": "List POs (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/purchase-orders?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one PO (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/purchase-orders/:poId",
+            "urlVariable": [{ "key": "poId", "value": "" }]
+          }
+        },
+        {
+          "name": "List Contracts (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/contracts?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one Contract (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/contracts/:contractId",
+            "urlVariable": [{ "key": "contractId", "value": "" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth: API Key",
+      "item": [
+        {
+          "name": "List POs (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/purchase-orders?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one PO (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/purchase-orders/:poId",
+            "urlVariable": [{ "key": "poId", "value": "" }]
+          }
+        },
+        {
+          "name": "List Contracts (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/contracts?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one Contract (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/contracts/:contractId",
+            "urlVariable": [{ "key": "contractId", "value": "" }]
+          }
+        }
+      ]
+    }
+  ]
+}
