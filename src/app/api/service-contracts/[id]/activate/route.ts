@@ -100,6 +100,7 @@ export async function POST(
               paymentTerms: contract.paymentTerms,
               status: 'COMPLETED',
               totalAmount,
+              invoicedAmount: 0,
               currency: contract.currency,
               createdBy: activatedBy || contract.createdBy || 'system',
               items: {

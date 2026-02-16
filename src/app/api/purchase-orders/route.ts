@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         paymentTerms: body.paymentTerms,
         status: body.status || 'DRAFT',
         totalAmount,
+        invoicedAmount: 0,
         currency: body.currency || 'OMR',
         createdBy: body.createdBy || null,
         items: {

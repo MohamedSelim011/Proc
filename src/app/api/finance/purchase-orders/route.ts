@@ -71,10 +71,14 @@ export async function GET(request: NextRequest) {
       }),
       prisma.purchaseOrder.count({ where }),
     ]);
+    const purchaseOrders = orders.map((order) => ({
+      ...order,
+      invoicedAmount: order.invoicedAmount ?? 0,
+    }));
 
     const totalPages = Math.ceil(total / limit);
     return financeSuccess(
-      { purchaseOrders: orders },
+      { purchaseOrders },
       { page, limit, total, totalPages },
       requestId
     );

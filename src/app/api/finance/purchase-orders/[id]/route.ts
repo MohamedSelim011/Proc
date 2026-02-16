@@ -120,6 +120,7 @@ export async function GET(
 
     const data = {
       ...order,
+      invoicedAmount: order.invoicedAmount ?? 0,
       goodsReceipts: transformedGoodsReceipts,
       deliveryStats,
       statistics: {

@@ -512,6 +512,7 @@ model PurchaseOrder {
   paymentTerms        String
   status              POStatus             @default(DRAFT)
   totalAmount         Decimal
+  invoicedAmount      Decimal              @default(0)
   currency            String               @default("OMR")
   createdBy           String? // User who created the PO
   acknowledgmentToken String?              @unique // Token for vendor acknowledgment via email

@@ -133,6 +133,7 @@ export async function POST(
             paymentTerms: 'Net 30 days',
             status: 'DRAFT',
             totalAmount: selectedResponse.totalAmount,
+            invoicedAmount: 0,
             currency: 'OMR',
             items: {
               create: rfq.pr.items.map(prItem => ({
