@@ -573,7 +573,7 @@ export default function PurchaseOrderDetailPage() {
               </div>
               <div className="flex items-center gap-1">
                 <FileText className="h-4 w-4" />
-                PR: {po.pr.prNumber}
+                PR: {po.pr?.prNumber ?? '—'}
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -859,6 +859,7 @@ export default function PurchaseOrderDetailPage() {
                 </div>
 
                 {/* PR Reference */}
+                {po.pr && (
                 <div className="mt-6">
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Purchase Requisition</h4>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -866,7 +867,7 @@ export default function PurchaseOrderDetailPage() {
                       <div>
                         <p className="text-sm font-medium text-blue-900">{po.pr.prNumber}</p>
                         <p className="text-xs text-blue-700">Department: {po.pr.departmentId}</p>
-                        <p className="text-xs text-blue-700">Requestor: {po.pr.requestor}</p>
+                        <p className="text-xs text-blue-700">Requestor: {po.pr.requesterId ?? '—'}</p>
                       </div>
                       <Link
                         href={getRequisitionLink()}
@@ -877,6 +878,7 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           )}

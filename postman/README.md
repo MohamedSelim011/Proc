@@ -37,12 +37,13 @@ Collections for **Finance API** and **Inventory API**. Both support **Bearer tok
 
 **Collection:** `Inventory-API.postman_collection.json`  
 **Env:** `INVENTORY_API_KEY`  
-**Scope:** POs only.
+**Scope:** Read POs; create material PRs. Full integration guide: **`docs/INVENTORY_API_GUIDE.md`**.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/inventory/purchase-orders` | List POs (query: `page`, `limit`, `status`, `vendorId`) |
 | GET | `/api/inventory/purchase-orders/:id` | One PO with full details |
+| POST | `/api/inventory/purchase-requisitions` | Create material PR (body: `departmentId`, `budgetCode`, `items`; see guide) |
 
 ---
 

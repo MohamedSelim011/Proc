@@ -36,6 +36,21 @@
             "url": "{{base_url}}/api/inventory/purchase-orders/:poId",
             "urlVariable": [{ "key": "poId", "value": "" }]
           }
+        },
+        {
+          "name": "Create Material PR (Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"departmentId\": \"DEPT-001\",\n  \"budgetCode\": \"BUDGET-2025-01\",\n  \"items\": [\n    {\n      \"itemId\": \"REPLACE_WITH_VALID_ITEM_ID\",\n      \"quantity\": 10,\n      \"estimatedPrice\": 25.5\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/inventory/purchase-requisitions"
+          }
         }
       ]
     },
@@ -63,6 +78,21 @@
             ],
             "url": "{{base_url}}/api/inventory/purchase-orders/:poId",
             "urlVariable": [{ "key": "poId", "value": "" }]
+          }
+        },
+        {
+          "name": "Create Material PR (API Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"departmentId\": \"DEPT-001\",\n  \"budgetCode\": \"BUDGET-2025-01\",\n  \"items\": [\n    {\n      \"itemId\": \"REPLACE_WITH_VALID_ITEM_ID\",\n      \"quantity\": 10,\n      \"estimatedPrice\": 25.5\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/inventory/purchase-requisitions"
           }
         }
       ]
