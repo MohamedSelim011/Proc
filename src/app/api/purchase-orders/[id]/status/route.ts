@@ -15,7 +15,21 @@ export async function PUT(
     const { status, comments, updatedBy } = body;
 
     // Validate status
-    const validStatuses = ['DRAFT', 'APPROVED', 'SENT', 'ACKNOWLEDGED', 'PARTIAL', 'COMPLETED', 'CANCELLED'];
+    const validStatuses = [
+      'DRAFT',
+      'SUBMITTED',
+      'PENDING_APPROVAL',
+      'APPROVED',
+      'SENT',
+      'ACKNOWLEDGED',
+      'PARTIALLY_INVOICED',
+      'INVOICED',
+      'PAID',
+      'PARTIAL',
+      'COMPLETED',
+      'CANCELLED',
+      'REJECTED',
+    ];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
@@ -40,13 +54,19 @@ export async function PUT(
     // Validate status transition
     const currentStatus = order.status;
     const validTransitions: { [key: string]: string[] } = {
-      'DRAFT': ['APPROVED', 'CANCELLED'],
-      'APPROVED': ['SENT', 'CANCELLED'],
-      'SENT': ['ACKNOWLEDGED', 'CANCELLED'],
-      'ACKNOWLEDGED': ['PARTIAL', 'COMPLETED', 'CANCELLED'],
-      'PARTIAL': ['COMPLETED', 'CANCELLED'],
-      'COMPLETED': [], // Final state
-      'CANCELLED': [] // Final state
+      DRAFT: ['SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'CANCELLED'],
+      SUBMITTED: ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'],
+      PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
+      APPROVED: ['SENT', 'CANCELLED'],
+      SENT: ['ACKNOWLEDGED', 'CANCELLED'],
+      ACKNOWLEDGED: ['PARTIAL', 'PARTIALLY_INVOICED', 'INVOICED', 'COMPLETED', 'CANCELLED'],
+      PARTIAL: ['PARTIALLY_INVOICED', 'INVOICED', 'COMPLETED', 'CANCELLED'],
+      PARTIALLY_INVOICED: ['INVOICED', 'PAID', 'CANCELLED'],
+      INVOICED: ['PAID', 'COMPLETED', 'CANCELLED'],
+      PAID: ['COMPLETED'],
+      COMPLETED: ['INVOICED', 'PAID'], // Allow finance flow after delivery completion
+      CANCELLED: [], // Final state
+      REJECTED: [], // Final state
     };
 
     if (!validTransitions[currentStatus]?.includes(status)) {
