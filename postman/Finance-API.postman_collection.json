@@ -40,6 +40,27 @@
           }
         },
         {
+          "name": "Update PO Status (Token)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACKNOWLEDGED\",\n  \"comments\": \"Status updated by finance workflow\",\n  \"updatedBy\": \"finance.api\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/purchase-orders/{{poId}}/status"
+          }
+        },
+        {
           "name": "List Vendors (Token)",
           "request": {
             "method": "GET",
@@ -108,6 +129,27 @@
               { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
             ],
             "url": "{{base_url}}/api/finance/purchase-orders/{{poId}}"
+          }
+        },
+        {
+          "name": "Update PO Status (API Key)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACKNOWLEDGED\",\n  \"comments\": \"Status updated by finance workflow\",\n  \"updatedBy\": \"finance.api\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/purchase-orders/{{poId}}/status"
           }
         },
         {
