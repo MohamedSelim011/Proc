@@ -1,14 +1,17 @@
 {
   "info": {
-    "name": "Procurement – Finance API",
-    "description": "APIs for the finance system to read POs and service contracts. Use either **Bearer token** (for SSO) or **API key** (X-API-Key or Authorization: ApiKey). Send X-Request-Id to correlate logs when debugging.",
+    "name": "Procurement - Finance API",
+    "description": "APIs for the finance system to read purchase orders, vendors, and service contracts. Use either Bearer token (for SSO) or API key (X-API-Key or Authorization: ApiKey). Send X-Request-Id to correlate logs when debugging.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "base_url", "value": "http://localhost:3000" },
     { "key": "token", "value": "" },
     { "key": "api_key", "value": "" },
-    { "key": "request_id", "value": "" }
+    { "key": "request_id", "value": "" },
+    { "key": "poId", "value": "" },
+    { "key": "vendorId", "value": "" },
+    { "key": "contractId", "value": "" }
   ],
   "item": [
     {
@@ -26,15 +29,36 @@
           }
         },
         {
-          "name": "Get one PO (Token)",
+          "name": "Get one PO by ID or PO Number (Token)",
           "request": {
             "method": "GET",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
             ],
-            "url": "{{base_url}}/api/finance/purchase-orders/:poId",
-            "urlVariable": [{ "key": "poId", "value": "" }]
+            "url": "{{base_url}}/api/finance/purchase-orders/{{poId}}"
+          }
+        },
+        {
+          "name": "List Vendors (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/vendors?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one Vendor with POs (Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/vendors/{{vendorId}}"
           }
         },
         {
@@ -56,8 +80,7 @@
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
             ],
-            "url": "{{base_url}}/api/finance/contracts/:contractId",
-            "urlVariable": [{ "key": "contractId", "value": "" }]
+            "url": "{{base_url}}/api/finance/contracts/{{contractId}}"
           }
         }
       ]
@@ -77,15 +100,36 @@
           }
         },
         {
-          "name": "Get one PO (API Key)",
+          "name": "Get one PO by ID or PO Number (API Key)",
           "request": {
             "method": "GET",
             "header": [
               { "key": "X-API-Key", "value": "{{api_key}}" },
               { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
             ],
-            "url": "{{base_url}}/api/finance/purchase-orders/:poId",
-            "urlVariable": [{ "key": "poId", "value": "" }]
+            "url": "{{base_url}}/api/finance/purchase-orders/{{poId}}"
+          }
+        },
+        {
+          "name": "List Vendors (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/vendors?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get one Vendor with POs (API Key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
+            ],
+            "url": "{{base_url}}/api/finance/vendors/{{vendorId}}"
           }
         },
         {
@@ -107,8 +151,7 @@
               { "key": "X-API-Key", "value": "{{api_key}}" },
               { "key": "X-Request-Id", "value": "{{request_id}}", "disabled": true }
             ],
-            "url": "{{base_url}}/api/finance/contracts/:contractId",
-            "urlVariable": [{ "key": "contractId", "value": "" }]
+            "url": "{{base_url}}/api/finance/contracts/{{contractId}}"
           }
         }
       ]

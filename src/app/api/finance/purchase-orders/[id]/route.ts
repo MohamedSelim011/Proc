@@ -39,7 +39,7 @@ const poInclude = {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const requestId = getRequestId(request);
   const auth = getFinanceAuth(request);
@@ -52,9 +52,14 @@ export async function GET(
   }
 
   try {
-    const { id } = await params;
-    const order = await prisma.purchaseOrder.findUnique({
-      where: { id },
+    const lookupKey = decodeURIComponent(params.id || '').trim();
+    const order = await prisma.purchaseOrder.findFirst({
+      where: {
+        OR: [
+          { id: lookupKey },
+          { poNumber: lookupKey },
+        ],
+      },
       include: poInclude,
     });
 
