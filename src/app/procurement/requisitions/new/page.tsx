@@ -10,9 +10,12 @@ import {
   Search,
   AlertCircle,
   CheckCircle,
-  Calculator
+  Calculator,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+
+const CREATE_PR_PREFILL_KEY = 'requisitionCreatePrPrefill';
 
 interface PRItem {
   itemId: string;
@@ -34,6 +37,9 @@ interface PRFormData {
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   requiredByDate: string;
   justification: string;
+  // Material only (Inventory): required for check-availability and Create MR
+  deliveryWarehouseId?: string;
+  inventoryProjectId?: string;
 
   // Step 2: Items
   items: PRItem[];
@@ -61,6 +67,10 @@ export default function NewPurchaseRequisition() {
   const [items, setItems] = useState<Item[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [budgetInfo, setBudgetInfo] = useState<any>(null);
+  const [warehouses, setWarehouses] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [createPrMode, setCreatePrMode] = useState(false);
+  const [insufficientStock, setInsufficientStock] = useState(false);
 
   const [formData, setFormData] = useState<PRFormData>({
     itemType: 'STOCK',
@@ -76,14 +86,57 @@ export default function NewPurchaseRequisition() {
   const { showToast } = useToast();
 
   useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(CREATE_PR_PREFILL_KEY) : null;
+      if (raw) {
+        const prefill = JSON.parse(raw) as Partial<PRFormData>;
+        sessionStorage.removeItem(CREATE_PR_PREFILL_KEY);
+        if (prefill.departmentId != null || prefill.budgetCode != null) {
+          setFormData((prev) => ({
+            ...prev,
+            departmentId: prefill.departmentId ?? prev.departmentId,
+            budgetCode: prefill.budgetCode ?? prev.budgetCode,
+            justification: prefill.justification ?? prev.justification,
+            requiredByDate: prefill.requiredByDate ?? prev.requiredByDate,
+            priority: prefill.priority ?? prev.priority,
+            costCenter: prefill.costCenter ?? prev.costCenter,
+            projectId: prefill.projectId ?? prev.projectId,
+          }));
+          setCreatePrMode(true);
+          showToast('info', 'Add items from the procurement catalog in Step 2, then submit to create the PR (approval → PO).');
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(CREATE_PR_PREFILL_KEY);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
     if (currentStep === 2) {
       fetchItems();
     }
-  }, [currentStep]);
+  }, [currentStep, formData.itemType, createPrMode]);
+
+  useEffect(() => {
+    const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
+    if (currentStep === 1 && isMaterial) {
+      fetch('/api/inventory-warehouses?limit=50')
+        .then((r) => r.json())
+        .then((d) => setWarehouses(d.warehouses || []))
+        .catch(() => setWarehouses([]));
+      fetch('/api/inventory-projects?limit=50')
+        .then((r) => r.json())
+        .then((d) => setProjects(d.projects || []))
+        .catch(() => setProjects([]));
+    }
+  }, [currentStep, formData.itemType]);
 
   const fetchItems = async () => {
     try {
-      const response = await fetch('/api/items');
+      const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
+      const useProcurementCatalog = createPrMode || !isMaterial;
+      const url = useProcurementCatalog ? '/api/items' : '/api/inventory-items?limit=100';
+      const response = await fetch(url);
       const data = await response.json();
       if (response.ok) {
         setItems(data.items || []);
@@ -132,6 +185,12 @@ export default function NewPurchaseRequisition() {
       }
       
       if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
+
+      const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
+      if (isMaterial && !createPrMode) {
+        if (!formData.deliveryWarehouseId?.trim()) newErrors.deliveryWarehouseId = 'Delivery warehouse is required for material requisition';
+        if (!formData.inventoryProjectId?.trim()) newErrors.inventoryProjectId = 'Project is required for material requisition';
+      }
     }
 
     if (step === 2) {
@@ -232,52 +291,204 @@ export default function NewPurchaseRequisition() {
   };
 
   const handleSubmit = async () => {
-    // Validate step 3 before submitting
-    if (!validateStep(3)) {
-      return;
-    }
+    if (!validateStep(3)) return;
+
+    const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
+    const warehouseId = formData.deliveryWarehouseId?.trim();
+    const projectId = formData.inventoryProjectId?.trim();
+
+    const log = (msg: string, data?: unknown) => {
+      console.log('[Requisition]', msg, data ?? '');
+    };
 
     try {
       setLoading(true);
+      log('Submit started', { isMaterial, createPrMode, warehouseId: !!warehouseId, projectId: !!projectId, items: formData.items.length });
 
-      // Get user data from localStorage
-      const userDataStr = localStorage.getItem('user');
+      if (createPrMode) {
+        const userDataStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        const userData = userDataStr ? JSON.parse(userDataStr) : null;
+        const requesterId = userData?.employeeId || userData?.id || 'emp001';
+        const submitData = {
+          ...formData,
+          costCenter: formData.costCenter?.trim() || undefined,
+          requesterId,
+          estimatedCost: calculateTotalCost(),
+          autoSubmit: false,
+        };
+        const response = await fetch('/api/purchase-requisitions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submitData),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          showToast('success', 'Purchase requisition created successfully!');
+          router.push(`/procurement/requisitions/${data.id}`);
+        } else {
+          showToast('error', data.error || 'Failed to create purchase requisition');
+          setErrors({ submit: data.error || 'Failed to create purchase requisition' });
+        }
+        return;
+      }
+
+      if (isMaterial && warehouseId && projectId) {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        log('Calling check-availability', { warehouseId, itemCount: formData.items.length });
+        const checkRes = await fetch('/api/material-requisition/check-availability', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            items: formData.items.map((i) => ({
+              itemId: i.itemId,
+              quantity: i.quantity,
+              warehouseId,
+            })),
+          }),
+        });
+        const checkData = await checkRes.json();
+        log('check-availability response', { ok: checkRes.ok, status: checkRes.status, recommendation: checkData?.data?.overallRecommendation, error: checkData?.error, full: checkData });
+
+        if (!checkRes.ok) {
+          const errMsg = checkData.error || 'Failed to check availability';
+          showToast('error', errMsg);
+          setErrors({ submit: `${errMsg} Check server console (terminal) and browser DevTools (F12 → Console) for details.` });
+          return;
+        }
+
+        const recommendation = checkData?.data?.overallRecommendation;
+        if (recommendation === 'DIRECT_ISSUE_ALL') {
+          const mrRes = await fetch('/api/material-requisition/create-mr', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              projectId,
+              deliveryWarehouseId: warehouseId,
+              requiredDate: formData.requiredByDate,
+              purpose: formData.justification?.trim() || 'Material requisition from Procurement',
+              priority: formData.priority,
+              items: formData.items.map((i) => ({
+                itemId: i.itemId,
+                quantity: i.quantity,
+                requiredDate: formData.requiredByDate,
+              })),
+              justification: formData.justification?.trim(),
+            }),
+          });
+          const mrData = await mrRes.json();
+
+          if (mrRes.ok) {
+            showToast('success', 'Material requisition (MR) created in Inventory. Please follow up with the Inventory team for stock issuance.');
+            setFormData({
+              itemType: 'STOCK',
+              departmentId: '',
+              priority: 'NORMAL',
+              requiredByDate: '',
+              justification: '',
+              items: [],
+              budgetCode: '',
+            });
+            setCurrentStep(1);
+            setItems([]);
+          } else {
+            const errMsg = mrData.error || 'Failed to create material requisition';
+            log('create-mr failed', { status: mrRes.status, error: mrData.error, full: mrData });
+            showToast('error', errMsg);
+            setErrors({ submit: `${errMsg} Check server console and browser Console (F12) for details.` });
+          }
+          return;
+        }
+
+        // Stock insufficient: create PR in Procurement and MR in Inventory (Needs PO) in one go
+        log('Stock insufficient – calling create-pr-and-mr', { departmentId: formData.departmentId, items: formData.items.length, deliveryWarehouseId: warehouseId, inventoryProjectId: projectId });
+        const prAndMrRes = await fetch('/api/material-requisition/create-pr-and-mr', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            departmentId: formData.departmentId,
+            budgetCode: formData.budgetCode,
+            justification: formData.justification?.trim(),
+            requiredByDate: formData.requiredByDate,
+            priority: formData.priority,
+            costCenter: formData.costCenter?.trim() || undefined,
+            projectId: formData.projectId,
+            deliveryWarehouseId: warehouseId,
+            inventoryProjectId: projectId,
+            items: formData.items.map((i) => ({
+              itemCode: i.itemCode,
+              quantity: i.quantity,
+              estimatedPrice: i.estimatedPrice ?? 0,
+              inventoryItemId: i.itemId,
+              requiredDate: formData.requiredByDate,
+            })),
+          }),
+        });
+        const prAndMrData = await prAndMrRes.json();
+        log('create-pr-and-mr response', { ok: prAndMrRes.ok, status: prAndMrRes.status, prId: prAndMrData?.data?.prId, mrId: prAndMrData?.data?.mrId, mrError: prAndMrData?.data?.mrError, error: prAndMrData?.error, full: prAndMrData });
+
+        if (prAndMrRes.ok && prAndMrData?.data?.prId) {
+          if (prAndMrData.data.mrError) {
+            showToast(
+              'warning',
+              `PR created. MR in Inventory was not created: ${prAndMrData.data.mrError}`
+            );
+          } else if (prAndMrData.data.mrId) {
+            showToast(
+              'success',
+              "Purchase Requisition (PR) created and MR created in Inventory with status 'Needs PO'. Follow the approval cycle for the PR; once the PO is created, the Inventory team can fulfill the MR."
+            );
+          } else {
+            showToast('success', 'Purchase Requisition (PR) created. Follow the approval cycle to create a PO.');
+          }
+          router.push(`/procurement/requisitions/${prAndMrData.data.prId}`);
+          return;
+        }
+
+        const errMsg = prAndMrData?.error || 'Could not create PR automatically.';
+        showToast('error', errMsg);
+        setInsufficientStock(true);
+        setErrors({
+          submit: `${errMsg} Check server terminal and browser Console (F12) for [req] create-pr-and-mr logs. If you see validation or Inventory errors there, fix and try again.`,
+        });
+        return;
+      }
+
+      const userDataStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
       const userData = userDataStr ? JSON.parse(userDataStr) : null;
       const requesterId = userData?.employeeId || userData?.id || 'emp001';
-
-      // Trim whitespace from costCenter before submitting
       const trimmedCostCenter = formData.costCenter?.trim() || undefined;
-
       const submitData = {
         ...formData,
         costCenter: trimmedCostCenter,
         requesterId,
         estimatedCost: calculateTotalCost(),
-        autoSubmit: false // Keep as draft initially
+        autoSubmit: false,
       };
 
       const response = await fetch('/api/purchase-requisitions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
-
       const data = await response.json();
 
       if (response.ok) {
         showToast('success', 'Purchase requisition created successfully!');
         router.push(`/procurement/requisitions/${data.id}`);
       } else {
-        showToast('error', data.error || 'Failed to create purchase requisition');
-        console.error('Error creating PR:', data.error);
-        setErrors({ submit: data.error || 'Failed to create purchase requisition' });
+        const errMsg = data.error || 'Failed to create purchase requisition';
+        log('POST /api/purchase-requisitions failed', { status: response.status, error: data.error, full: data });
+        showToast('error', errMsg);
+        setErrors({ submit: `${errMsg} Check server console and browser Console (F12) for details.` });
       }
     } catch (error) {
-      showToast('error', 'An error occurred while creating the requisition');
-      console.error('Error submitting PR:', error);
-      setErrors({ submit: 'Failed to create purchase requisition' });
+      const errMsg = error instanceof Error ? error.message : 'An error occurred while creating the requisition';
+      log('Submit threw', error);
+      showToast('error', errMsg);
+      setErrors({ submit: `${errMsg} Check browser Console (F12) and server terminal.` });
     } finally {
       setLoading(false);
     }
@@ -361,6 +572,14 @@ export default function NewPurchaseRequisition() {
         {/* Form Content */}
         <div className="bg-white shadow-xl rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-8 py-10">
+            {createPrMode && (
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-900">
+                  <strong>Creating a Purchase Requisition (PR) for procurement.</strong> Your details are pre-filled. Go to <strong>Step 2</strong>, add the same or equivalent items from the <strong>procurement catalog</strong>, then <strong>Step 3</strong> and submit. This PR will enter the approval cycle; after approval it can be converted to a Purchase Order (PO).
+                </p>
+                <p className="mt-1 text-xs text-amber-800">PR → Approval → Purchase Order</p>
+              </div>
+            )}
             {/* Step 1: Basic Information */}
             {currentStep === 1 && (
               <div className="space-y-8">
@@ -549,6 +768,57 @@ export default function NewPurchaseRequisition() {
                       placeholder="Bill of quantities reference"
                     />
                   </div>
+
+                  {(formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK') && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800">
+                          Delivery Warehouse <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base ${
+                            errors.deliveryWarehouseId ? 'border-red-300' : ''
+                          }`}
+                          value={formData.deliveryWarehouseId || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, deliveryWarehouseId: e.target.value }))}
+                        >
+                          <option value="">Select warehouse</option>
+                          {warehouses.map((w) => (
+                            <option key={w.id} value={w.id}>{w.code} – {w.name}</option>
+                          ))}
+                        </select>
+                        {errors.deliveryWarehouseId && (
+                          <p className="mt-2 text-sm text-red-600 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            {errors.deliveryWarehouseId}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800">
+                          Project <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base ${
+                            errors.inventoryProjectId ? 'border-red-300' : ''
+                          }`}
+                          value={formData.inventoryProjectId || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, inventoryProjectId: e.target.value }))}
+                        >
+                          <option value="">Select project</option>
+                          {projects.map((p) => (
+                            <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
+                          ))}
+                        </select>
+                        {errors.inventoryProjectId && (
+                          <p className="mt-2 text-sm text-red-600 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            {errors.inventoryProjectId}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -968,9 +1238,34 @@ export default function NewPurchaseRequisition() {
                 {errors.submit && (
                   <div className="rounded-md bg-red-50 p-4">
                     <div className="flex">
-                      <AlertCircle className="h-5 w-5 text-red-400" />
-                      <div className="ml-3">
+                      <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="ml-3 flex-1">
                         <p className="text-sm text-red-800">{errors.submit}</p>
+                        {insufficientStock && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                sessionStorage.setItem(CREATE_PR_PREFILL_KEY, JSON.stringify({
+                                  departmentId: formData.departmentId,
+                                  budgetCode: formData.budgetCode,
+                                  justification: formData.justification,
+                                  requiredByDate: formData.requiredByDate,
+                                  priority: formData.priority,
+                                  costCenter: formData.costCenter,
+                                  projectId: formData.projectId,
+                                }));
+                                router.push('/procurement/requisitions/new');
+                              } catch {
+                                router.push('/procurement/requisitions/new');
+                              }
+                            }}
+                            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Create PR (next: add items from catalog, then submit → approval → PO)
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

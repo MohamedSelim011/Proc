@@ -2,9 +2,26 @@
 
 Guide for the **inventory application** integrating with the **Procurement** system: read Purchase Orders (POs) and **create material Purchase Requisitions (PRs)** that follow the normal procurement flow.
 
+**Procurement → Inventory (calling Inventory from Procurement):** See **`docs/INVENTORY_API_CONTRACT.md`** for the full Inventory API contract (auth, GET items/warehouses/projects/users, POST check-availability, POST requisitions Create MR, GET requisitions/:id). Procurement uses that contract for material requisition flows.
+
 ---
 
-## Base URL and authentication
+## Procurement → Inventory (material requisition only)
+
+When a user creates a **material** requisition in Procurement, the app may call the **Wujha Inventory** system for: item catalog, check availability, and create Material Requisition (MR). This applies **only to material requisitions**; service and service+material flows are unchanged.
+
+**Env variables (Procurement `.env`):**
+
+| Variable | Description |
+|----------|-------------|
+| `INVENTORY_SYSTEM_BASE_URL` | Base URL of the Inventory app (e.g. `https://inventory.example.com`) |
+| `INVENTORY_SYSTEM_API_KEY` | API key for server-to-server calls (Inventory team provides it) |
+
+**Implementation checklist:** See **`docs/INVENTORY_INTEGRATION_TODO.md`** for step-by-step tasks and API routes (e.g. GET /api/inventory-items, POST /api/material-requisition/check-availability, POST /api/material-requisition/create-mr). User mapping: Procurement uses **email** to resolve the requester to Inventory’s `userId` (GET /api/users).
+
+---
+
+## Base URL and authentication (Inventory → Procurement)
 
 - **Base URL:** e.g. `https://wujhaprocurement-staging.up.railway.app` (or your deployment).
 - **Authentication:** Every request must include one of:
