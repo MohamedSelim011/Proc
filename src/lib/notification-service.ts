@@ -1,9 +1,21 @@
 import { prisma } from '@/lib/db'
-import { RACIType, NotificationType } from '@prisma/client'
+import { RACIType, NotificationType, UserRole } from '@prisma/client'
 
 /**
  * Notification service for RACI Informed parties
  */
+
+/** Get all active system admin user IDs (ADMIN + SUPER_ADMIN) so they always receive approval notifications */
+async function getSystemAdminUserIds(): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+      isActive: true,
+    },
+    select: { id: true },
+  })
+  return users.map((u) => u.id)
+}
 
 export interface NotificationData {
   documentType: string
@@ -38,7 +50,8 @@ export async function createInformedNotification(
 }
 
 /**
- * Create notifications for all INFORMED parties based on approval routing
+ * Create notifications for all INFORMED parties based on approval routing.
+ * System admins (ADMIN + SUPER_ADMIN) are always included so they receive every approval notification.
  */
 export async function notifyInformedParties(
   documentType: string,
@@ -46,7 +59,10 @@ export async function notifyInformedParties(
   userIds: string[],
   approvalId?: string
 ): Promise<void> {
-  const notifications = userIds.map((userId) => ({
+  const adminIds = await getSystemAdminUserIds()
+  const allUserIds = [...new Set([...userIds, ...adminIds])]
+
+  const notifications = allUserIds.map((userId) => ({
     documentType,
     documentId,
     approvalId,
@@ -97,7 +113,8 @@ export async function queueNotificationEmail(data: NotificationData): Promise<vo
 }
 
 /**
- * Send notification to all INFORMED parties with email queue
+ * Send notification to all INFORMED parties with email queue.
+ * System admins (ADMIN + SUPER_ADMIN) are always included.
  */
 export async function sendInformedNotifications(
   documentType: string,
@@ -107,11 +124,14 @@ export async function sendInformedNotifications(
   message: string,
   metadata?: any
 ): Promise<void> {
-  // Create in-app notifications
+  const adminIds = await getSystemAdminUserIds()
+  const allUserIds = [...new Set([...userIds, ...adminIds])]
+
+  // Create in-app notifications (notifyInformedParties adds admins internally)
   await notifyInformedParties(documentType, documentId, userIds)
 
-  // Queue email notifications
-  for (const userId of userIds) {
+  // Queue email notifications for everyone including system admins
+  for (const userId of allUserIds) {
     await queueNotificationEmail({
       documentType,
       documentId,

@@ -11,7 +11,9 @@ import {
   AlertCircle,
   CheckCircle,
   Calculator,
-  FileText
+  FileText,
+  BarChart2,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
@@ -71,6 +73,21 @@ export default function NewPurchaseRequisition() {
   const [projects, setProjects] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [createPrMode, setCreatePrMode] = useState(false);
   const [insufficientStock, setInsufficientStock] = useState(false);
+  const [stockAnalysisLoading, setStockAnalysisLoading] = useState(false);
+  const [stockAnalysisResult, setStockAnalysisResult] = useState<{
+    overallRecommendation: string;
+    summary?: { fullyAvailable?: number; notAvailable?: number; totalItems?: number };
+    items?: Array<{
+      itemId: string;
+      itemCode?: string;
+      itemName?: string;
+      requestedQuantity: number;
+      availableStock?: number;
+      canFulfillNow?: number;
+      needsProcurement?: number;
+      suggestedFulfillment?: string;
+    }>;
+  } | null>(null);
 
   const [formData, setFormData] = useState<PRFormData>({
     itemType: 'STOCK',
@@ -230,10 +247,13 @@ export default function NewPurchaseRequisition() {
       } else {
         setCurrentStep(currentStep + 1);
       }
+    } else if (currentStep === 3) {
+      showToast('error', 'Please fix the errors above (e.g. Budget Code is required) before creating the requisition.');
     }
   };
 
   const handlePrevious = () => {
+    if (currentStep === 3) setStockAnalysisResult(null);
     setCurrentStep(currentStep - 1);
   };
 
@@ -290,6 +310,56 @@ export default function NewPurchaseRequisition() {
     );
   };
 
+  const runStockAnalysis = async () => {
+    const warehouseId = formData.deliveryWarehouseId?.trim();
+    if (!warehouseId || formData.items.length === 0) {
+      showToast('error', 'Add at least one item and select a delivery warehouse (Step 1) to run stock analysis.');
+      return;
+    }
+    setStockAnalysisLoading(true);
+    setStockAnalysisResult(null);
+    try {
+      const res = await fetch('/api/material-requisition/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: formData.items.map((i) => ({
+            itemId: i.itemId,
+            quantity: i.quantity,
+            warehouseId,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast('error', data.error || 'Stock analysis failed.');
+        setStockAnalysisLoading(false);
+        return;
+      }
+      const recommendation = data?.data?.overallRecommendation;
+      const summary = data?.data?.summary;
+      const items = data?.data?.items;
+      setStockAnalysisResult({
+        overallRecommendation: recommendation ?? 'PROCUREMENT_REQUIRED',
+        summary: summary ? { fullyAvailable: summary.fullyAvailable, notAvailable: summary.notAvailable, totalItems: summary.totalItems } : undefined,
+        items: Array.isArray(items) ? items.map((it: { itemId?: string; itemCode?: string; itemName?: string; requestedQuantity?: number; availableStock?: number; canFulfillNow?: number; needsProcurement?: number; suggestedFulfillment?: string }) => ({
+          itemId: it.itemId ?? '',
+          itemCode: it.itemCode,
+          itemName: it.itemName,
+          requestedQuantity: Number(it.requestedQuantity) ?? 0,
+          availableStock: it.availableStock != null ? Number(it.availableStock) : undefined,
+          canFulfillNow: it.canFulfillNow != null ? Number(it.canFulfillNow) : undefined,
+          needsProcurement: it.needsProcurement != null ? Number(it.needsProcurement) : undefined,
+          suggestedFulfillment: it.suggestedFulfillment,
+        })) : undefined,
+      });
+    } catch {
+      showToast('error', 'Stock analysis failed. Try again.');
+    } finally {
+      setStockAnalysisLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
 
@@ -301,8 +371,10 @@ export default function NewPurchaseRequisition() {
       console.log('[Requisition]', msg, data ?? '');
     };
 
+    let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
       setLoading(true);
+      loadingTimeout = setTimeout(() => setLoading(false), 90_000);
       log('Submit started', { isMaterial, createPrMode, warehouseId: !!warehouseId, projectId: !!projectId, items: formData.items.length });
 
       if (createPrMode) {
@@ -490,6 +562,7 @@ export default function NewPurchaseRequisition() {
       showToast('error', errMsg);
       setErrors({ submit: `${errMsg} Check browser Console (F12) and server terminal.` });
     } finally {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
       setLoading(false);
     }
   };
@@ -1234,6 +1307,97 @@ export default function NewPurchaseRequisition() {
                     </div>
                   </div>
                 </div>
+
+                {/* Stock Analysis (material only, not createPrMode) */}
+                {(formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK') && !createPrMode && (
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={runStockAnalysis}
+                      disabled={stockAnalysisLoading || formData.items.length === 0 || !formData.deliveryWarehouseId?.trim()}
+                      className="inline-flex items-center gap-2 rounded-lg bg-slate-700 text-white px-4 py-2.5 text-sm font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {stockAnalysisLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <BarChart2 className="h-4 w-4" />
+                      )}
+                      {stockAnalysisLoading ? 'Analyzing stock…' : 'Stock Analysis'}
+                    </button>
+                    {stockAnalysisResult && (
+                      <div
+                        className={`rounded-xl border-2 p-5 ${
+                          stockAnalysisResult.overallRecommendation === 'DIRECT_ISSUE_ALL'
+                            ? 'border-green-300 bg-green-50'
+                            : stockAnalysisResult.overallRecommendation === 'MIXED_FULFILLMENT'
+                              ? 'border-amber-300 bg-amber-50'
+                              : 'border-amber-400 bg-amber-50'
+                        }`}
+                      >
+                        <p className="font-semibold text-gray-900 mb-1">Stock analysis result</p>
+                        {stockAnalysisResult.overallRecommendation === 'DIRECT_ISSUE_ALL' && (
+                          <p className="text-sm text-green-900">
+                            All items are available in inventory. When you submit, <strong>only a Material Requisition (MR)</strong> will be created in the Inventory system. <strong>No Purchase Order will be created.</strong> Please follow up with the Inventory team for stock issuance.
+                          </p>
+                        )}
+                        {stockAnalysisResult.overallRecommendation === 'PROCUREMENT_REQUIRED' && (
+                          <p className="text-sm text-amber-900">
+                            One or more items are not fully in stock. When you submit, a <strong>Purchase Requisition (PR)</strong> will be created and will go through <strong>approval → Purchase Order (PO)</strong>. An MR will also be created in Inventory with status &quot;Needs PO&quot;.
+                          </p>
+                        )}
+                        {stockAnalysisResult.overallRecommendation === 'MIXED_FULFILLMENT' && (
+                          <p className="text-sm text-amber-900">
+                            Some items can be issued from stock, others need procurement. When you submit: an <strong>MR</strong> will be created for the available items (follow up with the Inventory team), and a <strong>PR</strong> will be created for the rest (approval → PO).
+                          </p>
+                        )}
+                        {stockAnalysisResult.summary && (
+                          <p className="mt-2 text-xs text-gray-600">
+                            Summary: {stockAnalysisResult.summary.fullyAvailable ?? 0} fully available, {stockAnalysisResult.summary.notAvailable ?? 0} not available
+                            {stockAnalysisResult.summary.totalItems != null && ` (${stockAnalysisResult.summary.totalItems} total)`}.
+                          </p>
+                        )}
+                        {stockAnalysisResult.items && stockAnalysisResult.items.length > 0 && (
+                          <div className="mt-4 overflow-x-auto">
+                            <p className="font-medium text-gray-900 mb-2">Per item</p>
+                            <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                              <thead>
+                                <tr className="bg-gray-100 text-left">
+                                  <th className="px-3 py-2 font-semibold text-gray-700">Item</th>
+                                  <th className="px-3 py-2 font-semibold text-gray-700 text-right">Requested</th>
+                                  <th className="px-3 py-2 font-semibold text-gray-700 text-right">Available</th>
+                                  <th className="px-3 py-2 font-semibold text-gray-700 text-right">From stock</th>
+                                  <th className="px-3 py-2 font-semibold text-gray-700 text-right">Needs procurement</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {stockAnalysisResult.items.map((row, idx) => (
+                                  <tr key={row.itemId || idx} className="border-t border-gray-200 bg-white">
+                                    <td className="px-3 py-2 text-gray-900">
+                                      {row.itemName || row.itemCode || row.itemId || '—'}
+                                      {row.itemCode && row.itemName && row.itemCode !== row.itemName && (
+                                        <span className="text-gray-500 ml-1">({row.itemCode})</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">{row.requestedQuantity}</td>
+                                    <td className="px-3 py-2 text-right">{row.availableStock ?? '—'}</td>
+                                    <td className="px-3 py-2 text-right">{row.canFulfillNow ?? '—'}</td>
+                                    <td className="px-3 py-2 text-right">
+                                      {row.needsProcurement != null && row.needsProcurement > 0 ? (
+                                        <span className="font-medium text-amber-800">{row.needsProcurement}</span>
+                                      ) : (
+                                        '—'
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {errors.submit && (
                   <div className="rounded-md bg-red-50 p-4">
