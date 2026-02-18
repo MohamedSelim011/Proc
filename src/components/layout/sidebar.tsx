@@ -98,18 +98,18 @@ const navigation: NavigationItem[] = [
     icon: Truck,
     description: 'Delivery and inspection'
   },
-  {
-    name: 'Invoices',
-    href: '/procurement/invoices',
-    icon: Receipt,
-    description: 'Invoice processing'
-  },
-  {
-    name: 'Payments',
-    href: '/procurement/payments',
-    icon: CreditCard,
-    description: 'Payment processing'
-  },
+  // {
+  //   name: 'Invoices',
+  //   href: '/procurement/invoices',
+  //   icon: Receipt,
+  //   description: 'Invoice processing'
+  // },
+  // {
+  //   name: 'Payments',
+  //   href: '/procurement/payments',
+  //   icon: CreditCard,
+  //   description: 'Payment processing'
+  // },
   {
     name: 'Services',
     href: '#', // Make it non-navigable - only expandable
@@ -120,7 +120,7 @@ const navigation: NavigationItem[] = [
       { name: 'Requisitions', href: '/procurement/services/requisitions', icon: FileText },
       { name: 'RFPs', href: '/procurement/services/rfp', icon: Send },
       { name: 'Contracts', href: '/procurement/services/contracts', icon: CreditCard },
-      { name: 'Receipts', href: '/procurement/services/receipts', icon: Receipt },
+      // { name: 'Receipts', href: '/procurement/services/receipts', icon: Receipt },
       { name: 'Performance', href: '/procurement/services/performance', icon: TrendingUp },
     //   { name: 'Delivery', href: '/procurement/services/delivery', icon: Truck },
     //   { name: 'Performance', href: '/procurement/services/performance', icon: BarChart3 },
