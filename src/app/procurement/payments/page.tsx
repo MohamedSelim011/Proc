@@ -18,6 +18,7 @@ import {
   Building,
   Banknote
 } from 'lucide-react';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface Invoice {
   id: string;
@@ -455,53 +456,42 @@ function PaymentsPageContent() {
       {activeTab === 'pending' && (
         <div className="space-y-6">
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <input
-                  type="text"
-                  placeholder="Search invoices..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder-gray-400"
-                  value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                  value={filters.currency}
-                  onChange={(e) => setFilters(prev => ({ ...prev, currency: e.target.value }))}
-                >
-                  <option value="">All Currencies</option>
-                  <option value="OMR">OMR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="Vendor ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder-gray-400"
-                  value={filters.vendorId}
-                  onChange={(e) => setFilters(prev => ({ ...prev, vendorId: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <button
-                  onClick={() => {
-                    setFilters({ vendorId: '', currency: '', dueDate: '', search: '' });
-                  }}
-                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md shadow-sm hover:bg-gray-200 transition-colors"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            </div>
-          </div>
+          <ListFiltersCard
+            onClear={() => setFilters({ vendorId: '', currency: '', dueDate: '', search: '' })}
+            className="mb-6"
+            columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
+          >
+            <ListFilterField label="Search">
+              <input
+                type="text"
+                placeholder="Search by invoice number..."
+                className="erp-input"
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              />
+            </ListFilterField>
+            <ListFilterField label="Currency">
+              <select
+                className="erp-input"
+                value={filters.currency}
+                onChange={(e) => setFilters(prev => ({ ...prev, currency: e.target.value }))}
+              >
+                <option value="">All</option>
+                <option value="OMR">OMR</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </ListFilterField>
+            <ListFilterField label="Vendor">
+              <input
+                type="text"
+                placeholder="Vendor ID"
+                className="erp-input"
+                value={filters.vendorId}
+                onChange={(e) => setFilters(prev => ({ ...prev, vendorId: e.target.value }))}
+              />
+            </ListFilterField>
+          </ListFiltersCard>
 
           {/* Invoice Selection */}
           {paymentForm.selectedInvoices.length > 0 && (

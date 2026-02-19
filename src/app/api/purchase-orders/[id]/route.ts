@@ -60,6 +60,11 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           }
+        },
+        documents: {
+          orderBy: {
+            uploadedAt: 'desc'
+          }
         }
       }
     });

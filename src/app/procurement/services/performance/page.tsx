@@ -17,6 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import Link from 'next/link';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServicePerformance {
   id: string;
@@ -334,72 +335,55 @@ export default function ServicePerformance() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search contracts..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Deliverable Status
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="ON_TRACK">On Track</option>
-              <option value="DELAYED">Delayed</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="AT_RISK">At Risk</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vendor
-            </label>
-            <input
-              type="text"
-              placeholder="Vendor name"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-              value={filters.vendor}
-              onChange={(e) => handleFilterChange('vendor', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Performance Range
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-              value={filters.performanceRange}
-              onChange={(e) => handleFilterChange('performanceRange', e.target.value)}
-            >
-              <option value="">All Performance</option>
-              <option value="excellent">Excellent (4.5+)</option>
-              <option value="good">Good (4.0-4.4)</option>
-              <option value="average">Average (3.5-3.9)</option>
-              <option value="poor">Poor (&lt;3.5)</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', vendor: '', performanceRange: '' })}
+        className="mb-6"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search contracts..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Deliverable Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="ON_TRACK">On Track</option>
+            <option value="DELAYED">Delayed</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="AT_RISK">At Risk</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Vendor">
+          <input
+            type="text"
+            placeholder="Vendor name"
+            className="erp-input"
+            value={filters.vendor}
+            onChange={(e) => handleFilterChange('vendor', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Performance Range">
+          <select
+            className="erp-input"
+            value={filters.performanceRange}
+            onChange={(e) => handleFilterChange('performanceRange', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="excellent">Excellent (4.5+)</option>
+            <option value="good">Good (4.0-4.4)</option>
+            <option value="average">Average (3.5-3.9)</option>
+            <option value="poor">Poor (&lt;3.5)</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Results Summary */}
       <div className="bg-white shadow rounded-lg p-4">

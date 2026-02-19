@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServicePayment {
   id: string;
@@ -488,73 +489,67 @@ export default function ServicePaymentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search payments..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.paymentStatus}
-              onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
-            >
-              <option value="">Payment Status</option>
-              <option value="UNPAID">Unpaid</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="PAID">Paid</option>
-              <option value="OVERDUE">Overdue</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.approvalStatus}
-              onChange={(e) => setFilters(prev => ({ ...prev, approvalStatus: e.target.value }))}
-            >
-              <option value="">Approval Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.serviceType}
-              onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
-            >
-              <option value="">Service Type</option>
-              <option value="CONSULTING">Consulting</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="TRAINING">Training</option>
-              <option value="SUPPORT">Support</option>
-            </select>
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ paymentStatus: '', approvalStatus: '', serviceType: '', vendorId: '', search: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-          <div>
-            <button
-              onClick={handleSelectAll}
-              className="w-full px-4 py-2 text-sm font-medium text-orange-600 bg-orange-100 rounded-lg hover:bg-orange-200"
-            >
-              {selectedPayments.length > 0 ? 'Deselect All' : 'Select All'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ paymentStatus: '', approvalStatus: '', serviceType: '', vendorId: '', search: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by invoice number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          />
+        </ListFilterField>
+        <ListFilterField label="Payment Status">
+          <select
+            className="erp-input"
+            value={filters.paymentStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="UNPAID">Unpaid</option>
+            <option value="PARTIAL">Partial</option>
+            <option value="PAID">Paid</option>
+            <option value="OVERDUE">Overdue</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Approval Status">
+          <select
+            className="erp-input"
+            value={filters.approvalStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, approvalStatus: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Service Type">
+          <select
+            className="erp-input"
+            value={filters.serviceType}
+            onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="CONSULTING">Consulting</option>
+            <option value="MAINTENANCE">Maintenance</option>
+            <option value="TRAINING">Training</option>
+            <option value="SUPPORT">Support</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Selection" className="flex items-end">
+          <button
+            onClick={handleSelectAll}
+            className="w-full rounded-md border border-wujha-secondary bg-wujha-secondary/10 px-3 py-2 text-sm font-medium text-wujha-secondary-hover hover:bg-wujha-secondary/20"
+          >
+            {selectedPayments.length > 0 ? 'Deselect All' : 'Select All'}
+          </button>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Payments List */}
       <div className="space-y-6">

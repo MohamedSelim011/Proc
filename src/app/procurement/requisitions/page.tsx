@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface PurchaseRequisition {
   id: string;
@@ -339,58 +340,50 @@ export default function PurchaseRequisitionsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search PRs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white placeholder:text-gray-600"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              style={{ color: '#111827' }}
-            >
-              <option value="" style={{ color: '#111827' }}>All Statuses</option>
-              <option value="DRAFT" style={{ color: '#111827' }}>Draft</option>
-              <option value="PENDING_APPROVAL" style={{ color: '#111827' }}>Pending Approval</option>
-              <option value="SUBMITTED" style={{ color: '#111827' }}>Submitted</option>
-              <option value="APPROVED" style={{ color: '#111827' }}>Approved</option>
-              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
-              <option value="CONVERTED" style={{ color: '#111827' }}>Converted</option>
-              <option value="CANCELLED" style={{ color: '#111827' }}>Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
-              value={filters.priority}
-              onChange={(e) => handleFilterChange('priority', e.target.value)}
-              style={{ color: '#111827' }}
-            >
-              <option value="" style={{ color: '#111827' }}>All Priorities</option>
-              <option value="LOW" style={{ color: '#111827' }}>Low</option>
-              <option value="NORMAL" style={{ color: '#111827' }}>Normal</option>
-              <option value="HIGH" style={{ color: '#111827' }}>High</option>
-              <option value="URGENT" style={{ color: '#111827' }}>Urgent</option>
-            </select>
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ search: '', status: '', priority: '', requesterId: '', departmentId: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', priority: '', requesterId: '', departmentId: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by PR number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CONVERTED">Converted</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Priority">
+          <select
+            className="erp-input"
+            value={filters.priority}
+            onChange={(e) => handleFilterChange('priority', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="LOW">Low</option>
+            <option value="NORMAL">Normal</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">

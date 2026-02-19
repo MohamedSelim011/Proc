@@ -17,6 +17,7 @@ import {
   X
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import DocumentManager from '@/components/documents/document-manager';
 
 interface ServiceRFP {
   id: string;
@@ -89,6 +90,16 @@ interface ServiceRFP {
     approvedAt: string | null;
     level: number;
   }>;
+  documents?: Array<{
+    id: string;
+    documentType?: string | null;
+    documentName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    uploadedBy?: string | null;
+    uploadedAt: string;
+  }>;
 }
 
 export default function ServiceRFPDetailPage() {
@@ -106,6 +117,8 @@ export default function ServiceRFPDetailPage() {
   const [showWinnerConfirmModal, setShowWinnerConfirmModal] = useState(false);
   const [pendingWinnerSelection, setPendingWinnerSelection] = useState<{responseId: string; vendorId: string} | null>(null);
   const [selectingWinner, setSelectingWinner] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'invited-vendors' | 'vendor-proposals' | 'documents'>('general');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   useEffect(() => {
     if (params?.id) {
@@ -346,6 +359,53 @@ export default function ServiceRFPDetailPage() {
     setShowWinnerConfirmModal(true);
   };
 
+  const handleDocumentUpload = async (file: File | null) => {
+    if (!rfp || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadedBy', userRole || 'SYSTEM');
+
+      const response = await fetch(`/api/services/rfp/${rfp.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload document');
+      }
+
+      showToast('success', 'Document uploaded successfully');
+      await fetchRFPDetails();
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!rfp) return;
+    try {
+      const response = await fetch(`/api/services/rfp/${rfp.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete document');
+      }
+      showToast('success', 'Document deleted successfully');
+      await fetchRFPDetails();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to delete document');
+    }
+  };
+
   const confirmSelectWinner = async () => {
     if (!pendingWinnerSelection) return;
     
@@ -441,7 +501,6 @@ export default function ServiceRFPDetailPage() {
   }
 
   const evaluationCriteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria) : [];
-  const termsAndConditions = rfp.termsAndConditions ? JSON.parse(rfp.termsAndConditions) : {};
   const submittedResponses = rfp.responses?.filter(r => r.tokenUsed && r.proposalFileUrl) || [];
   const canApprove = hasAdminRole() && rfp.status === 'PENDING_APPROVAL';
   const canRequestApproval = rfp.status === 'DRAFT';
@@ -528,227 +587,259 @@ export default function ServiceRFPDetailPage() {
         </div>
       </div>
 
-      {/* Key Information */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Calendar className="h-6 w-6 text-wujha-primary" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Issue Date</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {new Date(rfp.issueDate).toLocaleDateString()}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-wujha-primary" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Closing Date</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {new Date(rfp.closingDate).toLocaleDateString()}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-6 w-6 text-wujha-primary" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Invited Vendors</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {rfp.invitedVendors?.length || 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircle className="h-6 w-6 text-wujha-primary" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Submissions</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {submittedResponses.length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Service Requisition Link */}
-      {rfp.pr && (
-        <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-wujha-primary mb-4">Linked Service Requisition</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <dt className="text-sm font-medium text-wujha-primary/80">PR Number</dt>
-              <dd className="mt-1 text-sm text-wujha-primary">
-                <button
-                  onClick={() => router.push(`/procurement/services/requisitions/${rfp.pr?.id}`)}
-                  className="hover:underline"
-                >
-                  {rfp.pr.prNumber}
-                </button>
-              </dd>
-            </div>
-            {rfp.pr.servicePR && (
-              <>
-                <div>
-                  <dt className="text-sm font-medium text-wujha-primary/80">Duration</dt>
-                  <dd className="mt-1 text-sm text-wujha-primary">
-                    {rfp.pr.servicePR.duration} {rfp.pr.servicePR.durationUnit}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-wujha-primary/80">Estimated Value</dt>
-                  <dd className="mt-1 text-sm text-wujha-primary">
-                    {rfp.pr.estimatedCost ? `${parseFloat(rfp.pr.estimatedCost).toLocaleString()} OMR` : 'N/A'}
-                  </dd>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Evaluation Criteria */}
-      {evaluationCriteria.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Evaluation Criteria</h3>
-          <div className="space-y-3">
-            {evaluationCriteria.map((criteria: any, index: number) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">{criteria.name}</h4>
-                    {criteria.description && (
-                      <p className="text-sm text-gray-500 mt-1">{criteria.description}</p>
-                    )}
-                  </div>
-                  <span className="text-lg font-bold text-wujha-primary">{criteria.weight}%</span>
-                </div>
-              </div>
+      {/* Tabbed Content */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex flex-wrap gap-x-8 px-6">
+            {[
+              { id: 'general', name: 'General Information', icon: FileText },
+              { id: 'invited-vendors', name: 'Invited Vendors', icon: Users },
+              { id: 'vendor-proposals', name: 'Vendor Proposals', icon: CheckCircle },
+              { id: 'documents', name: 'Documents', icon: FileText },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-wujha-primary text-wujha-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
             ))}
-          </div>
+          </nav>
         </div>
-      )}
 
-      {/* Invited Vendors */}
-      {rfp.invitedVendors && rfp.invitedVendors.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Invited Vendors</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rfp.invitedVendors.map((invitation) => (
-              <div key={invitation.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-900">{invitation.vendor.nameEn}</h4>
-                    <p className="text-sm text-gray-500 mt-1">{invitation.vendor.email}</p>
-                    {invitation.vendor.mobile && (
-                      <p className="text-sm text-gray-500">{invitation.vendor.mobile}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-2">
-                      Invited: {new Date(invitation.invitedAt).toLocaleDateString()}
-                    </p>
+        <div className="space-y-6 p-6">
+          {activeTab === 'general' && (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <Calendar className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Issue Date</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{new Date(rfp.issueDate).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <Users className="h-5 w-5 text-wujha-primary flex-shrink-0" />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Vendor Responses */}
-      {submittedResponses.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Proposals</h3>
-          <div className="space-y-4">
-            {submittedResponses.map((response) => (
-              <div key={response.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-900">{response.vendor.nameEn}</h4>
-                    <p className="text-sm text-gray-500 mt-1">{response.vendor.email}</p>
-                    {response.totalAmount && (
-                      <p className="text-lg font-bold text-wujha-primary mt-2">
-                        {parseFloat(response.totalAmount).toLocaleString()} OMR
-                      </p>
-                    )}
-                    {response.overallScore !== null && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Overall Score: {parseFloat(response.overallScore).toFixed(2)}/100
-                      </p>
-                    )}
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <Clock className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Closing Date</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{new Date(rfp.closingDate).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getResponseStatusColor(response.status)}`}>
-                      {response.status}
-                    </span>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => {
-                          setSelectedResponse(response);
-                          setShowDetailsModal(true);
-                        }}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View Details
-                      </button>
-                      {canEvaluate && response.status !== 'REVIEWED' && response.status !== 'SELECTED' && (
-                        <button
-                          onClick={() => handleOpenScoring(response)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-xs font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-                        >
-                          Evaluate
-                        </button>
-                      )}
-                      {canSelectWinner && response.status === 'REVIEWED' && (
-                        <button
-                          onClick={() => handleSelectWinner(response.id, response.vendor.id)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                        >
-                          <Award className="h-3 w-3 mr-1" />
-                          Select Winner
-                        </button>
-                      )}
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <Users className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Invited Vendors</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{rfp.invitedVendors?.length || 0}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <CheckCircle className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Submissions</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{submittedResponses.length}</p>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {rfp.pr && (
+                <div className="rounded-lg border border-wujha-primary/30 bg-wujha-primary/10 p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-wujha-primary">Linked Service Requisition</h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                      <p className="text-sm font-medium text-wujha-primary/80">PR Number</p>
+                      <button
+                        onClick={() => router.push(`/procurement/services/requisitions/${rfp.pr?.id}`)}
+                        className="mt-1 text-sm font-semibold text-wujha-primary hover:underline"
+                      >
+                        {rfp.pr.prNumber}
+                      </button>
+                    </div>
+                    {rfp.pr.servicePR && (
+                      <>
+                        <div>
+                          <p className="text-sm font-medium text-wujha-primary/80">Duration</p>
+                          <p className="mt-1 text-sm font-semibold text-wujha-primary">
+                            {rfp.pr.servicePR.duration} {rfp.pr.servicePR.durationUnit}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-wujha-primary/80">Estimated Value</p>
+                          <p className="mt-1 text-sm font-semibold text-wujha-primary">
+                            {rfp.pr.estimatedCost ? `${parseFloat(rfp.pr.estimatedCost).toLocaleString()} OMR` : 'N/A'}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {evaluationCriteria.length > 0 && (
+                <div className="rounded-lg border border-gray-200 p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900">Evaluation Criteria</h3>
+                  <div className="space-y-3">
+                    {evaluationCriteria.map((criteria: any, index: number) => (
+                      <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{criteria.name}</p>
+                            {criteria.description && <p className="mt-1 text-sm text-gray-600">{criteria.description}</p>}
+                          </div>
+                          <span className="rounded-md bg-wujha-primary/10 px-2.5 py-1 text-sm font-semibold text-wujha-primary">
+                            {criteria.weight}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'invited-vendors' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Invited Vendors</h3>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                  Total: {rfp.invitedVendors?.length || 0}
+                </span>
+              </div>
+
+              {rfp.invitedVendors && rfp.invitedVendors.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {rfp.invitedVendors.map((invitation) => (
+                    <div key={invitation.id} className="rounded-lg border border-gray-200 p-4 shadow-sm">
+                      <div className="mb-3 flex items-start justify-between">
+                        <p className="text-sm font-semibold text-gray-900">{invitation.vendor.nameEn}</p>
+                        <Users className="h-4 w-4 text-wujha-primary" />
+                      </div>
+                      <p className="text-sm text-gray-600">{invitation.vendor.email}</p>
+                      <p className="mt-1 text-sm text-gray-500">{invitation.vendor.mobile || 'No mobile number'}</p>
+                      <p className="mt-3 text-xs text-gray-500">
+                        Invited on {new Date(invitation.invitedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-300 p-10 text-center">
+                  <Users className="mx-auto h-8 w-8 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-600">No vendors invited yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'vendor-proposals' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Vendor Proposals</h3>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                  Submitted: {submittedResponses.length}
+                </span>
+              </div>
+
+              {submittedResponses.length > 0 ? (
+                <div className="space-y-4">
+                  {submittedResponses.map((response) => (
+                    <div key={response.id} className="rounded-lg border border-gray-200 p-4 shadow-sm">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{response.vendor.nameEn}</p>
+                          <p className="mt-1 text-sm text-gray-600">{response.vendor.email}</p>
+                          {response.totalAmount && (
+                            <p className="mt-2 text-lg font-bold text-wujha-primary">
+                              {parseFloat(response.totalAmount).toLocaleString()} OMR
+                            </p>
+                          )}
+                          {response.overallScore !== null && (
+                            <p className="mt-1 text-sm text-gray-600">
+                              Overall Score: {parseFloat(response.overallScore).toFixed(2)}/100
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-start gap-2 lg:items-end">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getResponseStatusColor(response.status)}`}>
+                            {response.status}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedResponse(response);
+                                setShowDetailsModal(true);
+                              }}
+                              className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              <Eye className="mr-1 h-3.5 w-3.5" />
+                              View Details
+                            </button>
+                            {canEvaluate && response.status !== 'REVIEWED' && response.status !== 'SELECTED' && (
+                              <button
+                                onClick={() => handleOpenScoring(response)}
+                                className="inline-flex items-center rounded-md border border-transparent bg-wujha-primary px-3 py-2 text-xs font-medium text-white hover:bg-wujha-primary-hover"
+                              >
+                                Evaluate
+                              </button>
+                            )}
+                            {canSelectWinner && response.status === 'REVIEWED' && (
+                              <button
+                                onClick={() => handleSelectWinner(response.id, response.vendor.id)}
+                                className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+                              >
+                                <Award className="mr-1 h-3.5 w-3.5" />
+                                Select Winner
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-300 p-10 text-center">
+                  <FileText className="mx-auto h-8 w-8 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-600">No proposals submitted yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <DocumentManager
+              documents={rfp.documents || []}
+              uploading={uploadingDocument}
+              onUpload={handleDocumentUpload}
+              onDelete={handleDeleteDocument}
+              getViewUrl={(documentId) => `/api/services/rfp/${rfp.id}/documents/${documentId}/file`}
+              getDownloadUrl={(documentId) => `/api/services/rfp/${rfp.id}/documents/${documentId}/file?download=1`}
+            />
+          )}
         </div>
-      )}
+      </div>
 
       {/* Scoring Modal */}
       {showScoringModal && selectedResponse && (

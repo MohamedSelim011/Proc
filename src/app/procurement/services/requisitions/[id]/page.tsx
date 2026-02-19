@@ -122,8 +122,6 @@ export default function ServiceRequisitionDetail() {
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [preferredVendors, setPreferredVendors] = useState<Array<{ id: string; nameEn: string; vendorCode: string }>>([]);
-  const [hasRFP, setHasRFP] = useState(false);
-  const [rfpId, setRfpId] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -772,24 +770,7 @@ export default function ServiceRequisitionDetail() {
 
   useEffect(() => {
     fetchServiceRequisition();
-    checkRFPExists();
   }, [params.id]);
-
-  const checkRFPExists = async () => {
-    try {
-      // Check if an RFP exists for this service requisition
-      const response = await fetch(`/api/services/rfp?prId=${params.id}`);
-      const data = await response.json();
-      
-      if (response.ok && data.rfps && data.rfps.length > 0) {
-        // Found an RFP for this SR
-        setHasRFP(true);
-        setRfpId(data.rfps[0].id);
-      }
-    } catch (error) {
-      console.error('Error checking RFP:', error);
-    }
-  };
 
   // Get user role for permission checks - similar to PO detail page
   useEffect(() => {
@@ -1472,7 +1453,7 @@ export default function ServiceRequisitionDetail() {
       {sr.status === 'APPROVED' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Next Steps</h3>
-          <div className="flex space-x-3">
+          <div className="flex">
             <button
               onClick={() => router.push(`/procurement/services/contracts/new?prId=${sr.id}`)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
@@ -1480,13 +1461,6 @@ export default function ServiceRequisitionDetail() {
               <FileText className="h-4 w-4 mr-2" />
               Create Service Contract
             </button>
-            {/* <button
-              onClick={() => router.push(`/procurement/services/rfp/new?prId=${sr.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <User className="h-4 w-4 mr-2" />
-              Issue RFP
-            </button> */}
           </div>
         </div>
       )}

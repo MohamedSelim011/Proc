@@ -442,7 +442,25 @@ model ServiceRFP {
   pr             PurchaseRequisition  @relation(fields: [prId], references: [id])
   invitedVendors ServiceRFPVendor[]
   responses      ServiceRFPResponse[]
+  documents      ServiceRFPDocument[]
   approvals      Approval[]           @relation("ServiceRFPApprovals")
+}
+
+model ServiceRFPDocument {
+  id           String     @id @default(cuid())
+  rfpId        String
+  rfp          ServiceRFP @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  documentType String?
+  documentName String
+  fileUrl      String
+  storageKey   String
+  fileSize     Int
+  fileType     String
+  uploadedBy   String?
+  uploadedAt   DateTime   @default(now())
+
+  @@index([rfpId])
+  @@index([uploadedAt])
 }
 
 model ServiceRFPVendor {
@@ -529,9 +547,27 @@ model PurchaseOrder {
   goodsReceipts GoodsReceipt[]
   invoices      Invoice[]
   amendments    POAmendment[]
+  documents     PurchaseOrderDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrderDocument {
+  id          String        @id @default(cuid())
+  poId        String
+  po          PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  documentType String?
+  documentName String
+  fileUrl      String
+  storageKey   String
+  fileSize     Int
+  fileType     String
+  uploadedBy   String?
+  uploadedAt   DateTime      @default(now())
+
+  @@index([poId])
+  @@index([uploadedAt])
 }
 
 model POItem {

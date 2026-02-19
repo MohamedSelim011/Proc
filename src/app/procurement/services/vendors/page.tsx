@@ -14,11 +14,11 @@ import {
   Building,
   Phone,
   Mail,
-  Calendar,
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceVendor {
   id: string;
@@ -223,13 +223,6 @@ export default function ServiceVendors() {
         </div>
         <div className="flex space-x-3">
           <Link
-            href="/procurement/services/rfp/new"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Award className="h-4 w-4 mr-2" />
-            Issue RFP/RFQ
-          </Link>
-          <Link
             href="/procurement/services/vendors/new"
             className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
@@ -326,76 +319,59 @@ export default function ServiceVendors() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search vendors..."
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Service Category
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-              value={filters.category}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
-            >
-              <option value="">All Categories</option>
-              <option value="Subcontractors">Subcontractors</option>
-              <option value="Professional Services">Professional Services</option>
-              <option value="IT Services">IT Services</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="Consultancy">Consultancy</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Performance Rating
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900"
-              value={filters.rating}
-              onChange={(e) => handleFilterChange('rating', e.target.value)}
-            >
-              <option value="">All Ratings</option>
-              <option value="5">5 Stars</option>
-              <option value="4">4+ Stars</option>
-              <option value="3">3+ Stars</option>
-              <option value="2">2+ Stars</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', category: '', rating: '' })}
+        className="mb-6"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search vendors..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Service Category">
+          <select
+            className="erp-input"
+            value={filters.category}
+            onChange={(e) => handleFilterChange('category', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="Subcontractors">Subcontractors</option>
+            <option value="Professional Services">Professional Services</option>
+            <option value="IT Services">IT Services</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Consultancy">Consultancy</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Performance Rating">
+          <select
+            className="erp-input"
+            value={filters.rating}
+            onChange={(e) => handleFilterChange('rating', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="5">5 Stars</option>
+            <option value="4">4+ Stars</option>
+            <option value="3">3+ Stars</option>
+            <option value="2">2+ Stars</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Results Summary */}
       <div className="bg-white shadow rounded-lg p-4">
@@ -519,13 +495,6 @@ export default function ServiceVendors() {
                         title="Edit"
                       >
                         <Edit className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        href={`/procurement/services/rfp/new?vendorId=${vendor.id}`}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="Issue RFP"
-                      >
-                        <Award className="h-4 w-4" />
                       </Link>
                     </div>
                   </td>

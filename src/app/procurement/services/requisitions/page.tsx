@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceRequisition {
   id: string;
@@ -269,91 +270,71 @@ export default function ServiceRequisitions() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by PR number, department..."
-                className="block w-full h-10 pl-3 pr-10 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <select
-              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.priority}
-              onChange={(e) => handleFilterChange('priority', e.target.value)}
-            >
-              <option value="">All Priority</option>
-              <option value="LOW">Low</option>
-              <option value="NORMAL">Normal</option>
-              <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department
-            </label>
-            <input
-              type="text"
-              placeholder="Department ID"
-              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.department}
-              onChange={(e) => handleFilterChange('department', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Service Type
-            </label>
-            <select
-              className="block w-full h-10 px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.serviceType}
-              onChange={(e) => handleFilterChange('serviceType', e.target.value)}
-            >
-              <option value="">All Types</option>
-              {serviceTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', priority: '', department: '', serviceType: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by PR number or department..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Priority">
+          <select
+            className="erp-input"
+            value={filters.priority}
+            onChange={(e) => handleFilterChange('priority', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="LOW">Low</option>
+            <option value="NORMAL">Normal</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Department">
+          <input
+            type="text"
+            placeholder="Department ID"
+            className="erp-input"
+            value={filters.department}
+            onChange={(e) => handleFilterChange('department', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Service Type">
+          <select
+            className="erp-input"
+            value={filters.serviceType}
+            onChange={(e) => handleFilterChange('serviceType', e.target.value)}
+          >
+            <option value="">All</option>
+            {serviceTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Results Summary */}
       <div className="bg-white shadow rounded-lg p-4">

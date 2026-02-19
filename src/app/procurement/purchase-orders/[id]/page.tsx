@@ -20,11 +20,13 @@ import {
   User,
   CreditCard,
   XCircle,
-  Loader2
+  Loader2,
+  
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { getUserRole, getUserData } from '@/lib/jwt';
+import DocumentManager from '@/components/documents/document-manager';
 
 interface PurchaseOrder {
   id: string;
@@ -105,6 +107,16 @@ interface PurchaseOrder {
     reason: string;
     changes: string;
   }[];
+  documents: {
+    id: string;
+    documentType?: string | null;
+    documentName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    uploadedBy?: string | null;
+    uploadedAt: string;
+  }[];
   deliveryStats?: {
     totalOrdered: number;
     totalReceived: number;
@@ -127,6 +139,7 @@ export default function PurchaseOrderDetailPage() {
   const [pendingStatus, setPendingStatus] = useState<string>('');
   const [statusComments, setStatusComments] = useState('');
   const [submittingForApproval, setSubmittingForApproval] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [history, setHistory] = useState<Array<{
     id: string;
     processType: string;
@@ -448,6 +461,56 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  const handleDocumentUpload = async (file: File | null) => {
+    if (!po || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadedBy', userId || userEmployeeId || 'SYSTEM');
+
+      const response = await fetch(`/api/purchase-orders/${po.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload document');
+      }
+
+      showToast('success', 'Document uploaded successfully');
+      await fetchPurchaseOrder(po.id);
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!po) return;
+
+    try {
+      const response = await fetch(`/api/purchase-orders/${po.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete document');
+      }
+
+      showToast('success', 'Document deleted successfully');
+      await fetchPurchaseOrder(po.id);
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to delete document');
+    }
+  };
+
   // Check permissions
   const roleUpper = userRole?.toUpperCase() || '';
   const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
@@ -668,6 +731,7 @@ export default function PurchaseOrderDetailPage() {
               { id: 'items', name: 'Items', icon: Package },
               { id: 'delivery', name: 'Delivery', icon: Truck },
               { id: 'invoices', name: 'Invoices', icon: CreditCard },
+              { id: 'documents', name: 'Documents', icon: FileText },
               { id: 'history', name: 'History', icon: Clock }
             ].map((tab) => (
               <button
@@ -1078,6 +1142,17 @@ export default function PurchaseOrderDetailPage() {
                 <p className="text-sm text-gray-500">No invoices created yet.</p>
               )}
             </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <DocumentManager
+              documents={po.documents || []}
+              uploading={uploadingDocument}
+              onUpload={handleDocumentUpload}
+              onDelete={handleDeleteDocument}
+              getViewUrl={(documentId) => `/api/purchase-orders/${po.id}/documents/${documentId}/file`}
+              getDownloadUrl={(documentId) => `/api/purchase-orders/${po.id}/documents/${documentId}/file?download=1`}
+            />
           )}
 
           {activeTab === 'history' && (

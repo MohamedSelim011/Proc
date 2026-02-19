@@ -17,6 +17,7 @@ import {
   Send
 } from 'lucide-react';
 import Link from 'next/link';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface RFQ {
   id: string;
@@ -328,58 +329,50 @@ export default function RFQPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search RFQs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white placeholder:text-gray-600"
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-              style={{ color: '#111827' }}
-            >
-              <option value="" style={{ color: '#111827' }}>All Status</option>
-              <option value="DRAFT" style={{ color: '#111827' }}>Draft</option>
-              <option value="PENDING_APPROVAL" style={{ color: '#111827' }}>Pending Approval</option>
-              <option value="APPROVED" style={{ color: '#111827' }}>Approved</option>
-              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
-              <option value="ISSUED" style={{ color: '#111827' }}>Issued</option>
-              <option value="UNDER_EVALUATION" style={{ color: '#111827' }}>Under Evaluation</option>
-              <option value="COMPLETED" style={{ color: '#111827' }}>Completed</option>
-              <option value="CANCELLED" style={{ color: '#111827' }}>Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors text-gray-900 bg-white"
-              value={filters.itemType}
-              onChange={(e) => setFilters(prev => ({ ...prev, itemType: e.target.value }))}
-              style={{ color: '#111827' }}
-            >
-              <option value="" style={{ color: '#111827' }}>All Types</option>
-              <option value="STOCK" style={{ color: '#111827' }}>Stock Items</option>
-              <option value="SERVICE" style={{ color: '#111827' }}>Services</option>
-              <option value="NON_STOCK" style={{ color: '#111827' }}>Non-Stock Items</option>
-            </select>
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ status: '', itemType: '', search: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ status: '', itemType: '', search: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by RFQ number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="ISSUED">Issued</option>
+            <option value="UNDER_EVALUATION">Under Evaluation</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Item Type">
+          <select
+            className="erp-input"
+            value={filters.itemType}
+            onChange={(e) => setFilters(prev => ({ ...prev, itemType: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="STOCK">Stock Items</option>
+            <option value="SERVICE">Services</option>
+            <option value="NON_STOCK">Non-Stock Items</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* RFQ List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

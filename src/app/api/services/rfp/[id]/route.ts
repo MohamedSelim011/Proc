@@ -64,6 +64,11 @@ export async function GET(
           orderBy: {
             level: 'asc'
           }
+        },
+        documents: {
+          orderBy: {
+            uploadedAt: 'desc'
+          }
         }
       }
     });

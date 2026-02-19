@@ -4,9 +4,11 @@
   --background: #ffffff;
   --foreground: #171717;
   
-  /* Wujha Brand Colors */
-  --wujha-primary: #FF5722;
-  --wujha-primary-hover: #E64A19;
+  /* Brand Colors (rgb triplets for alpha-friendly usage: rgb(var(--token) / <alpha>)) */
+  --wujha-primary: 255 87 34;
+  --wujha-primary-hover: 230 74 25;
+  --wujha-secondary: 250 99 53;
+  --wujha-secondary-hover: 232 90 47;
   --text-primary: #212121;
   --text-secondary: #757575;
   --border: #E0E0E0;
@@ -21,8 +23,10 @@
   --font-mono: var(--font-geist-mono);
   
   /* Wujha Design System Colors */
-  --color-wujha-primary: var(--wujha-primary);
-  --color-wujha-primary-hover: var(--wujha-primary-hover);
+  --color-wujha-primary: rgb(var(--wujha-primary));
+  --color-wujha-primary-hover: rgb(var(--wujha-primary-hover));
+  --color-wujha-secondary: rgb(var(--wujha-secondary));
+  --color-wujha-secondary-hover: rgb(var(--wujha-secondary-hover));
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-border: var(--border);
@@ -40,7 +44,46 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Shared form-control styling contract */
+@layer components {
+  .erp-field {
+    @apply space-y-1;
+  }
+
+  .erp-label {
+    @apply mb-1 block text-sm font-medium text-gray-700;
+  }
+
+  .erp-input {
+    @apply w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-wujha-primary focus:outline-none focus:ring-2 focus:ring-wujha-primary;
+  }
+
+  .erp-input-disabled {
+    @apply cursor-not-allowed bg-gray-100 text-gray-500;
+  }
+
+  .erp-input-readonly {
+    @apply bg-gray-50 text-gray-700;
+  }
+
+  .erp-input-error {
+    @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+  }
+
+  .erp-textarea {
+    @apply min-h-[96px] resize-y;
+  }
+
+  .erp-helper {
+    @apply mt-1 text-xs text-gray-500;
+  }
+
+  .erp-error {
+    @apply mt-1 text-xs text-red-600;
+  }
 }
 
 /* Custom scrollbar styles for sidebar navigation */

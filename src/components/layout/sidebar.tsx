@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { getUserData } from '@/lib/jwt';
+import { BRAND_LOGO_URL, COMPANY_NAME } from '@/lib/branding';
 import {
   LayoutDashboard,
   FileText,
@@ -213,8 +214,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           <div className="flex items-center justify-between px-6 py-6 bg-white flex-shrink-0 border-b border-gray-200">
             <div className="flex flex-col items-center">
               <Image 
-                src="/Wujha-logo.webp" 
-                alt="Wujha Logo" 
+                src={BRAND_LOGO_URL}
+                alt={`${COMPANY_NAME} Logo`}
                 width={120} 
                 height={50} 
                 className="object-contain mb-2"
@@ -325,8 +326,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           <div className="flex items-center justify-center px-6 py-6 bg-white flex-shrink-0 border-b border-gray-200">
             <div className="flex flex-col items-center">
               <Image 
-                src="/Wujha-logo.webp" 
-                alt="Wujha Logo" 
+                src={BRAND_LOGO_URL}
+                alt={`${COMPANY_NAME} Logo`}
                 width={120} 
                 height={50} 
                 className="object-contain mb-2"
@@ -425,7 +426,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                 <span className="text-white text-xs font-medium">N</span>
               </div>
               <div className="text-xs text-gray-500">
-                WUJHA Procurement System v1.0
+                {COMPANY_NAME} Procurement System v1.0
               </div>
             </div>
           </div>

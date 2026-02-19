@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus,
   FileText,
   Calendar,
   Users,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceRFP {
   id: string;
@@ -254,13 +254,6 @@ export default function ServiceRFPListPage() {
             Manage service Requests for Proposals
           </p>
         </div>
-        <button
-          onClick={() => router.push('/procurement/services/rfp/new')}
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create New RFP
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -364,48 +357,39 @@ export default function ServiceRFPListPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search RFPs..."
-              className="w-full pl-10 pr-3 py-2 h-10 border border-wujha-primary text-gray-900 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 h-10 border border-wujha-primary text-gray-900 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="APPROVED">Approved</option>
-              <option value="PUBLISHED">Published</option>
-              <option value="SENT">Sent</option>
-              <option value="CLOSED">Closed</option>
-              <option value="EVALUATED">Evaluated</option>
-              <option value="AWARDED">Awarded</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <button
-              onClick={() => setFilters({ search: '', status: '' })}
-              className="w-full px-4 py-2 h-10 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by RFP number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="SENT">Sent</option>
+            <option value="CLOSED">Closed</option>
+            <option value="EVALUATED">Evaluated</option>
+            <option value="AWARDED">Awarded</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -434,17 +418,8 @@ export default function ServiceRFPListPage() {
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No Service RFPs</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a service requisition and issuing an RFP.
+              No records are available for the selected filters.
             </p>
-            <div className="mt-6">
-              <button
-                onClick={() => router.push('/procurement/services/rfp/new')}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create First RFP
-              </button>
-            </div>
           </div>
         ) : (
           <>

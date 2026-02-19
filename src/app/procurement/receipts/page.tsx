@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface GoodsReceipt {
   id: string;
@@ -347,50 +348,43 @@ export default function GoodsReceiptsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search receipts..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              style={{ color: '#111827' }}
-            >
-              <option value="" style={{ color: '#111827' }}>All Statuses</option>
-              <option value="PENDING" style={{ color: '#111827' }}>Pending</option>
-              <option value="PARTIAL" style={{ color: '#111827' }}>Partial</option>
-              <option value="COMPLETED" style={{ color: '#111827' }}>Completed</option>
-              <option value="REJECTED" style={{ color: '#111827' }}>Rejected</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="PO Number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-              value={filters.poNumber}
-              onChange={(e) => handleFilterChange('poNumber', e.target.value)}
-            />
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ search: '', status: '', poNumber: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', poNumber: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by GR number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="PARTIAL">Partial</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="PO Number">
+          <input
+            type="text"
+            placeholder="PO Number"
+            className="erp-input"
+            value={filters.poNumber}
+            onChange={(e) => handleFilterChange('poNumber', e.target.value)}
+          />
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">

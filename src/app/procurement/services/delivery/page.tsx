@@ -17,6 +17,7 @@ import {
   Target,
   Timer
 } from 'lucide-react';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceDelivery {
   id: string;
@@ -279,33 +280,31 @@ export default function ServiceDeliveryPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search by contract number, vendor, or service type..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div>
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="ALL">All Status</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="DELIVERED">Delivered</option>
-              <option value="DELAYED">Delayed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard className="mb-6" columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by contract number, vendor, or service type..."
+            className="erp-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="ALL">All</option>
+            <option value="SCHEDULED">Scheduled</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="DELAYED">Delayed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Service Deliveries List */}
       <div className="space-y-6">

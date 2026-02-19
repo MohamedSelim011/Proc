@@ -8,7 +8,6 @@ import {
   Eye, 
   Edit, 
   FileText,
-  Calendar,
   DollarSign,
   AlertTriangle,
   CheckCircle,
@@ -17,6 +16,7 @@ import {
   User
 } from 'lucide-react';
 import Link from 'next/link';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceContract {
   id: string;
@@ -281,88 +281,73 @@ export default function ServiceContracts() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search contracts..."
-                className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="APPROVED">Approved</option>
-              <option value="SIGNED">Signed</option>
-              <option value="ACTIVE">Active</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="TERMINATED">Terminated</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contract Type
-            </label>
-            <select
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white"
-              value={filters.contractType}
-              onChange={(e) => handleFilterChange('contractType', e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="SERVICE_AGREEMENT">Service Agreement</option>
-              <option value="CONSULTING_CONTRACT">Consulting Contract</option>
-              <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
-              <option value="SUPPORT_CONTRACT">Support Contract</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vendor
-            </label>
+      <ListFiltersCard
+        onClear={() =>
+          setFilters({ search: '', status: '', contractType: '', vendor: '', expiringOnly: false })
+        }
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search contracts..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="SIGNED">Signed</option>
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="TERMINATED">Terminated</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Contract Type">
+          <select
+            className="erp-input"
+            value={filters.contractType}
+            onChange={(e) => handleFilterChange('contractType', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="SERVICE_AGREEMENT">Service Agreement</option>
+            <option value="CONSULTING_CONTRACT">Consulting Contract</option>
+            <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
+            <option value="SUPPORT_CONTRACT">Support Contract</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Vendor">
+          <input
+            type="text"
+            placeholder="Vendor name"
+            className="erp-input"
+            value={filters.vendor}
+            onChange={(e) => handleFilterChange('vendor', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Expiring Only" className="flex items-end">
+          <label className="flex h-10 items-center gap-2">
             <input
-              type="text"
-              placeholder="Vendor name"
-              className="block w-full rounded-md border-wujha-primary shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
-              value={filters.vendor}
-              onChange={(e) => handleFilterChange('vendor', e.target.value)}
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-wujha-primary focus:ring-wujha-primary"
+              checked={filters.expiringOnly}
+              onChange={(e) => handleFilterChange('expiringOnly', e.target.checked)}
             />
-          </div>
-
-          <div className="flex items-end">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
-                checked={filters.expiringOnly}
-                onChange={(e) => handleFilterChange('expiringOnly', e.target.checked)}
-              />
-              <span className="ml-2 text-sm text-gray-700">Expiring Only</span>
-            </label>
-          </div>
-        </div>
-      </div>
+            <span className="text-sm text-gray-700">Include only expiring contracts</span>
+          </label>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Results Summary */}
       <div className="bg-white shadow rounded-lg p-4">
@@ -496,15 +481,6 @@ export default function ServiceContracts() {
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
-                          </Link>
-                        )}
-                        {contract.daysUntilExpiry <= 90 && contract.daysUntilExpiry > 0 && (
-                          <Link
-                            href={`/procurement/services/contracts/${contract.id}/renew`}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-wujha-primary/10 text-wujha-primary hover:bg-wujha-primary/20 hover:text-wujha-primary-hover transition-colors duration-200"
-                            title="Renew Contract"
-                          >
-                            <Calendar className="h-4 w-4" />
                           </Link>
                         )}
                       </div>

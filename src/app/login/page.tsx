@@ -1,14 +1,14 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Building2, Mail, KeySquare, ArrowRight, Shield } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/apiFetch'
+import { COMPANY_NAME } from '@/lib/branding'
 
 function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { showToast } = useToast()
   const [formData, setFormData] = useState({
     email: '',
@@ -22,7 +22,7 @@ function LoginForm() {
     const token = localStorage.getItem('token')
     if (token) {
       // User already has a token, always redirect to dashboard (ignore callbackUrl)
-      console.log('✅ User already logged in, redirecting to dashboard')
+      console.log('âœ… User already logged in, redirecting to dashboard')
       router.push('/procurement/dashboard')
     }
   }, [router])
@@ -71,7 +71,7 @@ function LoginForm() {
       // Simple redirect to dashboard
       window.location.href = '/procurement/dashboard'
     } catch (err) {
-      console.error('❌ Login error:', err)
+      console.error('âŒ Login error:', err)
       showToast('error', err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')
       setIsLoading(false)
     }
@@ -98,7 +98,7 @@ function LoginForm() {
               setFormData({ ...formData, email: e.target.value })
             }
             className="w-full rounded-xl border-2 border-gray-200 bg-white pl-16 pr-6 py-5 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all placeholder:text-gray-400"
-            placeholder="your.email@wujha.om"
+            placeholder="your.email@company.com"
             required
             disabled={isLoading}
           />
@@ -176,7 +176,7 @@ export default function LoginPage() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight">
-                WUJHA Procurement
+                {COMPANY_NAME} Procurement
               </h1>
               <p className="text-lg text-white/80 font-medium">
                 Procurement Management System
@@ -204,7 +204,7 @@ export default function LoginPage() {
               <Building2 className="w-9 h-9 text-white" />
             </div>
             <div className="text-white">
-              <h1 className="text-4xl font-bold">WUJHA Procurement</h1>
+              <h1 className="text-4xl font-bold">{COMPANY_NAME} Procurement</h1>
               <p className="text-lg text-white/80">Procurement System</p>
             </div>
           </div>
@@ -234,7 +234,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-sm text-white/60">
-              © 2024 WUJHA Procurement System. All rights reserved.
+              © {new Date().getFullYear()} {COMPANY_NAME} Procurement System. All rights reserved.
             </p>
           </div>
         </div>
@@ -242,3 +242,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

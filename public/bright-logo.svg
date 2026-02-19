@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <defs>
+    <!-- Wujha Orange Gradient -->
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ea580c;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Warm accent gradient -->
+    <linearGradient id="warmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fb923c;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ea580c;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    
+    <!-- Soft shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#ea580c" flood-opacity="0.25"/>
+    </filter>
+
+    <!-- Icon shadow -->
+    <filter id="iconShadow" x="-15%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#ea580c" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background (transparent) -->
+
+  <!-- === ICON: Stylized "B" with arrow/flow motif === -->
+  <g transform="translate(40, 20)" filter="url(#iconShadow)">
+    <!-- Outer circle -->
+    <circle cx="80" cy="80" r="72" fill="url(#orangeGrad)"/>
+    
+    <!-- Inner circle highlight -->
+    <circle cx="80" cy="80" r="72" fill="none" stroke="#fb923c" stroke-width="1" opacity="0.4"/>
+    
+    <!-- Stylized B with integrated arrow/flow symbol -->
+    <!-- Main B vertical stroke -->
+    <rect x="48" y="38" width="14" height="84" rx="7" fill="white"/>
+    
+    <!-- Top bowl of B -->
+    <path d="M 55 38 
+             C 55 38, 95 35, 98 56 
+             C 101 72, 78 78, 55 78" 
+          fill="none" stroke="white" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Bottom bowl of B (slightly larger) -->
+    <path d="M 55 78 
+             C 55 78, 102 75, 105 98 
+             C 108 118, 78 124, 55 122" 
+          fill="none" stroke="white" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Forward arrows integrated into the B -->
+    <!-- Top arrow -->
+    <path d="M 82 50 L 94 56 L 82 62" 
+          fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    
+    <!-- Bottom arrow -->
+    <path d="M 85 90 L 97 98 L 85 106" 
+          fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  </g>
+
+  <!-- === WORDMARK: "Bright" === -->
+  <g transform="translate(210, 55)">
+    <!-- Main wordmark -->
+    <text x="0" y="75" 
+          font-family="'Segoe UI', 'SF Pro Display', 'Helvetica Neue', sans-serif" 
+          font-size="88" 
+          font-weight="700" 
+          fill="#1e293b" 
+          letter-spacing="-2">Bright</text>
+  </g>
+
+  <!-- === TAGLINE === -->
+  <text x="215" y="162" 
+        font-family="'Segoe UI', 'SF Pro Display', 'Helvetica Neue', sans-serif" 
+        font-size="16" 
+        font-weight="400" 
+        fill="#64748b" 
+        letter-spacing="3.5">EMPOWER YOUR BUSINESS, STAY BRIGHT</text>
+
+  <!-- Accent dot after "Bright" -->
+  <circle cx="540" cy="113" r="6" fill="url(#orangeGrad)"/>
+</svg>

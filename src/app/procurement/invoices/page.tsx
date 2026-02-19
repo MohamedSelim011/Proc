@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface Invoice {
   id: string;
@@ -493,55 +494,49 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search invoices..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="APPROVED">Approved</option>
-              <option value="PAID">Paid</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="OVERDUE">Overdue</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-              value={filters.paymentStatus}
-              onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
-            >
-              <option value="">All Payment Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="PAID">Paid</option>
-              <option value="OVERDUE">Overdue</option>
-            </select>
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ search: '', status: '', paymentStatus: '', matchingStatus: '', vendorId: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ search: '', status: '', paymentStatus: '', matchingStatus: '', vendorId: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by invoice number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </ListFilterField>
+        <ListFilterField label="Invoice Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="PAID">Paid</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="OVERDUE">Overdue</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Payment Status">
+          <select
+            className="erp-input"
+            value={filters.paymentStatus}
+            onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="PARTIAL">Partial</option>
+            <option value="PAID">Paid</option>
+            <option value="OVERDUE">Overdue</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">

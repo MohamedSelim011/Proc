@@ -15,6 +15,7 @@ import {
   Calendar
 } from 'lucide-react';
 import Link from 'next/link';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceReceipt {
   id: string;
@@ -271,68 +272,51 @@ export default function ServiceReceipts() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search receipts..."
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                />
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="ACCEPTED">Accepted</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CONDITIONAL">Conditional</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Vendor
-              </label>
-              <input
-                type="text"
-                placeholder="Vendor name"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                value={filters.vendor}
-                onChange={(e) => handleFilterChange('vendor', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contract
-              </label>
-              <input
-                type="text"
-                placeholder="Contract number"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                value={filters.contract}
-                onChange={(e) => handleFilterChange('contract', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
+        <ListFiltersCard
+          onClear={() => setFilters({ search: '', status: '', vendor: '', contract: '' })}
+          className="mb-8"
+        >
+          <ListFilterField label="Search">
+            <input
+              type="text"
+              placeholder="Search receipts..."
+              className="erp-input"
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+            />
+          </ListFilterField>
+          <ListFilterField label="Status">
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="erp-input"
+            >
+              <option value="">All</option>
+              <option value="PENDING">Pending</option>
+              <option value="ACCEPTED">Accepted</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CONDITIONAL">Conditional</option>
+            </select>
+          </ListFilterField>
+          <ListFilterField label="Vendor">
+            <input
+              type="text"
+              placeholder="Vendor name"
+              className="erp-input"
+              value={filters.vendor}
+              onChange={(e) => handleFilterChange('vendor', e.target.value)}
+            />
+          </ListFilterField>
+          <ListFilterField label="Contract">
+            <input
+              type="text"
+              placeholder="Contract number"
+              className="erp-input"
+              value={filters.contract}
+              onChange={(e) => handleFilterChange('contract', e.target.value)}
+            />
+          </ListFilterField>
+        </ListFiltersCard>
 
         {/* Receipts Table */}
         <div className="bg-white shadow rounded-lg overflow-hidden">

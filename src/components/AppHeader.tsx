@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { usePermissions } from '@/hooks/usePermissions'
+import { COMPANY_NAME } from '@/lib/branding'
 
 interface NavItem {
   name: string
@@ -150,7 +151,7 @@ export function AppHeader() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/dashboard" className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">Wujha</span>
+              <span className="text-2xl font-bold text-wujha-primary">{COMPANY_NAME}</span>
               <span className="ml-2 text-sm text-gray-600">Procurement</span>
             </Link>
           </div>
@@ -168,7 +169,7 @@ export function AppHeader() {
                     href={item.href}
                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-blue-100 text-blue-700'
+                        ? 'bg-wujha-primary/10 text-wujha-primary'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
@@ -217,7 +218,7 @@ export function AppHeader() {
                   href={item.href}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-wujha-primary/10 text-wujha-primary'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >

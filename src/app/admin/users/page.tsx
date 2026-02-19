@@ -5,19 +5,16 @@ import { useRouter } from 'next/navigation'
 import { getUserData } from '@/lib/jwt'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card'
 import {
   Users,
   Plus,
-  Search,
-  Filter,
   Edit,
   Eye,
   UserX,
   UserCheck,
-  Key,
   Loader2,
 } from 'lucide-react'
 
@@ -217,61 +214,63 @@ export default function UsersManagementPage() {
         )}
 
         {/* Filters */}
-        <Card className="mb-6 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 shadow-sm text-gray-900 bg-white"
-                />
-              </div>
-
-              {/* Role Filter */}
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="h-11 rounded-md border border-gray-300 px-3 shadow-sm text-gray-900 bg-white focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="">All Roles</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="ADMIN">Admin</option>
-                <option value="FINANCE_MANAGER">Finance Manager</option>
-                <option value="PROCUREMENT_MANAGER">Procurement Manager</option>
-                <option value="BUDGET_CONTROLLER">Budget Controller</option>
-                <option value="PROJECT_MANAGER">Project Manager</option>
-                <option value="SITE_ENGINEER">Site Engineer</option>
-                <option value="WAREHOUSE_KEEPER">Warehouse Keeper</option>
-                <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
-                <option value="APPROVER">Approver</option>
-                <option value="VIEWER">Viewer</option>
-              </select>
-
-              {/* Department Filter */}
-              <Input
-                placeholder="Filter by department"
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="shadow-sm text-gray-900 bg-white"
-              />
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-11 rounded-md border border-gray-300 px-3 shadow-sm text-gray-900 bg-white focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+        <ListFiltersCard
+          onClear={() => {
+            setSearchTerm('')
+            setRoleFilter('')
+            setDepartmentFilter('')
+            setStatusFilter('')
+          }}
+          className="mb-6"
+        >
+          <ListFilterField label="Search">
+            <input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="erp-input"
+            />
+          </ListFilterField>
+          <ListFilterField label="Role">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="erp-input"
+            >
+              <option value="">All</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ADMIN">Admin</option>
+              <option value="FINANCE_MANAGER">Finance Manager</option>
+              <option value="PROCUREMENT_MANAGER">Procurement Manager</option>
+              <option value="BUDGET_CONTROLLER">Budget Controller</option>
+              <option value="PROJECT_MANAGER">Project Manager</option>
+              <option value="SITE_ENGINEER">Site Engineer</option>
+              <option value="WAREHOUSE_KEEPER">Warehouse Keeper</option>
+              <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
+              <option value="APPROVER">Approver</option>
+              <option value="VIEWER">Viewer</option>
+            </select>
+          </ListFilterField>
+          <ListFilterField label="Department">
+            <input
+              placeholder="Filter by department"
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="erp-input"
+            />
+          </ListFilterField>
+          <ListFilterField label="Status">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="erp-input"
+            >
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </ListFilterField>
+        </ListFiltersCard>
 
         {/* Users Table */}
         <Card className="shadow-lg">

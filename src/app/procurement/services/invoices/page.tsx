@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 
 interface ServiceInvoice {
   id: string;
@@ -595,82 +596,76 @@ export default function ServiceInvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search invoices..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="UNDER_REVIEW">Under Review</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="PAID">Paid</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.paymentStatus}
-              onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
-            >
-              <option value="">Payment Status</option>
-              <option value="UNPAID">Unpaid</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="PAID">Paid</option>
-              <option value="OVERDUE">Overdue</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.matchingStatus}
-              onChange={(e) => setFilters(prev => ({ ...prev, matchingStatus: e.target.value }))}
-            >
-              <option value="">Matching Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="MATCHED">Matched</option>
-              <option value="DISCREPANCY">Discrepancy</option>
-              <option value="APPROVED">Approved</option>
-            </select>
-          </div>
-          <div>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              value={filters.serviceType}
-              onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
-            >
-              <option value="">Service Type</option>
-              <option value="CONSULTING">Consulting</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="TRAINING">Training</option>
-              <option value="SUPPORT">Support</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
-          <div>
-            <button
-              onClick={() => setFilters({ status: '', paymentStatus: '', matchingStatus: '', serviceType: '', vendorId: '', search: '' })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <ListFiltersCard
+        onClear={() => setFilters({ status: '', paymentStatus: '', matchingStatus: '', serviceType: '', vendorId: '', search: '' })}
+        className="mb-6"
+        columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5"
+      >
+        <ListFilterField label="Search">
+          <input
+            type="text"
+            placeholder="Search by invoice number..."
+            className="erp-input"
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          />
+        </ListFilterField>
+        <ListFilterField label="Invoice Status">
+          <select
+            className="erp-input"
+            value={filters.status}
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="PAID">Paid</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Payment Status">
+          <select
+            className="erp-input"
+            value={filters.paymentStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="UNPAID">Unpaid</option>
+            <option value="PARTIAL">Partial</option>
+            <option value="PAID">Paid</option>
+            <option value="OVERDUE">Overdue</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Matching Status">
+          <select
+            className="erp-input"
+            value={filters.matchingStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, matchingStatus: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="MATCHED">Matched</option>
+            <option value="DISCREPANCY">Discrepancy</option>
+            <option value="APPROVED">Approved</option>
+          </select>
+        </ListFilterField>
+        <ListFilterField label="Service Type">
+          <select
+            className="erp-input"
+            value={filters.serviceType}
+            onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
+          >
+            <option value="">All</option>
+            <option value="CONSULTING">Consulting</option>
+            <option value="MAINTENANCE">Maintenance</option>
+            <option value="TRAINING">Training</option>
+            <option value="SUPPORT">Support</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </ListFilterField>
+      </ListFiltersCard>
 
       {/* Invoices Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
