@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Building2, Mail, KeySquare, ArrowRight, Shield } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/apiFetch";
+import { COMPANY_NAME } from "@/lib/branding";
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({
@@ -116,7 +117,7 @@ export default function SignInPage() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight">
-                Wujha Financial
+                {COMPANY_NAME}
               </h1>
               <p className="text-lg text-white/80 font-medium">
                 Enterprise Resource Planning
@@ -145,7 +146,7 @@ export default function SignInPage() {
               <Building2 className="w-9 h-9 text-white" />
             </div>
             <div className="text-white">
-              <h1 className="text-4xl font-bold">Wujha Financial</h1>
+              <h1 className="text-4xl font-bold">{COMPANY_NAME}</h1>
               <p className="text-lg text-white/80">Enterprise ERP</p>
             </div>
           </div>

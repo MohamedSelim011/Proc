@@ -1,38 +1,57 @@
-﻿'use client'
+'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Mail, KeySquare, ArrowRight, Shield } from 'lucide-react'
+import {
+  ClipboardList,
+  Mail,
+  KeyRound,
+  ArrowRight,
+  Shield,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/apiFetch'
-import { COMPANY_NAME } from '@/lib/branding'
+import { BRAND_LOGO_URL, COMPANY_NAME } from '@/lib/branding'
 
-function LoginForm() {
-  const router = useRouter()
-  const { showToast } = useToast()
+export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     remember: false,
   })
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const { showToast } = useToast()
 
-  // Check if user is already logged in (has token in localStorage)
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('wujha-remembered-email')
+    if (rememberedEmail) {
+      setFormData((prev) => ({ ...prev, email: rememberedEmail, remember: true }))
+    }
+  }, [])
+
+  // Preserve existing behavior: if token exists, go to dashboard
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token) {
-      // User already has a token, always redirect to dashboard (ignore callbackUrl)
-      console.log('âœ… User already logged in, redirecting to dashboard')
       router.push('/procurement/dashboard')
     }
   }, [router])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
+    if (formData.remember) {
+      localStorage.setItem('wujha-remembered-email', formData.email)
+    } else {
+      localStorage.removeItem('wujha-remembered-email')
+    }
+
+    setIsLoading(true)
     try {
-      // Use custom signin API route
       const response = await apiFetch('/api/auth/signin', {
         method: 'POST',
         body: JSON.stringify({
@@ -50,11 +69,10 @@ function LoginForm() {
             ? 'Invalid email or password'
             : 'Unable to sign in. Please try again.')
         showToast('error', errorMessage)
-        setIsLoading(false)
         return
       }
 
-      // Store user data and token in localStorage
+      // Preserve existing storage keys and auth behavior
       if (data?.token) {
         localStorage.setItem('token', data.token)
       }
@@ -66,180 +84,242 @@ function LoginForm() {
       }
 
       showToast('success', `Welcome back, ${data?.user?.name ?? 'User'}!`)
-      setIsLoading(false)
-
-      // Simple redirect to dashboard
       window.location.href = '/procurement/dashboard'
-    } catch (err) {
-      console.error('âŒ Login error:', err)
-      showToast('error', err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')
+    } catch (error) {
+      showToast(
+        'error',
+        error instanceof Error ? error.message : 'Unexpected error during sign in',
+      )
+    } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit} noValidate>
-      {/* Email Input */}
-      <div className="space-y-2">
-        <label
-          htmlFor="email"
-          className="block text-lg font-semibold text-gray-700"
-        >
-          Email Address
-        </label>
-        <div className="relative">
-          <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400" />
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className="w-full rounded-xl border-2 border-gray-200 bg-white pl-16 pr-6 py-5 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all placeholder:text-gray-400"
-            placeholder="your.email@company.com"
-            required
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* Password Input */}
-      <div className="space-y-2">
-        <label
-          htmlFor="password"
-          className="block text-lg font-semibold text-gray-700"
-        >
-          Password
-        </label>
-        <div className="relative">
-          <KeySquare className="absolute left-6 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400" />
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            className="w-full rounded-xl border-2 border-gray-200 bg-white pl-16 pr-6 py-5 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all placeholder:text-gray-400"
-            placeholder="Enter your password"
-            required
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* Sign In Button */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full inline-flex items-center justify-center gap-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-semibold py-5 text-xl rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-orange-500/30 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-orange-500/20"
-      >
-        {isLoading ? (
-          <>
-            <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Signing in...
-          </>
-        ) : (
-          <>
-            Sign in now
-            <ArrowRight className="w-7 h-7" />
-          </>
-        )}
-      </button>
-    </form>
-  )
-}
-
-export default function LoginPage() {
-  return (
-    <div className="min-h-screen flex relative overflow-hidden">
-      {/* Background Image Overlay */}
-      <div 
+    <div className="relative min-h-screen overflow-hidden">
+      <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('/wujha-bg.webp')`,
-        }}
-      >
-        {/* Dark overlay for better text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/50"></div>
-      </div>
+        style={{ backgroundImage: "url('/signin-bg.jpg')" }}
+      />
+      <div className="absolute inset-0 bg-black/45" />
 
-      {/* Left Side - Welcome Section */}
-      <div className="hidden lg:flex lg:w-2/3 relative z-10 flex-col justify-center text-white px-24 py-24">
-        <div>
-          <div className="flex items-center gap-8 mb-20">
-            <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/20">
-              <Building2 className="w-12 h-12 text-white" strokeWidth={2.5} />
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-5 py-8 lg:px-10">
+        <div className="w-full max-w-[1440px]">
+          <div className="hidden lg:grid lg:grid-cols-[1fr_540px] lg:items-center lg:gap-12">
+            <div className="px-6">
+              <div className="mb-10">
+                <h1 className="text-[44px] font-semibold leading-none text-white">{COMPANY_NAME}</h1>
+                <p className="mt-3 text-[28px] font-medium leading-none text-white/90">
+                  Procurement Management System
+                </p>
+              </div>
+
+              <div className="max-w-[620px] text-white">
+                <h2 className="text-[72px] font-light leading-[0.95] tracking-[-0.02em]">Welcome</h2>
+                <h3 className="mt-1 text-[90px] font-bold leading-[0.9] tracking-[-0.02em]">Back</h3>
+                <p className="mt-8 max-w-[520px] text-[28px] leading-[1.3] text-white/85">
+                  Access your procurement management dashboard. Secure, compliant, and designed for enterprise excellence.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-5xl font-bold tracking-tight">
-                {COMPANY_NAME} Procurement
-              </h1>
-              <p className="text-lg text-white/80 font-medium">
-                Procurement Management System
-              </p>
+
+            <div className="w-full justify-self-end">
+              <div className="rounded-[24px] bg-white px-7 py-8 shadow-2xl">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-16 w-44 items-center justify-start bg-white">
+                    {BRAND_LOGO_URL ? (
+                      <img
+                        src={BRAND_LOGO_URL}
+                        alt={`${COMPANY_NAME} logo`}
+                        className="h-full w-full object-contain object-left"
+                      />
+                    ) : (
+                      <ClipboardList className="h-6 w-6 text-slate-700" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <h4 className="text-[42px] font-semibold leading-none text-slate-900">Sign in</h4>
+                  <p className="mt-3 text-[20px] leading-tight text-slate-500">
+                    Enter your credentials to access your account
+                  </p>
+                </div>
+
+                <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+                  <div>
+                    <label htmlFor="email" className="mb-2 block text-[19px] font-medium text-slate-700">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 pl-14 pr-4 text-[20px] text-slate-700 outline-none transition focus:border-wujha-primary focus:bg-white"
+                        placeholder="admin@company.com"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="mb-2 block text-[19px] font-medium text-slate-700">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-50 pl-14 pr-12 text-[20px] text-slate-700 outline-none transition focus:border-wujha-primary focus:bg-white"
+                        placeholder="........."
+                        required
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        disabled={isLoading}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      id="remember"
+                      type="checkbox"
+                      checked={formData.remember}
+                      onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-wujha-primary focus:ring-wujha-primary"
+                      disabled={isLoading}
+                    />
+                    <label htmlFor="remember" className="ml-2 text-sm text-slate-600">
+                      Remember my email
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="mt-2 inline-flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-wujha-primary px-6 text-[24px] font-semibold text-white transition hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        Sign in now
+                        <ArrowRight className="h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
 
-          <div className="max-w-2xl">
-            <h2 className="text-8xl font-bold leading-tight mb-10">
-              Welcome<br />Back
-            </h2>
-            <p className="text-2xl text-white/80 leading-relaxed">
-              Access your procurement management dashboard. Secure, compliant, and designed for enterprise excellence.
-            </p>
+          <div className="mx-auto w-full max-w-md lg:hidden">
+            <div className="rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-12 w-32 items-center justify-start bg-white">
+                  {BRAND_LOGO_URL ? (
+                    <img
+                      src={BRAND_LOGO_URL}
+                      alt={`${COMPANY_NAME} logo`}
+                      className="h-full w-full object-contain object-left"
+                    />
+                  ) : (
+                    <ClipboardList className="h-5 w-5 text-slate-700" />
+                  )}
+                </div>
+              </div>
+              <h4 className="text-3xl font-semibold text-slate-900">Sign in</h4>
+              <p className="mt-2 text-sm text-slate-500">Enter your credentials to access your account</p>
+              <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
+                <div>
+                  <label htmlFor="email-mobile" className="mb-1 block text-sm font-medium text-slate-700">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="email-mobile"
+                      type="email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-base text-slate-700 outline-none focus:border-wujha-primary focus:bg-white"
+                      placeholder="admin@company.com"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="password-mobile" className="mb-1 block text-sm font-medium text-slate-700">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="password-mobile"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-10 text-base text-slate-700 outline-none focus:border-wujha-primary focus:bg-white"
+                      placeholder="........."
+                      required
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      disabled={isLoading}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-wujha-primary px-4 text-base font-semibold text-white hover:bg-wujha-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isLoading ? 'Signing in...' : 'Sign in now'}
+                  {!isLoading && <ArrowRight className="h-4 w-4" />}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Sign In Form */}
-      <div className="flex-1 flex items-center justify-center px-10 py-20 relative z-10">
-        <div className="w-full max-w-xl">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-5 mb-12">
-            <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
-              <Building2 className="w-9 h-9 text-white" />
-            </div>
-            <div className="text-white">
-              <h1 className="text-4xl font-bold">{COMPANY_NAME} Procurement</h1>
-              <p className="text-lg text-white/80">Procurement System</p>
-            </div>
-          </div>
-
-          {/* Sign In Card */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-16 border border-white/20">
-            <div className="mb-12">
-              <h3 className="text-4xl font-bold text-gray-900 mb-4">Sign in</h3>
-              <p className="text-lg text-gray-600">
-                Enter your credentials to access your account
-              </p>
-            </div>
-
-            <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
-              <LoginForm />
-            </Suspense>
-          </div>
-
-          {/* Security Badge */}
-          <div className="mt-10 flex items-center justify-center gap-4 text-white/80">
-            <Shield className="w-6 h-6" />
-            <p className="text-lg">
-              <span className="font-semibold text-white">Secured by SSL Encryption</span>
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-white/60">
-              © {new Date().getFullYear()} {COMPANY_NAME} Procurement System. All rights reserved.
-            </p>
-          </div>
-        </div>
+      <div className="pointer-events-none absolute bottom-4 right-5 z-10 hidden items-center gap-4 text-[18px] text-white/85 lg:flex">
+        <span className="inline-flex items-center gap-2">
+          <Shield className="h-4 w-4" />
+          Secured by SSL Encryption
+        </span>
+        <span>(c) {new Date().getFullYear()} {COMPANY_NAME} Procurement System. All rights reserved.</span>
       </div>
     </div>
   )
 }
-
