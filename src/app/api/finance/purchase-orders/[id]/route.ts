@@ -6,6 +6,27 @@ import {
   financeError,
   getRequestId,
 } from '@/lib/finance-response';
+import { POStatus, Prisma } from '@prisma/client';
+
+type FinancePOUpdateItem = {
+  itemId: string;
+  quantity: number;
+  unitPrice: number;
+  deliveryDate?: string | null;
+};
+
+type FinancePOUpdateBody = {
+  vendorId?: string;
+  deliveryDate?: string;
+  deliveryAddress?: Prisma.InputJsonValue;
+  paymentTerms?: string;
+  currency?: string;
+  status?: POStatus;
+  invoicedAmount?: number | string;
+  acknowledgedAt?: string | null;
+  acknowledgedBy?: string | null;
+  items?: FinancePOUpdateItem[];
+};
 
 const poInclude = {
   vendor: {
@@ -142,5 +163,153 @@ export async function GET(
       500,
       requestId
     );
+  }
+}
+
+/**
+ * PUT /api/finance/purchase-orders/[id]
+ * Update PO for finance app. Auth: Bearer <jwt> or X-API-Key.
+ * - Supports the same editable fields as /api/purchase-orders/[id]
+ * - Allows status update without transition restrictions
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const requestId = getRequestId(request);
+  const auth = getFinanceAuth(request);
+  if (!auth.ok) {
+    return financeError(
+      'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
+      401,
+      requestId
+    );
+  }
+
+  try {
+    const lookupKey = decodeURIComponent(params.id || '').trim();
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return financeError('Invalid JSON body.', 400, requestId);
+    }
+
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return financeError('Body must be a JSON object.', 400, requestId);
+    }
+    const payload = body as FinancePOUpdateBody;
+
+    const existingPO = await prisma.purchaseOrder.findFirst({
+      where: {
+        OR: [{ id: lookupKey }, { poNumber: lookupKey }],
+      },
+      select: {
+        id: true,
+        status: true,
+        vendorId: true,
+        deliveryDate: true,
+        deliveryAddress: true,
+        paymentTerms: true,
+        currency: true,
+        totalAmount: true,
+        invoicedAmount: true,
+      },
+    });
+
+    if (!existingPO) {
+      return financeError('Purchase order not found.', 404, requestId);
+    }
+
+    if (payload.status !== undefined) {
+      const validStatuses = Object.values(POStatus);
+      if (!validStatuses.includes(payload.status)) {
+        return financeError(
+          `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+          400,
+          requestId
+        );
+      }
+    }
+
+    if (payload.items !== undefined) {
+      if (!Array.isArray(payload.items) || payload.items.length === 0) {
+        return financeError('items must be a non-empty array when provided.', 400, requestId);
+      }
+      for (let i = 0; i < payload.items.length; i++) {
+        const item = payload.items[i];
+        if (!item || typeof item !== 'object') {
+          return financeError(`items[${i}] must be an object.`, 400, requestId);
+        }
+        if (!item.itemId || typeof item.itemId !== 'string') {
+          return financeError(`items[${i}].itemId is required and must be a string.`, 400, requestId);
+        }
+        if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0) {
+          return financeError(`items[${i}].quantity must be a number > 0.`, 400, requestId);
+        }
+        if (!Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 0) {
+          return financeError(`items[${i}].unitPrice must be a number >= 0.`, 400, requestId);
+        }
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (payload.items !== undefined) {
+        await tx.pOItem.deleteMany({
+          where: { poId: existingPO.id },
+        });
+      }
+
+      const updateData: Prisma.PurchaseOrderUpdateInput = {};
+
+      if (payload.vendorId !== undefined) updateData.vendorId = payload.vendorId;
+      if (payload.deliveryDate !== undefined) updateData.deliveryDate = new Date(payload.deliveryDate);
+      if (payload.deliveryAddress !== undefined) updateData.deliveryAddress = payload.deliveryAddress;
+      if (payload.paymentTerms !== undefined) updateData.paymentTerms = payload.paymentTerms;
+      if (payload.currency !== undefined) updateData.currency = payload.currency;
+      if (payload.status !== undefined) updateData.status = payload.status;
+      if (payload.invoicedAmount !== undefined) updateData.invoicedAmount = payload.invoicedAmount;
+      if (payload.acknowledgedAt !== undefined) {
+        updateData.acknowledgedAt = payload.acknowledgedAt ? new Date(payload.acknowledgedAt) : null;
+      }
+      if (payload.acknowledgedBy !== undefined) updateData.acknowledgedBy = payload.acknowledgedBy;
+
+      if (payload.items !== undefined) {
+        const totalAmount = payload.items.reduce(
+          (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
+          0
+        );
+        updateData.totalAmount = totalAmount;
+        updateData.items = {
+          create: payload.items.map((item) => ({
+            itemId: item.itemId,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            totalPrice: Number(item.quantity) * Number(item.unitPrice),
+            deliveryDate: item.deliveryDate ? new Date(item.deliveryDate) : null,
+          })),
+        };
+      }
+
+      return tx.purchaseOrder.update({
+        where: { id: existingPO.id },
+        data: updateData,
+        include: {
+          vendor: true,
+          pr: { select: { id: true, prNumber: true } },
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+    });
+
+    return financeSuccess(updated, undefined, requestId);
+  } catch (error) {
+    console.error('[finance/purchase-orders/[id] PUT]', error);
+    return financeError('Failed to update purchase order.', 500, requestId);
   }
 }
