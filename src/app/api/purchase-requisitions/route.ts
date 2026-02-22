@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const scope = (searchParams.get('scope') || 'material').toLowerCase();
     const isExport = searchParams.get('export') === 'true';
     const includeRFQ = searchParams.get('includeRFQ') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const priority = searchParams.get('priority') || '';
+    const itemType = searchParams.get('itemType') || '';
     const requesterId = searchParams.get('requesterId') || '';
     const departmentId = searchParams.get('departmentId') || '';
 
@@ -20,10 +22,13 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     
-    // Only include Purchase Requisitions (STOCK and NON_STOCK), exclude Service Requisitions (SERVICE)
-    where.itemType = {
-      in: ['STOCK', 'NON_STOCK']
-    };
+    // Default scope is material-only for backward compatibility.
+    // Use scope=all to include service and mixed requisitions too.
+    if (scope !== 'all') {
+      where.itemType = {
+        in: ['STOCK', 'NON_STOCK']
+      };
+    }
     
     // Search functionality - search across PR number, requester ID, and department ID
     // Only apply search if search term is at least 2 characters to avoid overly broad matches
@@ -48,20 +53,25 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      where.AND = [
-        {
-          itemType: {
-            in: ['STOCK', 'NON_STOCK']
+      if (scope !== 'all') {
+        where.AND = [
+          {
+            itemType: {
+              in: ['STOCK', 'NON_STOCK']
+            }
+          },
+          {
+            OR: searchConditions
           }
-        },
-        {
-          OR: searchConditions
-        }
-      ];
+        ];
+      } else {
+        where.OR = searchConditions;
+      }
     }
     
     if (status) where.status = status;
     if (priority) where.priority = priority;
+    if (itemType) where.itemType = itemType;
     if (requesterId) where.requesterId = requesterId;
     if (departmentId) where.departmentId = departmentId;
 
@@ -74,11 +84,6 @@ export async function GET(request: NextRequest) {
           items: {
             include: {
               item: true
-            }
-          },
-          approvals: {
-            orderBy: {
-              level: 'asc'
             }
           },
           ...(includeRFQ && {
@@ -192,24 +197,12 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Create initial approval entry if status is SUBMITTED
+    // Optional direct submission: move to pending approval without creating approval records
     if (body.autoSubmit) {
-      await prisma.$transaction([
-        prisma.purchaseRequisition.update({
-          where: { id: requisition.id },
-          data: { status: 'SUBMITTED' }
-        }),
-        prisma.approval.create({
-          data: {
-            documentType: 'PURCHASE_REQUISITION',
-            documentId: requisition.id,
-            prId: requisition.id,
-            approverId: body.firstApproverId || 'manager001',
-            status: 'PENDING',
-            level: 1
-          }
-        })
-      ]);
+      await prisma.purchaseRequisition.update({
+        where: { id: requisition.id },
+        data: { status: 'PENDING_APPROVAL' }
+      });
     }
 
     return NextResponse.json(requisition, { status: 201 });

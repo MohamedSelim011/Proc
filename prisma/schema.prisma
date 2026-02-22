@@ -36,6 +36,13 @@ enum UserRole {
   VENDOR // Legacy - external supplier
 }
 
+model Company {
+  id    String @id @default(cuid())
+  code  String @unique
+  name  String
+  users User[]
+}
+
 // User Model
 model User {
   id                  String    @id @default(cuid())
@@ -54,13 +61,13 @@ model User {
   lastLoginIP         String?
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
-  twoFactorEnabled    Boolean   @default(false)
-  twoFactorSecret     String?
+  companyId           String
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   createdBy           String?
 
   // Relations
+  company         Company   @relation(fields: [companyId], references: [id])
   sessions        Session[]
   auditLogs       AuditLog[]
   passwordHistory PasswordHistory[]
@@ -70,6 +77,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([companyId])
 }
 
 // Session Model (for JWT session management)
@@ -357,6 +365,7 @@ model RFQ {
 
   // Responses
   responses RFQResponse[]
+  documents RFQDocument[]
 
   // Approval
   approvals Approval[]
@@ -421,6 +430,23 @@ model RFQResponse {
 
   @@unique([rfqId, vendorId])
   @@index([submissionToken])
+}
+
+model RFQDocument {
+  id           String   @id @default(cuid())
+  rfqId        String
+  rfq          RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  documentType String?
+  documentName String
+  fileUrl      String
+  storageKey   String
+  fileSize     Int
+  fileType     String
+  uploadedBy   String?
+  uploadedAt   DateTime @default(now())
+
+  @@index([rfqId])
+  @@index([uploadedAt])
 }
 
 // Service RFP Models
@@ -554,9 +580,9 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderDocument {
-  id          String        @id @default(cuid())
-  poId        String
-  po          PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  poId         String
+  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
   documentType String?
   documentName String
   fileUrl      String
@@ -1095,7 +1121,7 @@ model ServiceContract {
   startDate             DateTime
   endDate               DateTime
   totalValue            Decimal
-  serviceAmount         Decimal?              // Service-only portion; for service-only contracts equals totalValue
+  serviceAmount         Decimal? // Service-only portion; for service-only contracts equals totalValue
   currency              String                @default("OMR")
   paymentTerms          String
   slaTerms              Json?
@@ -1105,26 +1131,44 @@ model ServiceContract {
   insuranceRequirements Json?
   status                ServiceContractStatus @default(DRAFT)
   signedAt              DateTime?
-  
+
   // Approval & Versioning
-  versionNumber         Int                   @default(1)
-  approvalId            String?
-  approval              Approval?             @relation(fields: [approvalId], references: [id])
-  createdBy             String?
+  versionNumber Int       @default(1)
+  approvalId    String?
+  approval      Approval? @relation(fields: [approvalId], references: [id])
+  createdBy     String?
 
   // Relationships
-  milestones        ServiceMilestone[]
-  receipts          ServiceReceipt[]
-  performances      ServicePerformance[]
-  versions          ServiceContractVersion[]
-  vendorResponses   VendorContractResponse[]
+  milestones      ServiceMilestone[]
+  receipts        ServiceReceipt[]
+  performances    ServicePerformance[]
+  versions        ServiceContractVersion[]
+  vendorResponses VendorContractResponse[]
+  documents       ServiceContractDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([approvalId])
   @@index([status])
   @@index([vendorId])
+}
+
+model ServiceContractDocument {
+  id           String          @id @default(cuid())
+  contractId   String
+  contract     ServiceContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  documentType String?
+  documentName String
+  fileUrl      String
+  storageKey   String
+  fileSize     Int
+  fileType     String
+  uploadedBy   String?
+  uploadedAt   DateTime        @default(now())
+
+  @@index([contractId])
+  @@index([uploadedAt])
 }
 
 model ServiceMilestone {
@@ -1197,7 +1241,7 @@ model ServicePerformance {
 enum ServiceContractStatus {
   DRAFT
   PENDING_APPROVAL // Submitted for approval, awaiting approvers
-  APPROVED         // All approval levels completed
+  APPROVED // All approval levels completed
   SIGNED
   ACTIVE
   COMPLETED
@@ -1388,8 +1432,8 @@ enum NotificationStatus {
 model KPITarget {
   id        String   @id @default(cuid())
   kpiKey    String   @unique // e.g., 'procurementCycleTime', 'onTimeDeliveryRate'
-  target    Decimal  // The target value for this KPI
-  updatedBy String?  // User who last updated the target
+  target    Decimal // The target value for this KPI
+  updatedBy String? // User who last updated the target
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
@@ -1400,11 +1444,11 @@ model KPITarget {
 
 // Contract Version History - Tracks all versions of a contract
 model ServiceContractVersion {
-  id                    String                @id @default(cuid())
-  contractId            String
-  contract              ServiceContract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  versionNumber         Int
-  
+  id            String          @id @default(cuid())
+  contractId    String
+  contract      ServiceContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  versionNumber Int
+
   // Snapshot of contract data at this version
   contractNumber        String
   vendorId              String
@@ -1421,18 +1465,18 @@ model ServiceContractVersion {
   retentionAmount       Decimal?
   insuranceRequirements Json?
   status                ServiceContractStatus
-  
+
   // Version metadata
-  changeReason          String? // Why was this version created?
-  changeDescription     String? // What changed?
-  createdBy             String
-  createdByName         String? // Denormalized for easy display
-  approvalStatus        String? // PENDING, APPROVED, REJECTED
-  approvedBy            String?
-  approvedAt            DateTime?
-  
-  createdAt             DateTime              @default(now())
-  
+  changeReason      String? // Why was this version created?
+  changeDescription String? // What changed?
+  createdBy         String
+  createdByName     String? // Denormalized for easy display
+  approvalStatus    String? // PENDING, APPROVED, REJECTED
+  approvedBy        String?
+  approvedAt        DateTime?
+
+  createdAt DateTime @default(now())
+
   @@unique([contractId, versionNumber])
   @@index([contractId])
   @@index([createdAt])
@@ -1440,37 +1484,37 @@ model ServiceContractVersion {
 
 // Vendor Contract Response - Tracks vendor acceptance/rejection of contracts
 model VendorContractResponse {
-  id                String                @id @default(cuid())
-  contractId        String
-  contract          ServiceContract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  versionNumber     Int
-  
+  id            String          @id @default(cuid())
+  contractId    String
+  contract      ServiceContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  versionNumber Int
+
   // Response tracking
-  responseToken     String                @unique // Secure token for email link
-  vendorEmail       String
-  vendorName        String?
-  
+  responseToken String  @unique // Secure token for email link
+  vendorEmail   String
+  vendorName    String?
+
   // Response details
-  status            VendorResponseStatus  @default(PENDING)
-  responseType      String? // ACCEPT, REJECT, REQUEST_CHANGES
-  comments          String? // Vendor comments/feedback
-  respondedAt       DateTime?
-  respondedBy       String? // Name of person who responded
-  
+  status       VendorResponseStatus @default(PENDING)
+  responseType String? // ACCEPT, REJECT, REQUEST_CHANGES
+  comments     String? // Vendor comments/feedback
+  respondedAt  DateTime?
+  respondedBy  String? // Name of person who responded
+
   // Email tracking
-  emailSentAt       DateTime?
-  emailOpenedAt     DateTime?
-  reminderSentAt    DateTime?
-  expiresAt         DateTime
-  
+  emailSentAt    DateTime?
+  emailOpenedAt  DateTime?
+  reminderSentAt DateTime?
+  expiresAt      DateTime
+
   // Internal tracking
-  processedBy       String? // Internal user who processed the response
-  processedAt       DateTime?
-  internalNotes     String?
-  
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  
+  processedBy   String? // Internal user who processed the response
+  processedAt   DateTime?
+  internalNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([contractId])
   @@index([responseToken])
   @@index([status])
@@ -1479,9 +1523,9 @@ model VendorContractResponse {
 
 // Vendor Response Status Enum
 enum VendorResponseStatus {
-  PENDING           // Waiting for vendor response
-  ACCEPTED          // Vendor accepted the contract
-  REJECTED          // Vendor rejected with comments
-  EXPIRED           // Response token expired
-  PROCESSED         // Response has been processed by internal team
+  PENDING // Waiting for vendor response
+  ACCEPTED // Vendor accepted the contract
+  REJECTED // Vendor rejected with comments
+  EXPIRED // Response token expired
+  PROCESSED // Response has been processed by internal team
 }

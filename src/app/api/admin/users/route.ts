@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         role: true,
+        companyId: true,
         department: true,
         employeeId: true,
         isActive: true,
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { email, name, password, role, department, employeeId } = body
+    const { email, name, password, role, department, employeeId, companyId } = body
 
     if (!email || !name || !password || !role) {
       return NextResponse.json(
@@ -83,6 +84,18 @@ export async function POST(request: NextRequest) {
     const bcrypt = await import('bcryptjs')
     const hashedPassword = await bcrypt.hash(password, 10)
 
+    const resolvedCompanyId =
+      companyId ||
+      user.companyId ||
+      (await prisma.company.findFirst({ where: { code: 'WUJ' }, select: { id: true } }))?.id
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json(
+        { error: 'No company found. Please create a company first.' },
+        { status: 400 }
+      )
+    }
+
     // Create user
     const newUser = await prisma.user.create({
       data: {
@@ -93,12 +106,14 @@ export async function POST(request: NextRequest) {
         department: department || null,
         employeeId: employeeId || null,
         isActive: true,
+        companyId: resolvedCompanyId,
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        companyId: true,
         department: true,
         employeeId: true,
         isActive: true,

@@ -11,8 +11,13 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { firstApproverId } = body;
+    const user = getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
     // Check if PR exists and is in DRAFT status
     const pr = await prisma.purchaseRequisition.findUnique({
@@ -36,47 +41,22 @@ export async function POST(
       );
     }
 
-    // Submit the PR for approval
-    const approvals = [
-      // Level 1 approval (always required)
-      prisma.approval.create({
-        data: {
-          documentType: 'PURCHASE_REQUISITION',
-          documentId: id,
-          prId: id,
-          approverId: firstApproverId || 'manager001',
-          status: 'PENDING',
-          level: 1
-        }
-      })
-    ];
-
-    // Level 2 approval (required for high-value PRs)
-    if (Number(pr.estimatedCost) > 50000) {
-      approvals.push(
-        prisma.approval.create({
-          data: {
-            documentType: 'PURCHASE_REQUISITION',
-            documentId: id,
-            prId: id,
-            approverId: 'director001',
-            status: 'PENDING',
-            level: 2
-          }
-        })
+    const role = (user.role || '').toUpperCase();
+    const canRequestByRole = ['REQUESTOR', 'DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(role);
+    const isOwner = pr.requesterId === user.id || pr.requesterId === user.employeeId || pr.createdBy === user.id || pr.createdBy === user.employeeId;
+    if (!canRequestByRole && !isOwner) {
+      return NextResponse.json(
+        { error: 'You do not have permission to request approval for this requisition' },
+        { status: 403 }
       );
     }
 
-    const updatedPR = await prisma.$transaction([
-      prisma.purchaseRequisition.update({
-        where: { id },
-        data: { status: 'PENDING_APPROVAL' }
-      }),
-      ...approvals
-    ]);
+    const updatedPR = await prisma.purchaseRequisition.update({
+      where: { id },
+      data: { status: 'PENDING_APPROVAL' }
+    });
 
     // Notify informed parties (includes system admins); optional rule-based list
-    const user = getAuthenticatedUser(request);
     const submitterName = user?.name ?? user?.email ?? 'User';
     let notifyUserIds: string[] = [];
     try {
@@ -100,7 +80,7 @@ export async function POST(
 
     return NextResponse.json({
       message: 'Purchase requisition submitted successfully',
-      requisition: updatedPR[0]
+      requisition: updatedPR
     });
 
   } catch (error) {

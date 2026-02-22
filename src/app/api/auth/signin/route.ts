@@ -18,6 +18,13 @@ export async function POST(request: NextRequest) {
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        company: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -101,7 +108,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Create JWT token
-    const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production'
+    const jwtSecret = process.env.NEXTAUTH_SECRET
+    if (!jwtSecret) {
+      return NextResponse.json(
+        { error: { message: 'Server auth secret is not configured' } },
+        { status: 500 }
+      )
+    }
     const token = jwt.sign(
       {
         id: user.id,
@@ -110,6 +123,8 @@ export async function POST(request: NextRequest) {
         role: user.role || 'REQUESTOR', // Fallback to REQUESTOR if role is null
         department: user.department,
         employeeId: user.employeeId,
+        company: user.company?.code ? [user.company.code] : [],
+        companyId: user.companyId,
       },
       jwtSecret,
       { expiresIn: '8h' }
@@ -125,6 +140,8 @@ export async function POST(request: NextRequest) {
         role: user.role || 'REQUESTOR',
         department: user.department,
         employeeId: user.employeeId,
+        company: user.company?.code ? [user.company.code] : [],
+        companyId: user.companyId,
       },
       token,
       homePath: '/procurement/dashboard',

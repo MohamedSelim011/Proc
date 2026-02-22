@@ -13,7 +13,8 @@ import {
   Calculator,
   FileText,
   BarChart2,
-  Loader2
+  Loader2,
+  Flag
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
@@ -167,8 +168,17 @@ export default function NewPurchaseRequisition() {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
-      if (formData.projectId && !formData.projectId.trim()) newErrors.projectId = 'Project ID cannot be only whitespace';
+      const department = formData.departmentId?.trim() || '';
+      const project = formData.projectId?.trim() || '';
+      if (!department && !project) {
+        newErrors.departmentId = 'Select either Department or Project ID';
+      }
+      if (formData.departmentId && !formData.departmentId.trim()) {
+        newErrors.departmentId = 'Department cannot be only whitespace';
+      }
+      if (formData.projectId && !formData.projectId.trim()) {
+        newErrors.projectId = 'Project ID cannot be only whitespace';
+      }
       
       // Validate Required By Date
       if (!formData.requiredByDate) {
@@ -366,6 +376,7 @@ export default function NewPurchaseRequisition() {
     const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
     const warehouseId = formData.deliveryWarehouseId?.trim();
     const projectId = formData.inventoryProjectId?.trim();
+    const resolvedDepartmentId = formData.departmentId?.trim() || formData.projectId?.trim() || '';
 
     const log = (msg: string, data?: unknown) => {
       console.log('[Requisition]', msg, data ?? '');
@@ -383,6 +394,7 @@ export default function NewPurchaseRequisition() {
         const requesterId = userData?.employeeId || userData?.id || 'emp001';
         const submitData = {
           ...formData,
+          departmentId: resolvedDepartmentId,
           costCenter: formData.costCenter?.trim() || undefined,
           requesterId,
           estimatedCost: calculateTotalCost(),
@@ -475,12 +487,12 @@ export default function NewPurchaseRequisition() {
         }
 
         // Stock insufficient: create PR in Procurement and MR in Inventory (Needs PO) in one go
-        log('Stock insufficient – calling create-pr-and-mr', { departmentId: formData.departmentId, items: formData.items.length, deliveryWarehouseId: warehouseId, inventoryProjectId: projectId });
+        log('Stock insufficient - calling create-pr-and-mr', { departmentId: resolvedDepartmentId, items: formData.items.length, deliveryWarehouseId: warehouseId, inventoryProjectId: projectId });
         const prAndMrRes = await fetch('/api/material-requisition/create-pr-and-mr', {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            departmentId: formData.departmentId,
+            departmentId: resolvedDepartmentId,
             budgetCode: formData.budgetCode,
             justification: formData.justification?.trim(),
             requiredByDate: formData.requiredByDate,
@@ -534,6 +546,7 @@ export default function NewPurchaseRequisition() {
       const trimmedCostCenter = formData.costCenter?.trim() || undefined;
       const submitData = {
         ...formData,
+        departmentId: resolvedDepartmentId,
         costCenter: trimmedCostCenter,
         requesterId,
         estimatedCost: calculateTotalCost(),
@@ -673,13 +686,12 @@ export default function NewPurchaseRequisition() {
                     >
                       <option value="STOCK">Stock Items</option>
                       <option value="NON_STOCK">Non-Stock Items</option>
-                      <option value="SERVICE">Services</option>
                     </select>
                   </div>
 
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-800">
-                      Department <span className="text-red-500">*</span>
+                      Department
                     </label>
                     <input
                       type="text"
@@ -687,8 +699,21 @@ export default function NewPurchaseRequisition() {
                         errors.departmentId ? 'border-red-300 ring-red-100' : ''
                       }`}
                       value={formData.departmentId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
-                      placeholder="Enter department ID"
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        setFormData(prev => ({ ...prev, departmentId: inputValue }));
+                        if (errors.departmentId || errors.projectId) {
+                          setErrors(prev => {
+                            const next = { ...prev };
+                            if (inputValue.trim() || (formData.projectId || '').trim()) {
+                              delete next.departmentId;
+                              delete next.projectId;
+                            }
+                            return next;
+                          });
+                        }
+                      }}
+                      placeholder="Enter department ID (or leave blank and use Project ID)"
                     />
                     {errors.departmentId && (
                       <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -717,10 +742,13 @@ export default function NewPurchaseRequisition() {
                           setErrors(prev => ({ ...prev, projectId: 'Project ID cannot be only whitespace' }));
                         } else {
                           // Clear error when user types valid content
-                          if (errors.projectId) {
+                          if (errors.projectId || errors.departmentId) {
                             setErrors(prev => {
                               const newErrors = { ...prev };
-                              delete newErrors.projectId;
+                              if (inputValue.trim() || (formData.departmentId || '').trim()) {
+                                delete newErrors.projectId;
+                                delete newErrors.departmentId;
+                              }
                               return newErrors;
                             });
                           }
@@ -739,8 +767,9 @@ export default function NewPurchaseRequisition() {
                           setFormData(prev => ({ ...prev, projectId: trimmedValue }));
                         }
                       }}
-                      placeholder="Optional project reference"
+                      placeholder="Enter project ID (optional if Department is filled)"
                     />
+                    <p className="mt-1 text-xs text-gray-500">Either Department or Project ID is required.</p>
                     {errors.projectId && (
                       <p className="mt-2 text-sm text-red-600 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
@@ -758,10 +787,10 @@ export default function NewPurchaseRequisition() {
                       value={formData.priority}
                       onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                     >
-                      <option value="LOW">🟢 Low Priority</option>
-                      <option value="NORMAL">🟡 Normal Priority</option>
-                      <option value="HIGH">🟠 High Priority</option>
-                      <option value="URGENT">🔴 Urgent Priority</option>
+                      <option value="LOW">Low Priority</option>
+                      <option value="NORMAL">Normal Priority</option>
+                      <option value="HIGH">High Priority</option>
+                      <option value="URGENT">Urgent Priority</option>
                     </select>
                   </div>
 
@@ -1277,15 +1306,16 @@ export default function NewPurchaseRequisition() {
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                       <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Department</dt>
-                      <dd className="mt-2 text-lg font-bold text-gray-900">{formData.departmentId}</dd>
+                      <dd className="mt-2 text-lg font-bold text-gray-900">{formData.departmentId || 'N/A'}</dd>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Project</dt>
+                      <dd className="mt-2 text-lg font-bold text-gray-900">{formData.projectId || 'N/A'}</dd>
                     </div>
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                       <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Priority</dt>
                       <dd className="mt-2 text-lg font-bold text-gray-900 flex items-center">
-                        {formData.priority === 'LOW' && '🟢'}
-                        {formData.priority === 'NORMAL' && '🟡'}
-                        {formData.priority === 'HIGH' && '🟠'}
-                        {formData.priority === 'URGENT' && '🔴'}
+                        <Flag className="h-4 w-4 text-wujha-primary" />
                         <span className="ml-2">{formData.priority}</span>
                       </dd>
                     </div>
@@ -1491,3 +1521,4 @@ export default function NewPurchaseRequisition() {
     </div>
   );
 }
+

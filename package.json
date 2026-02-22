@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "npx prisma migrate reset && npm run db:seed"
+    "db:reset": "npx prisma migrate reset && npm run db:seed",
+    "seed:bright": "tsx prisma/seed-bright.ts",
+    "seed:ziad-pos": "tsx prisma/seed-ziad-acknowledged-pos.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

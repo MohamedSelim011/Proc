@@ -28,7 +28,7 @@ interface PurchaseRequisition {
   departmentId: string;
   itemType: 'STOCK' | 'NON_STOCK' | 'SERVICE';
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'CANCELLED';
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'CANCELLED';
   estimatedCost: number;
   budgetCode: string;
   justification?: string;
@@ -63,18 +63,19 @@ export default function PurchaseRequisitionsPage() {
   });
 
   // Get user data from localStorage for permission checks
-  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') || '' : '';
+  const userRole = typeof window !== 'undefined' ? (localStorage.getItem('role') || '').toUpperCase() : '';
   const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
   const userId = userData.id || '';
   const userEmployeeId = userData.employeeId || '';
 
   // Check permissions
-  const canApprove = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN'].includes(userRole);
+  const canApprove = ['PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole);
 
   // Filters
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
+    itemType: '',
     requesterId: '',
     departmentId: '',
     search: ''
@@ -89,11 +90,13 @@ export default function PurchaseRequisitionsPage() {
       setLoading(true);
       
       const params = new URLSearchParams({
+        scope: 'all',
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
         ...(filters.search && { search: filters.search }),
         ...(filters.status && { status: filters.status }),
         ...(filters.priority && { priority: filters.priority }),
+        ...(filters.itemType && { itemType: filters.itemType }),
         ...(filters.requesterId && { requesterId: filters.requesterId }),
         ...(filters.departmentId && { departmentId: filters.departmentId })
       });
@@ -130,9 +133,7 @@ export default function PurchaseRequisitionsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          firstApproverId: 'manager001'
-        }),
+        body: JSON.stringify({}),
       });
 
       if (response.ok) {
@@ -220,9 +221,11 @@ export default function PurchaseRequisitionsPage() {
       
       // Build query params with current filters
       const params = new URLSearchParams({
+        scope: 'all',
         export: 'true',
         ...(filters.status && { status: filters.status }),
         ...(filters.priority && { priority: filters.priority }),
+        ...(filters.itemType && { itemType: filters.itemType }),
         ...(filters.requesterId && { requesterId: filters.requesterId }),
         ...(filters.departmentId && { departmentId: filters.departmentId })
       });
@@ -296,9 +299,9 @@ export default function PurchaseRequisitionsPage() {
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Purchase Requisitions</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Requisitions</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Manage and track purchase requisitions throughout the approval process
+            Manage and track material, service, and mixed requisitions
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
@@ -341,7 +344,7 @@ export default function PurchaseRequisitionsPage() {
 
       {/* Filters */}
       <ListFiltersCard
-        onClear={() => setFilters({ search: '', status: '', priority: '', requesterId: '', departmentId: '' })}
+        onClear={() => setFilters({ search: '', status: '', priority: '', itemType: '', requesterId: '', departmentId: '' })}
         className="mb-6"
         columnsClassName="grid grid-cols-1 gap-4 md:grid-cols-3"
       >
@@ -383,6 +386,18 @@ export default function PurchaseRequisitionsPage() {
             <option value="URGENT">Urgent</option>
           </select>
         </ListFilterField>
+        <ListFilterField label="Type">
+          <select
+            className="erp-input"
+            value={filters.itemType}
+            onChange={(e) => handleFilterChange('itemType', e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="STOCK">Material - Stock</option>
+            <option value="NON_STOCK">Material - Non-Stock</option>
+            <option value="SERVICE">Service / Mixed</option>
+          </select>
+        </ListFilterField>
       </ListFiltersCard>
 
       {/* Table */}
@@ -419,7 +434,7 @@ export default function PurchaseRequisitionsPage() {
                     Requestor & Department
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount & Priority
+                    Type, Amount & Priority
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -453,6 +468,7 @@ export default function PurchaseRequisitionsPage() {
                       <div className="text-sm text-gray-500">{pr.departmentId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-xs text-gray-500 mb-1">{pr.itemType}</div>
                       <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(Number(pr.estimatedCost))}
                       </div>
@@ -482,12 +498,12 @@ export default function PurchaseRequisitionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
                         <Link
-                          href={`/procurement/requisitions/${pr.id}`}
+                          href={pr.itemType === 'SERVICE' ? `/procurement/services/requisitions/${pr.id}` : `/procurement/requisitions/${pr.id}`}
                           className="text-wujha-primary hover:text-wujha-primary-hover"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
-                        {(pr.status === 'DRAFT' || pr.status === 'REJECTED') && (
+                        {pr.itemType !== 'SERVICE' && (pr.status === 'DRAFT' || pr.status === 'REJECTED') && (
                           <>
                             <Link
                               href={`/procurement/requisitions/${pr.id}/edit`}
@@ -498,7 +514,7 @@ export default function PurchaseRequisitionsPage() {
                             </Link>
                           </>
                         )}
-                        {(pr.status === 'PENDING_APPROVAL' || pr.status === 'SUBMITTED') && 
+                        {pr.itemType !== 'SERVICE' && (pr.status === 'PENDING_APPROVAL' || pr.status === 'SUBMITTED') && 
                          canApprove && 
                          pr.requesterId !== userId && 
                          pr.requesterId !== userEmployeeId &&

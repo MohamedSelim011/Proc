@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/jwt';
 
 export async function GET(
   request: NextRequest,
@@ -65,6 +66,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+    const user = getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
     // Find the purchase requisition
     const purchaseRequisition = await prisma.purchaseRequisition.findUnique({
@@ -86,11 +94,58 @@ export async function PATCH(
       );
     }
 
+    const normalizedRole = (user.role || '').toUpperCase();
+    const canApprove = ['PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(normalizedRole);
+    const isOwner =
+      purchaseRequisition.requesterId === user.id ||
+      purchaseRequisition.requesterId === user.employeeId ||
+      purchaseRequisition.createdBy === user.id ||
+      purchaseRequisition.createdBy === user.employeeId;
+
+    const requestedStatus = String(body.status || '').toUpperCase();
+    const currentStatus = purchaseRequisition.status;
+    let nextStatus: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+
+    if (requestedStatus === 'PENDING_APPROVAL') {
+      if (currentStatus !== 'DRAFT') {
+        return NextResponse.json(
+          { error: `Only DRAFT requisitions can request approval. Current status: ${currentStatus}` },
+          { status: 400 }
+        );
+      }
+      if (!isOwner && !['REQUESTOR', 'DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(normalizedRole)) {
+        return NextResponse.json(
+          { error: 'You do not have permission to request approval for this requisition' },
+          { status: 403 }
+        );
+      }
+      nextStatus = 'PENDING_APPROVAL';
+    } else if (requestedStatus === 'APPROVED' || requestedStatus === 'REJECTED') {
+      if (!canApprove) {
+        return NextResponse.json(
+          { error: 'Only Procurement Manager or Admin can approve requisitions' },
+          { status: 403 }
+        );
+      }
+      if (currentStatus !== 'PENDING_APPROVAL' && currentStatus !== 'SUBMITTED') {
+        return NextResponse.json(
+          { error: `Only pending requisitions can be approved/rejected. Current status: ${currentStatus}` },
+          { status: 400 }
+        );
+      }
+      nextStatus = requestedStatus as 'APPROVED' | 'REJECTED';
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid status transition. Allowed values: PENDING_APPROVAL, APPROVED, REJECTED' },
+        { status: 400 }
+      );
+    }
+
     // Update the requisition status
     const updatedRequisition = await prisma.purchaseRequisition.update({
       where: { id },
       data: {
-        status: body.status,
+        status: nextStatus,
         updatedAt: new Date()
       },
       include: {

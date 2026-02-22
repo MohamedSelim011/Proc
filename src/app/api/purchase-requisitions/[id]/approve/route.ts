@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/jwt';
 
 
 // POST /api/purchase-requisitions/[id]/approve - Approve or reject PR
@@ -10,7 +11,23 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { action, approverId, comments, level } = body;
+    const { action } = body;
+    const user = getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const approverRole = (user.role || '').toUpperCase();
+    const canApprove = ['PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(approverRole);
+    if (!canApprove) {
+      return NextResponse.json(
+        { error: 'Only Procurement Manager or Admin can approve requisitions' },
+        { status: 403 }
+      );
+    }
 
     if (!['APPROVE', 'REJECT'].includes(action)) {
       return NextResponse.json(
@@ -20,14 +37,7 @@ export async function POST(
     }
 
     const pr = await prisma.purchaseRequisition.findUnique({
-      where: { id },
-      include: {
-        approvals: {
-          orderBy: {
-            level: 'asc'
-          }
-        }
-      }
+      where: { id }
     });
 
     if (!pr) {
@@ -45,89 +55,15 @@ export async function POST(
       );
     }
 
-    // Find the next pending approval
-    const currentLevel = level || 1;
-    console.log('Looking for approval at level:', currentLevel);
-    console.log('Available approvals:', pr.approvals.map(a => ({ level: a.level, status: a.status, id: a.id })));
-    
-    const approval = pr.approvals.find(a => a.level === currentLevel && a.status === 'PENDING');
-    
-    if (!approval) {
-      // Check if there are any pending approvals at any level
-      const pendingApproval = pr.approvals.find(a => a.status === 'PENDING');
-      if (!pendingApproval) {
-        // If no pending approvals, check if all approvals are completed
-        const allApprovalsCompleted = pr.approvals.every(a => a.status === 'APPROVED');
-        if (allApprovalsCompleted) {
-          // All approvals are done, update PR status to APPROVED
-          await prisma.purchaseRequisition.update({
-            where: { id },
-            data: { status: 'APPROVED' }
-          });
-          
-          return NextResponse.json({ 
-            message: 'Purchase requisition already fully approved',
-            status: 'APPROVED' 
-          });
-        }
-        
-        return NextResponse.json(
-          { error: 'No pending approvals found for this PR' },
-          { status: 400 }
-        );
-      }
-      
-      return NextResponse.json(
-        { error: `No pending approval found for level ${currentLevel}. Next pending approval is at level ${pendingApproval.level}` },
-        { status: 400 }
-      );
-    }
-
-    // Update approval record
-    await prisma.approval.update({
-      where: { id: approval.id },
-      data: {
-        status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-        comments,
-        approvedAt: new Date()
-      }
-    });
-
-    if (action === 'REJECT') {
-      // Reject the PR
-      await prisma.purchaseRequisition.update({
-        where: { id },
-        data: { status: 'REJECTED' }
-      });
-
-      return NextResponse.json({ 
-        message: 'Purchase requisition rejected',
-        status: 'REJECTED' 
-      });
-    }
-
-    // Check if there are more pending approvals
-    const remainingPendingApprovals = pr.approvals.filter(a => a.status === 'PENDING' && a.level !== currentLevel);
-    
-    if (remainingPendingApprovals.length > 0) {
-      // More approvals needed
-      const nextLevel = Math.min(...remainingPendingApprovals.map(a => a.level));
-      return NextResponse.json({ 
-        message: `Approved at level ${currentLevel}. Pending approval at level ${nextLevel}`,
-        nextLevel,
-        status: 'SUBMITTED'
-      });
-    }
-
-    // All approvals completed - update PR status to APPROVED
+    const nextStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
     await prisma.purchaseRequisition.update({
       where: { id },
-      data: { status: 'APPROVED' }
+      data: { status: nextStatus }
     });
 
     return NextResponse.json({ 
-      message: 'Purchase requisition fully approved',
-      status: 'APPROVED' 
+      message: action === 'APPROVE' ? 'Purchase requisition approved' : 'Purchase requisition rejected',
+      status: nextStatus
     });
   } catch (error) {
     console.error('Error processing approval:', error);

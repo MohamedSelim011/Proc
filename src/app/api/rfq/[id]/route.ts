@@ -51,6 +51,11 @@ export async function GET(
           include: {
             vendor: true
           }
+        },
+        documents: {
+          orderBy: {
+            uploadedAt: 'desc'
+          }
         }
       }
     });

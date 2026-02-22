@@ -105,7 +105,7 @@ export default function PurchaseRequisitionDetail() {
   
   // Check permissions
   const canRequestApproval = ['REQUESTOR', 'DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole?.toUpperCase());
-  const canApprove = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole?.toUpperCase());
+  const canApprove = ['PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole?.toUpperCase());
   const isRequester = pr?.requesterId === userId || pr?.requesterId === userEmployeeId || pr?.createdBy === userId;
   
   // Debug logging
@@ -233,9 +233,7 @@ export default function PurchaseRequisitionDetail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          firstApproverId: 'manager001' // This should be determined based on routing rules
-        }),
+        body: JSON.stringify({}),
       });
 
       if (response.ok) {

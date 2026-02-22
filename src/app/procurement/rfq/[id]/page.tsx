@@ -11,7 +11,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Building,
-  Eye,
   Edit,
   Send,
   Award,
@@ -25,6 +24,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { getUserRole, getUserData } from '@/lib/jwt';
+import DocumentManager from '@/components/documents/document-manager';
 
 interface RFQ {
   id: string;
@@ -99,6 +99,16 @@ interface RFQ {
     deliveryTerms?: string;
     notes?: string;
   }[];
+  documents?: {
+    id: string;
+    documentType?: string | null;
+    documentName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    uploadedBy?: string | null;
+    uploadedAt: string;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +129,8 @@ export default function RFQDetailPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showScoringModal, setShowScoringModal] = useState(false);
   const [scoringData, setScoringData] = useState<{ [responseId: string]: { [criterion: string]: number | null } }>({});
+  const [activeTab, setActiveTab] = useState<'general' | 'material-requisition-details' | 'vendor-responses' | 'documents'>('general');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   useEffect(() => {
     // Get user data from JWT token or localStorage
@@ -246,9 +258,9 @@ export default function RFQDetailPage() {
         } else if (key === 'commercial') {
           initialScores[response.id][key] = response.commercialScore ?? null;
         } else if (key === 'delivery') {
-          initialScores[response.id][key] = (response as any).deliveryScore ?? null;
+          initialScores[response.id][key] = response.deliveryScore ?? null;
         } else if (key === 'experience') {
-          initialScores[response.id][key] = (response as any).experienceScore ?? null;
+          initialScores[response.id][key] = response.experienceScore ?? null;
         } else {
           initialScores[response.id][key] = null;
         }
@@ -368,7 +380,9 @@ export default function RFQDetailPage() {
     if (!rfq) return;
     
     // Use the vendors already linked to the RFQ
-    const vendorIds: string[] = (rfq.invitedVendors || []).map((iv: any) => iv.vendorId || iv.vendor?.id).filter((id: string) => id);
+    const vendorIds: string[] = (rfq.invitedVendors || [])
+      .map((iv) => iv.vendorId || iv.vendor?.id)
+      .filter((id): id is string => Boolean(id));
     
     if (vendorIds.length === 0) {
       showToast('error', 'No vendors have been selected for this RFQ. Please edit the RFQ to add vendors before sending invitations.');
@@ -407,6 +421,71 @@ export default function RFQDetailPage() {
       showToast('error', 'Failed to send invitations');
     } finally {
       setSendingInvitations(false);
+    }
+  };
+
+  const handleDocumentUpload = async (file: File | null) => {
+    if (!rfq || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`/api/rfq/${rfq.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        showToast('error', data.error || 'Failed to upload document');
+        return;
+      }
+
+      setRfq((prev) =>
+        prev
+          ? {
+              ...prev,
+              documents: [data, ...(prev.documents || [])],
+            }
+          : prev
+      );
+      showToast('success', 'Document uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading RFQ document:', error);
+      showToast('error', 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!rfq) return;
+
+    try {
+      const response = await fetch(`/api/rfq/${rfq.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast('error', data.error || 'Failed to delete document');
+        return;
+      }
+
+      setRfq((prev) =>
+        prev
+          ? {
+              ...prev,
+              documents: (prev.documents || []).filter((doc) => doc.id !== documentId),
+            }
+          : prev
+      );
+      showToast('success', 'Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting RFQ document:', error);
+      showToast('error', 'Failed to delete document');
     }
   };
 
@@ -455,7 +534,7 @@ export default function RFQDetailPage() {
         <AlertTriangle className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">RFQ not found</h3>
         <p className="mt-1 text-sm text-gray-500">
-          The RFQ you're looking for doesn't exist or has been removed.
+          The RFQ you&apos;re looking for doesn&apos;t exist or has been removed.
         </p>
         <div className="mt-6">
           <Link
@@ -594,559 +673,375 @@ export default function RFQDetailPage() {
         </span>
       </div>
 
-      {/* Status Update Info */}
-      {rfq.status === 'DRAFT' && new Date(rfq.closingDate) < new Date() && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex">
-            <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                RFQ cannot be published
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>The closing date ({new Date(rfq.closingDate).toLocaleDateString()}) is in the past. 
-                You need to update the closing date to a future date before publishing this RFQ.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
-              <Users className="h-6 w-6 text-wujha-primary" />
-            </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Total Responses</p>
-              <p className="text-2xl font-bold text-gray-900 truncate">{totalResponses}</p>
-            </div>
-          </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex flex-wrap gap-x-8 px-6">
+            {[
+              { id: 'general', name: 'General Info', icon: FileText },
+              { id: 'material-requisition-details', name: 'Material Requisition Details', icon: Building },
+              { id: 'vendor-responses', name: 'Vendor Responses', icon: Users },
+              { id: 'documents', name: 'Documents', icon: FileText },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-wujha-primary text-wujha-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
-              <DollarSign className="h-6 w-6 text-wujha-primary" />
-            </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">PR Value</p>
-              <p className="text-2xl font-bold text-gray-900 truncate" title={rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}>
-                {rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-wujha-primary" />
-            </div>
-            <div className="ml-4 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600">Avg Bid</p>
-              <p className="text-2xl font-bold text-gray-900 truncate" title={`${averageBid.toLocaleString()} OMR`}>
-                {averageBid.toLocaleString()} OMR
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg">
-              <Calendar className="h-6 w-6 text-wujha-primary" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Closing Date</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {new Date(rfq.closingDate).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* RFQ Details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              <FileText className="h-5 w-5 inline mr-2" />
-              RFQ Information
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <p className="mt-1 text-sm text-gray-900">{rfq.description || 'No description provided'}</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Issue Date</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {new Date(rfq.issueDate).toLocaleDateString()}
-                  </p>
+        <div className="space-y-6 p-6">
+          {activeTab === 'general' && (
+            <>
+              {rfq.status === 'DRAFT' && new Date(rfq.closingDate) < new Date() && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">RFQ cannot be published</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          The closing date ({new Date(rfq.closingDate).toLocaleDateString()}) is in the past. You need to update the closing date to a future date before publishing this RFQ.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Closing Date</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {new Date(rfq.closingDate).toLocaleDateString()}
-                  </p>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <Users className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Responses</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{totalResponses}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <DollarSign className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">PR Value</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <TrendingUp className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Average Bid</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{averageBid.toLocaleString()} OMR</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-wujha-primary/10 p-2">
+                      <Calendar className="h-5 w-5 text-wujha-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Closing Date</p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">{new Date(rfq.closingDate).toLocaleDateString()}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Purchase Requisition Details */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              <Building className="h-5 w-5 inline mr-2" />
-              Purchase Requisition Details
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PR Number</label>
-                  <p className="mt-1 text-sm text-gray-900">{rfq.pr.prNumber}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Item Type</label>
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-wujha-primary/10 text-wujha-primary">
-                    {rfq.pr.itemType}
-                  </span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Estimated Cost</label>
-                <p className="mt-1 text-lg font-semibold text-gray-900">
-                  {rfq.pr.estimatedCost.toLocaleString()} OMR
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Invited Vendors & Submission Status */}
-          {rfq.invitedVendors && rfq.invitedVendors.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
-                <span className="flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-wujha-primary" />
-                  Invited Vendors & Submission Status
-                </span>
-                <span className="text-sm font-normal text-gray-500">
-                  {rfq.invitedVendors.filter(iv => {
-                    const resp = rfq.responses.find(r => r.vendor.id === iv.vendor.id);
-                    return !!(resp && resp.tokenUsed && resp.proposalFileUrl);
-                  }).length} of {rfq.invitedVendors.length} submitted
-                </span>
-              </h2>
-              
-              <div className="space-y-3">
-                {rfq.invitedVendors.map((invitedVendor) => {
-                  const response = rfq.responses.find(r => r.vendor.id === invitedVendor.vendor.id);
-                  // A vendor has actually submitted if they have a response with tokenUsed=true and proposalFileUrl
-                  const hasSubmitted = !!(response && response.tokenUsed && response.proposalFileUrl);
-                  
-                  return (
-                    <div
-                      key={invitedVendor.id}
-                      className={`border rounded-lg p-4 transition-all ${
-                        hasSubmitted
-                          ? 'border-green-200 bg-green-50/50'
-                          : 'border-gray-200 bg-gray-50/50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3 flex-1">
-                          {/* Status Icon */}
-                          <div className="flex-shrink-0 mt-1">
-                            {hasSubmitted ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <Clock className="h-5 w-5 text-amber-500" />
-                            )}
-                          </div>
-                          
-                          {/* Vendor Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-medium text-gray-900">{invitedVendor.vendor.nameEn}</h3>
-                              {hasSubmitted && (
-                                <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                  Submitted
-                                </span>
-                              )}
-                              {!hasSubmitted && (
-                                <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
-                                  Pending
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-1 space-y-1">
-                              <p className="text-xs text-gray-500">
-                                Code: <span className="font-medium">{invitedVendor.vendor.vendorCode}</span>
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Email: <span className="font-medium">{invitedVendor.vendor.email}</span>
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Invited: {new Date(invitedVendor.invitedAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            
-                            {/* Submission Details */}
-                            {hasSubmitted && response && (
-                              <div className="mt-3 pt-3 border-t border-green-200">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <span className="text-gray-600">Amount:</span>
-                                    <span className="ml-2 font-semibold text-gray-900">
-                                      {response.totalAmount?.toLocaleString() || 'N/A'} OMR
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-600">Submitted:</span>
-                                    <span className="ml-2 font-medium text-gray-900">
-                                      {new Date(response.submittedAt).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                  {response.validUntil && (
-                                    <div>
-                                      <span className="text-gray-600">Valid Until:</span>
-                                      <span className="ml-2 font-medium text-gray-900">
-                                        {new Date(response.validUntil).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <span className="text-gray-600">Status:</span>
-                                    <span className={`ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getResponseStatusColor(response.status)}`}>
-                                      {response.status.replace('_', ' ')}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                {/* Action Buttons */}
-                                <div className="mt-3 flex items-center space-x-3">
-                                  {response.proposalFileUrl && (
-                                    <a
-                                      href={response.proposalFileUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      download
-                                      className="inline-flex items-center text-sm text-wujha-primary hover:text-wujha-primary-hover font-medium"
-                                    >
-                                      <FileText className="h-4 w-4 mr-1" />
-                                      Download PDF
-                                    </a>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setSelectedResponse(response);
-                                      setShowDetailsModal(true);
-                                    }}
-                                    className="inline-flex items-center text-sm text-wujha-primary hover:text-wujha-primary-hover font-medium"
-                                  >
-                                    <Info className="h-4 w-4 mr-1" />
-                                    View Details
-                                  </button>
-                                </div>
-                                
-                                {/* Scores */}
-                                {(response.technicalScore || response.commercialScore || response.deliveryScore || response.experienceScore || response.overallScore) && (
-                                  <div className="mt-2 pt-2 border-t border-green-200">
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                                      {response.technicalScore && (
-                                        <div>
-                                          <span className="text-gray-600">Technical:</span>
-                                          <span className="ml-1 font-medium text-gray-900">
-                                            {response.technicalScore}/100
-                                          </span>
-                                        </div>
-                                      )}
-                                      {response.commercialScore && (
-                                        <div>
-                                          <span className="text-gray-600">Commercial:</span>
-                                          <span className="ml-1 font-medium text-gray-900">
-                                            {response.commercialScore}/100
-                                          </span>
-                                        </div>
-                                      )}
-                                      {response.deliveryScore && (
-                                        <div>
-                                          <span className="text-gray-600">Delivery:</span>
-                                          <span className="ml-1 font-medium text-gray-900">
-                                            {response.deliveryScore}/100
-                                          </span>
-                                        </div>
-                                      )}
-                                      {response.experienceScore && (
-                                        <div>
-                                          <span className="text-gray-600">Experience:</span>
-                                          <span className="ml-1 font-medium text-gray-900">
-                                            {response.experienceScore}/100
-                                          </span>
-                                        </div>
-                                      )}
-                                      {response.overallScore && (
-                                        <div className="font-semibold">
-                                          <span className="text-gray-700">Overall:</span>
-                                          <span className="ml-1 text-wujha-primary">
-                                            {response.overallScore}/100
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            
-                            {/* Pending Message */}
-                            {!hasSubmitted && (
-                              <div className="mt-3 pt-3 border-t border-amber-200">
-                                <p className="text-sm text-amber-700">
-                                  <Clock className="h-4 w-4 inline mr-1" />
-                                  Awaiting proposal submission
-                                </p>
-                                {new Date(rfq.closingDate) < new Date() && (
-                                  <p className="text-xs text-red-600 mt-1">
-                                    ⚠️ Submission deadline has passed
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                    <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                      <FileText className="mr-2 inline h-5 w-5" />
+                      RFQ Information
+                    </h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <p className="mt-1 text-sm text-gray-900">{rfq.description || 'No description provided'}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Issue Date</label>
+                          <p className="mt-1 text-sm text-gray-900">{new Date(rfq.issueDate).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Closing Date</label>
+                          <p className="mt-1 text-sm text-gray-900">{new Date(rfq.closingDate).toLocaleDateString()}</p>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              
-              {/* Summary Stats */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{rfq.invitedVendors.length}</p>
-                    <p className="text-xs text-gray-500">Total Invited</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {rfq.invitedVendors.filter(iv => {
-                        const resp = rfq.responses.find(r => r.vendor.id === iv.vendor.id);
-                        return !!(resp && resp.tokenUsed && resp.proposalFileUrl);
-                      }).length}
-                    </p>
-                    <p className="text-xs text-gray-500">Submitted</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-amber-600">
-                      {rfq.invitedVendors.filter(iv => {
-                        const resp = rfq.responses.find(r => r.vendor.id === iv.vendor.id);
-                        return !(resp && resp.tokenUsed && resp.proposalFileUrl);
-                      }).length}
-                    </p>
-                    <p className="text-xs text-gray-500">Pending</p>
                   </div>
                 </div>
+
+                <div className="space-y-6">
+                  {evaluationCriteria && (
+                    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                        <Star className="mr-2 inline h-5 w-5" />
+                        Evaluation Criteria
+                      </h3>
+                      <div className="space-y-3">
+                        {Object.entries(evaluationCriteria).map(([key, value]) => (
+                          <div key={key} className="flex items-center justify-between">
+                            <span className="text-sm font-medium capitalize text-gray-700">{key}</span>
+                            <span className="text-sm font-semibold text-gray-900">{String(value)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rfq.termsAndConditions && (
+                    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                        <FileText className="mr-2 inline h-5 w-5" />
+                        Terms & Conditions
+                      </h3>
+                      <p className="whitespace-pre-wrap text-sm text-gray-700">{rfq.termsAndConditions}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'material-requisition-details' && (
+            <div className="space-y-6">
+              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                  <Building className="mr-2 inline h-5 w-5" />
+                  Material Requisition Details
+                </h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">PR Number</label>
+                    <p className="mt-1 text-sm text-gray-900">{rfq.pr?.prNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Item Type</label>
+                    <p className="mt-1">
+                      <span className="inline-flex rounded-full bg-wujha-primary/10 px-2 py-1 text-xs font-semibold text-wujha-primary">
+                        {rfq.pr?.itemType || 'N/A'}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Estimated Cost</label>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {rfq.pr?.estimatedCost ? `${rfq.pr.estimatedCost.toLocaleString()} OMR` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Requisition Items</h3>
+                </div>
+                {rfq.pr?.items?.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Item</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Specifications</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Estimated Price</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {rfq.pr.items.map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.item.nameEn}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.item.specifications || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.quantity}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{Number(item.estimatedPrice || 0).toLocaleString()} OMR</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-10 text-center">
+                    <FileText className="mx-auto h-8 w-8 text-gray-400" />
+                    <p className="mt-2 text-sm text-gray-600">No requisition items found.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Vendor Responses */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              <Users className="h-5 w-5 inline mr-2" />
-              Vendor Responses ({totalResponses})
-            </h2>
-            
-            {totalResponses === 0 ? (
-              <div className="text-center py-8">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No responses yet</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Vendor responses will appear here once they submit their quotes.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {rfq.responses.map((response) => (
-                  <div key={response.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{response.vendor.nameEn}</h3>
-                        <p className="text-sm text-gray-500">
-                          Submitted: {new Date(response.submittedAt).toLocaleDateString()}
-                        </p>
-                        {response.validUntil && (
-                          <p className="text-sm text-gray-500">
-                            Valid until: {new Date(response.validUntil).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900">
-                          {response.totalAmount ? response.totalAmount.toLocaleString() : 'N/A'} OMR
-                        </p>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getResponseStatusColor(response.status)}`}>
-                          {response.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {(response.technicalScore || response.commercialScore || response.deliveryScore || response.experienceScore || response.overallScore) && (() => {
-                      const criteria = rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : { technical: 40, commercial: 30, delivery: 20, experience: 10 };
+          {activeTab === 'vendor-responses' && (
+            <div className="space-y-6">
+              {rfq.invitedVendors && rfq.invitedVendors.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-4 flex items-center justify-between text-lg font-semibold text-gray-900">
+                    <span className="flex items-center">
+                      <Users className="mr-2 h-5 w-5 text-wujha-primary" />
+                      Invited Vendors
+                    </span>
+                    <span className="text-sm font-normal text-gray-500">
+                      {rfq.invitedVendors.filter((iv) => {
+                        const resp = rfq.responses.find((r) => r.vendor.id === iv.vendor.id);
+                        return !!(resp && resp.tokenUsed && resp.proposalFileUrl);
+                      }).length}{' '}
+                      of {rfq.invitedVendors.length} submitted
+                    </span>
+                  </h2>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {rfq.invitedVendors.map((invitedVendor) => {
+                      const response = rfq.responses.find((r) => r.vendor.id === invitedVendor.vendor.id);
+                      const hasSubmitted = !!(response && response.tokenUsed && response.proposalFileUrl);
+
                       return (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="grid grid-cols-3 gap-3 text-sm">
-                            {response.technicalScore !== null && response.technicalScore !== undefined && (
-                              <div>
-                                <span className="text-gray-500">Technical ({criteria.technical || 40}%):</span>
-                                <span className="ml-2 font-medium">{response.technicalScore}/100</span>
-                              </div>
-                            )}
-                            {response.commercialScore !== null && response.commercialScore !== undefined && (
-                              <div>
-                                <span className="text-gray-500">Commercial ({criteria.commercial || 30}%):</span>
-                                <span className="ml-2 font-medium">{response.commercialScore}/100</span>
-                              </div>
-                            )}
-                            {response.deliveryScore !== null && response.deliveryScore !== undefined && (
-                              <div>
-                                <span className="text-gray-500">Delivery ({criteria.delivery || 20}%):</span>
-                                <span className="ml-2 font-medium">{response.deliveryScore}/100</span>
-                              </div>
-                            )}
-                            {response.experienceScore !== null && response.experienceScore !== undefined && (
-                              <div>
-                                <span className="text-gray-500">Experience ({criteria.experience || 10}%):</span>
-                                <span className="ml-2 font-medium">{response.experienceScore}/100</span>
-                              </div>
-                            )}
-                            {response.overallScore && (
-                              <div className="col-span-3 font-semibold border-t pt-2 mt-2">
-                                <span className="text-gray-700">Overall Weighted Score:</span>
-                                <span className="ml-2 text-wujha-primary text-lg">{response.overallScore}/100</span>
-                              </div>
-                            )}
+                        <div key={invitedVendor.id} className="rounded-lg border border-gray-200 p-4">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-900">{invitedVendor.vendor.nameEn}</p>
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                hasSubmitted ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {hasSubmitted ? 'Submitted' : 'Pending'}
+                            </span>
                           </div>
-                          
-                          {/* Select Winner Button */}
-                          {rfq.status === 'EVALUATED' && (response.overallScore !== null && response.overallScore !== undefined) && (
-                            userRole === 'ADMIN' || 
-                            userRole === 'SUPER_ADMIN' || 
-                            userRole === 'PROCUREMENT_MANAGER' || 
-                            userRole === 'DEPARTMENT_MANAGER' || 
-                            userRole === 'FINANCE_MANAGER'
-                          ) && (
-                            <div className="mt-3">
+                          <p className="text-xs text-gray-500">Code: {invitedVendor.vendor.vendorCode}</p>
+                          <p className="text-xs text-gray-500">Email: {invitedVendor.vendor.email}</p>
+                          <p className="mt-1 text-xs text-gray-500">Invited: {new Date(invitedVendor.invitedAt).toLocaleDateString()}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                  <Users className="mr-2 inline h-5 w-5" />
+                  Vendor Responses ({totalResponses})
+                </h2>
+
+                {totalResponses === 0 ? (
+                  <div className="py-8 text-center">
+                    <Users className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No responses yet</h3>
+                    <p className="mt-1 text-sm text-gray-500">Vendor responses will appear here once they submit their quotes.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rfq.responses.map((response) => (
+                      <div key={response.id} className="rounded-lg border border-gray-200 p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium text-gray-900">{response.vendor.nameEn}</h3>
+                            <p className="text-sm text-gray-500">Submitted: {new Date(response.submittedAt).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-gray-900">{response.totalAmount ? response.totalAmount.toLocaleString() : 'N/A'} OMR</p>
+                            <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getResponseStatusColor(response.status)}`}>
+                              {response.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-4">
+                          {response.proposalFileUrl && (
+                            <a href={response.proposalFileUrl} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover">
+                              <FileText className="mr-1 h-4 w-4" />
+                              Download PDF
+                            </a>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedResponse(response);
+                              setShowDetailsModal(true);
+                            }}
+                            className="inline-flex items-center text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
+                          >
+                            <Info className="mr-1 h-4 w-4" />
+                            View Details
+                          </button>
+                          {rfq.status === 'EVALUATED' &&
+                            response.overallScore !== null &&
+                            response.overallScore !== undefined &&
+                            (userRole === 'ADMIN' ||
+                              userRole === 'SUPER_ADMIN' ||
+                              userRole === 'PROCUREMENT_MANAGER' ||
+                              userRole === 'DEPARTMENT_MANAGER' ||
+                              userRole === 'FINANCE_MANAGER') && (
                               <button
                                 onClick={() => handleSelectWinner(response.id)}
                                 disabled={evaluating}
-                                className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                <Award className="h-4 w-4 mr-2" />
-                                <span>Select as Winner</span>
+                                <Award className="mr-1 h-3.5 w-3.5" />
+                                Select Winner
                               </button>
-                            </div>
-                          )}
+                            )}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Evaluation Criteria */}
-          {evaluationCriteria && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                <Star className="h-5 w-5 inline mr-2" />
-                Evaluation Criteria
-              </h3>
-              
-              <div className="space-y-3">
-                {Object.entries(evaluationCriteria).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {key}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {String(value)}%
-                    </span>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">Actions</h3>
+                <div className="space-y-3">
+                  {rfq.status === 'CLOSED' && rfq.responses.length > 0 && (
+                    <button
+                      onClick={handleOpenScoring}
+                      disabled={evaluating}
+                      className="w-full inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Star className="mr-2 h-4 w-4" />
+                      <span>Evaluate Responses</span>
+                    </button>
+                  )}
+                  {rfq.status === 'EVALUATED' && (
+                    <button
+                      onClick={() => handleStatusChange('AWARDED')}
+                      disabled={evaluating}
+                      className="w-full inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Award className="mr-2 h-4 w-4" />
+                      <span>Award Contract</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Terms and Conditions */}
-          {rfq.termsAndConditions && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                <FileText className="h-5 w-5 inline mr-2" />
-                Terms & Conditions
-              </h3>
-              
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {rfq.termsAndConditions}
-              </p>
-            </div>
+          {activeTab === 'documents' && (
+            <DocumentManager
+              documents={rfq.documents || []}
+              uploading={uploadingDocument}
+              onUpload={handleDocumentUpload}
+              onDelete={handleDeleteDocument}
+              getViewUrl={(documentId) => `/api/rfq/${rfq.id}/documents/${documentId}/file`}
+              getDownloadUrl={(documentId) => `/api/rfq/${rfq.id}/documents/${documentId}/file?download=1`}
+            />
           )}
-
-          {/* Actions */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-            
-            <div className="space-y-3">
-              {rfq.status === 'CLOSED' && rfq.responses.length > 0 && (
-                <button
-                  onClick={handleOpenScoring}
-                  disabled={evaluating}
-                  className="w-full inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Star className="h-4 w-4 mr-2" />
-                  <span>Evaluate Responses</span>
-                </button>
-              )}
-              
-              {rfq.status === 'EVALUATED' && (
-                <button
-                  onClick={() => handleStatusChange('AWARDED')}
-                  disabled={evaluating}
-                  className="w-full inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Award className="h-4 w-4 mr-2" />
-                  <span>Award Contract</span>
-                </button>
-              )}
-              
-              {/* <Link
-                href={`/procurement/rfq/${rfq.id}/responses`}
-                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center space-x-2"
-              >
-                <Eye className="h-4 w-4" />
-                <span>View All Responses</span>
-              </Link> */}
-            </div>
-          </div>
         </div>
       </div>
-
       {/* Proposal Details Modal */}
       {showDetailsModal && selectedResponse && (
         <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -1432,9 +1327,9 @@ export default function RFQDetailPage() {
                                     } else if (key === 'commercial') {
                                       initialized[key] = existing[key] ?? response.commercialScore ?? null;
                                     } else if (key === 'delivery') {
-                                      initialized[key] = existing[key] ?? (response as any).deliveryScore ?? null;
+                                      initialized[key] = existing[key] ?? response.deliveryScore ?? null;
                                     } else if (key === 'experience') {
-                                      initialized[key] = existing[key] ?? (response as any).experienceScore ?? null;
+                                      initialized[key] = existing[key] ?? response.experienceScore ?? null;
                                     } else {
                                       initialized[key] = existing[key] ?? null;
                                     }
@@ -1490,3 +1385,4 @@ export default function RFQDetailPage() {
     </div>
   );
 } 
+

@@ -63,6 +63,12 @@ const navigation: NavigationItem[] = [
     icon: Users,
     description: 'Vendor/Suppliers Management'
   },
+  {
+    name: 'Requests',
+    href: '/procurement/requests',
+    icon: ClipboardList,
+    description: 'Requests from HR'
+  },
 //   {
 //     name: 'Approvals',
 //     href: '/approvals',
@@ -79,7 +85,13 @@ const navigation: NavigationItem[] = [
     name: 'Requisitions',
     href: '/procurement/requisitions',
     icon: FileText,
-    description: 'Purchase requisitions'
+    description: 'All requisitions'
+  },
+  {
+    name: 'Material Requisitions',
+    href: '/procurement/services/material-requests',
+    icon: FileText,
+    description: 'Material requisitions only'
   },
   {
     name: 'RFQ',

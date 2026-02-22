@@ -703,13 +703,13 @@ export default function ServiceRequisitionDetail() {
     if (!sr) return;
     
     try {
-      const response = await fetch(`/api/purchase-requisitions/${sr.id}/submit`, {
-        method: 'POST',
+      const response = await fetch(`/api/services/requisitions/${sr.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          firstApproverId: 'manager001' // Default approver ID
+          status: 'PENDING_APPROVAL'
         }),
       });
 
@@ -745,10 +745,7 @@ export default function ServiceRequisitionDetail() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: 'APPROVED',
-          approvedBy: 'current-user-id', // In real app, get from auth
-          approvedAt: new Date().toISOString(),
-          comments: 'Approved'
+          status: 'APPROVED'
         }),
       });
 
@@ -1002,14 +999,9 @@ export default function ServiceRequisitionDetail() {
                 </div>
               )}
               {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (
-                userRole.toUpperCase() === 'SUPER_ADMIN' || 
-                userRole.toUpperCase() === 'SYSTEM_ADMIN' || 
-                userRole.toUpperCase() === 'ADMIN' || 
-                userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' || 
-                userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' ||
-                userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || 
-                userRole.toUpperCase() === 'APPROVER' || 
-                userRole.toUpperCase() === 'DEPARTMENT_MANAGER'
+                userRole.toUpperCase() === 'SUPER_ADMIN' ||
+                userRole.toUpperCase() === 'ADMIN' ||
+                userRole.toUpperCase() === 'PROCUREMENT_MANAGER'
               ) && (
                 <button
                   onClick={handleApproveRequisition}

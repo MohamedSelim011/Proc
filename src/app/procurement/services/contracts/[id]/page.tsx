@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/toast';
 import { getUserData } from '@/lib/jwt';
+import DocumentManager from '@/components/documents/document-manager';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -20,7 +21,9 @@ import {
   Award,
   SendHorizontal,
   CheckCheck,
-  XCircle
+  XCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface ServiceContract {
@@ -128,9 +131,33 @@ interface ServiceContract {
   versions?: Array<{
     id: string;
     versionNumber: number;
+    contractNumber: string;
+    contractType: string;
+    startDate: string;
+    endDate: string;
+    totalValue: string;
+    serviceAmount?: string | null;
+    currency: string;
+    paymentTerms: string;
+    slaTerms?: string | object | null;
+    penaltyClause?: string | null;
+    insuranceRequirements?: string | object | null;
+    status: string;
     changeReason?: string;
+    changeDescription?: string | null;
     createdBy: string;
+    createdByName?: string | null;
     createdAt: string;
+  }>;
+  documents?: Array<{
+    id: string;
+    documentType?: string | null;
+    documentName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    uploadedBy?: string | null;
+    uploadedAt: string;
   }>;
 }
 
@@ -167,6 +194,9 @@ export default function ServiceContractDetail() {
   const [processingApproval, setProcessingApproval] = useState(false);
   const [canApprove, setCanApprove] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'general' | 'service-details' | 'approvals' | 'vendor-responses' | 'versions' | 'documents'>('general');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -523,6 +553,53 @@ export default function ServiceContractDetail() {
     } catch (error) {
       console.error('Error downloading service contract:', error);
       showToast('error', 'Failed to download Service Contract');
+    }
+  };
+
+  const handleDocumentUpload = async (file: File | null) => {
+    if (!contract || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadedBy', currentUser?.email || currentUser?.id || 'SYSTEM');
+
+      const response = await fetch(`/api/service-contracts/${contract.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload document');
+      }
+
+      showToast('success', 'Document uploaded successfully');
+      await fetchContract();
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!contract) return;
+    try {
+      const response = await fetch(`/api/service-contracts/${contract.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete document');
+      }
+      showToast('success', 'Document deleted successfully');
+      await fetchContract();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      showToast('error', error instanceof Error ? error.message : 'Failed to delete document');
     }
   };
 
@@ -917,6 +994,33 @@ export default function ServiceContractDetail() {
           </div>
         </div>
 
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex flex-wrap gap-x-8 px-6">
+            {[
+              { id: 'general', name: 'General Info', icon: Building },
+              { id: 'service-details', name: 'Service Details', icon: Shield },
+              { id: 'approvals', name: 'Approvals', icon: CheckCheck },
+              { id: 'vendor-responses', name: 'Vendor Responses', icon: User },
+              { id: 'versions', name: 'Versions', icon: Clock },
+              { id: 'documents', name: 'Documents', icon: FileText },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-wujha-primary text-wujha-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {activeTab === 'general' && (
         <div className="px-6 py-4">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
             <div>
@@ -1005,9 +1109,10 @@ export default function ServiceContractDetail() {
             )}
           </dl>
         </div>
+        )}
 
         {/* Service Requirements */}
-        {contract.pr.servicePR && (
+        {activeTab === 'service-details' && contract.pr.servicePR && (
           <div className="px-6 py-4 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Service Requirements</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1035,7 +1140,7 @@ export default function ServiceContractDetail() {
         )}
 
         {/* Service Items */}
-        {contract.pr.servicePR?.items && contract.pr.servicePR.items.length > 0 && (
+        {activeTab === 'service-details' && contract.pr.servicePR?.items && contract.pr.servicePR.items.length > 0 && (
           <div className="px-6 py-4 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Service Items</h3>
             <div className="overflow-hidden">
@@ -1093,7 +1198,7 @@ export default function ServiceContractDetail() {
         )}
 
         {/* Material Items (for mixed requisitions) */}
-        {contract.pr.items && contract.pr.items.length > 0 && (
+        {activeTab === 'service-details' && contract.pr.items && contract.pr.items.length > 0 && (
           <div className="px-6 py-4 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Material Items</h3>
             <div className="overflow-hidden">
@@ -1139,7 +1244,7 @@ export default function ServiceContractDetail() {
         )}
 
         {/* Contract Terms */}
-        {(contract.slaTerms || contract.penaltyClause || contract.insuranceRequirements) && (
+        {activeTab === 'general' && (contract.slaTerms || contract.penaltyClause || contract.insuranceRequirements) && (
           <div className="px-6 py-4 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Contract Terms</h3>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -1172,7 +1277,7 @@ export default function ServiceContractDetail() {
         )}
 
         {/* Business Justification */}
-        {contract.pr.justification && (
+        {activeTab === 'general' && contract.pr.justification && (
           <div className="px-6 py-4 border-t border-gray-200">
             <dt className="text-sm font-medium text-gray-500 mb-2">Business Justification</dt>
             <dd className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
@@ -1182,28 +1287,20 @@ export default function ServiceContractDetail() {
         )}
 
         {/* Contract Version Info */}
-        {contract.versionNumber && contract.versionNumber > 1 && (
+        {activeTab === 'versions' && contract.versionNumber && contract.versionNumber > 1 && (
           <div className="px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
+            <div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Contract Version</h3>
                 <p className="mt-1 text-lg font-semibold text-gray-900">Version {contract.versionNumber}</p>
               </div>
-              {contract.versions && contract.versions.length > 0 && (
-                <button
-                  onClick={() => router.push(`/procurement/services/contracts/${contract.id}/versions`)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  View Version History →
-                </button>
-              )}
             </div>
           </div>
         )}
       </div>
 
       {/* Approval History */}
-      {contract.approval && contract.approval.approvalHistory && contract.approval.approvalHistory.length > 0 && (
+      {activeTab === 'approvals' && contract.approval && contract.approval.approvalHistory && contract.approval.approvalHistory.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Approval History</h3>
           <div className="space-y-4">
@@ -1241,7 +1338,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Vendor Responses */}
-      {contract.vendorResponses && contract.vendorResponses.length > 0 && (
+      {activeTab === 'vendor-responses' && contract.vendorResponses && contract.vendorResponses.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Responses</h3>
           <div className="space-y-4">
@@ -1301,7 +1398,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Success/Error Messages */}
-      {success && (
+      {activeTab === 'approvals' && success && (
         <div className="rounded-md bg-green-50 p-4">
           <div className="flex">
             <CheckCircle className="h-5 w-5 text-green-400" />
@@ -1312,7 +1409,7 @@ export default function ServiceContractDetail() {
         </div>
       )}
 
-      {error && (
+      {activeTab === 'approvals' && error && (
         <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
             <AlertCircle className="h-5 w-5 text-red-400" />
@@ -1324,7 +1421,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Action Buttons */}
-      {contract.status === 'DRAFT' && (
+      {activeTab === 'approvals' && contract.status === 'DRAFT' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
           <div className="space-y-4">
@@ -1417,7 +1514,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Pending Approval Status with Progress */}
-      {contract.status === 'PENDING_APPROVAL' && contract.approval && (
+      {activeTab === 'approvals' && contract.status === 'PENDING_APPROVAL' && contract.approval && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Approval Progress</h3>
           
@@ -1560,6 +1657,146 @@ export default function ServiceContractDetail() {
         </div>
       )}
 
+      {activeTab === 'vendor-responses' && (!contract.vendorResponses || contract.vendorResponses.length === 0) && (
+        <div className="bg-white shadow rounded-lg p-10 text-center">
+          <User className="mx-auto h-8 w-8 text-gray-400" />
+          <p className="mt-2 text-sm text-gray-600">No vendor responses available yet.</p>
+        </div>
+      )}
+
+      {activeTab === 'versions' && contract.versions && contract.versions.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Version History</h3>
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Change Reason</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {contract.versions.map((version) => {
+                  const isExpanded = expandedVersionId === version.id;
+                  return (
+                    <Fragment key={version.id}>
+                      <tr
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => setExpandedVersionId(isExpanded ? null : version.id)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <span className="inline-flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4 text-wujha-primary" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            )}
+                            <span>v{version.versionNumber}</span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{version.changeReason || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{version.createdByName || version.createdBy}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(version.createdAt).toLocaleString('en-OM')}</td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-gray-50/60">
+                          <td colSpan={4} className="px-6 py-5">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Contract Number</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">{version.contractNumber}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Contract Type</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">{version.contractType.replaceAll('_', ' ')}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Status</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">{version.status}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Period</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">
+                                  {formatDate(version.startDate)} - {formatDate(version.endDate)}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Value</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(Number(version.totalValue))} {version.currency}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Service Amount</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">
+                                  {formatCurrency(Number(version.serviceAmount ?? version.totalValue))} {version.currency}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Payment Terms</p>
+                                <p className="mt-1 text-sm text-gray-900">{version.paymentTerms}</p>
+                              </div>
+                              {version.changeDescription && (
+                                <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Change Description</p>
+                                  <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{version.changeDescription}</p>
+                                </div>
+                              )}
+                              {version.slaTerms && (
+                                <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">SLA Terms</p>
+                                  <pre className="mt-1 text-sm text-gray-900 whitespace-pre-wrap font-sans">
+                                    {formatJsonField(version.slaTerms)}
+                                  </pre>
+                                </div>
+                              )}
+                              {version.penaltyClause && (
+                                <div className="rounded-lg border border-red-200 bg-red-50 p-4 md:col-span-2 xl:col-span-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-red-700">Penalty Clause</p>
+                                  <p className="mt-1 text-sm text-red-900 whitespace-pre-wrap">{version.penaltyClause}</p>
+                                </div>
+                              )}
+                              {version.insuranceRequirements && (
+                                <div className="rounded-lg border border-green-200 bg-green-50 p-4 md:col-span-2 xl:col-span-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-green-700">Insurance Requirements</p>
+                                  <pre className="mt-1 text-sm text-green-900 whitespace-pre-wrap font-sans">
+                                    {formatJsonField(version.insuranceRequirements)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'versions' && (!contract.versions || contract.versions.length === 0) && (
+        <div className="bg-white shadow rounded-lg p-10 text-center">
+          <Clock className="mx-auto h-8 w-8 text-gray-400" />
+          <p className="mt-2 text-sm text-gray-600">No version history records found.</p>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <DocumentManager
+            documents={contract.documents || []}
+            uploading={uploadingDocument}
+            onUpload={handleDocumentUpload}
+            onDelete={handleDeleteDocument}
+            getViewUrl={(documentId) => `/api/service-contracts/${contract.id}/documents/${documentId}/file`}
+            getDownloadUrl={(documentId) => `/api/service-contracts/${contract.id}/documents/${documentId}/file?download=1`}
+          />
+        </div>
+      )}
+
       {/* Approval Action Modal */}
       {approvalAction && (
         <div 
@@ -1651,7 +1888,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Approved Status - Ready for Vendor */}
-      {contract.status === 'APPROVED' && (
+      {activeTab === 'approvals' && contract.status === 'APPROVED' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Approval Completed</h3>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -1670,7 +1907,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Signed Status */}
-      {contract.status === 'SIGNED' && (
+      {activeTab === 'approvals' && contract.status === 'SIGNED' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Contract Status</h3>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -1705,7 +1942,7 @@ export default function ServiceContractDetail() {
       )}
 
       {/* Next Steps */}
-      {contract.status === 'ACTIVE' && (
+      {activeTab === 'general' && contract.status === 'ACTIVE' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Next Steps</h3>
           <div className="flex space-x-3">
@@ -1730,3 +1967,4 @@ export default function ServiceContractDetail() {
     </div>
   );
 } 
+

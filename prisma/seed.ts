@@ -6,10 +6,19 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Starting seed with Omani data...')
 
-  // ===========================================
   // SEED USERS (Authentication System)
   // ===========================================
-  console.log('\n📧 Seeding users...')
+  console.log('\nSeeding users...')
+
+  // Ensure default company exists
+  const company = await prisma.company.upsert({
+    where: { code: 'WUJHA' },
+    update: { name: 'Wujha Real Estate' },
+    create: {
+      code: 'WUJHA',
+      name: 'Wujha Real Estate',
+    },
+  })
 
   // Create default admin user
   const adminEmail = 'admin@wujha.com'
@@ -20,7 +29,13 @@ async function main() {
   })
 
   if (existingAdmin) {
-    console.log('✅ Admin user already exists:', adminEmail)
+    if ((existingAdmin as { companyId?: string }).companyId !== company.id) {
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: { companyId: company.id },
+      })
+    }
+    console.log('Admin user already exists:', adminEmail)
   } else {
     const hashedPassword = await bcrypt.hash(defaultPassword, 10)
     const admin = await prisma.user.create({
@@ -33,9 +48,10 @@ async function main() {
         role: UserRole.ADMIN,
         isActive: true,
         mustChangePassword: true,
+        companyId: company.id,
       },
     })
-    console.log('✅ Created admin user:', admin.email)
+    console.log('Created admin user:', admin.email)
   }
 
   // Create sample users for testing
@@ -103,13 +119,20 @@ async function main() {
           approvalLimit: userData.approvalLimit || 0,
           isActive: true,
           mustChangePassword: true,
+          companyId: company.id,
         },
       })
-      console.log(`✅ Created user: ${userData.email} (${userData.role})`)
+      console.log(`Created user: ${userData.email} (${userData.role})`)
+    } else if ((existing as { companyId?: string }).companyId !== company.id) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { companyId: company.id },
+      })
+      console.log(`Updated user company: ${userData.email} -> WUJHA`)
     }
   }
 
-  console.log('\n✅ User seeding completed!\n')
+  console.log('\nUser seeding completed!\n')
 
   // ===========================================
   // SEED MASTER DATA (Categories, Vendors, etc)

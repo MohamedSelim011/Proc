@@ -65,11 +65,14 @@ export default function PRApprovalPage() {
   const [action, setAction] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [comments, setComments] = useState('');
   const [error, setError] = useState('');
+  const [userRole, setUserRole] = useState<string>('');
 
   useEffect(() => {
     if (prId) {
       fetchPR();
     }
+    const role = (typeof window !== 'undefined' ? localStorage.getItem('role') : '') || '';
+    setUserRole(role.toUpperCase());
   }, [prId]);
 
   const fetchPR = async () => {
@@ -114,14 +117,6 @@ export default function PRApprovalPage() {
       setSubmitting(true);
       setError('');
 
-      // Find the next pending approval level
-      const pendingApproval = pr.approvals?.find(a => a.status === 'PENDING');
-      const currentLevel = pendingApproval?.level || 1;
-
-      // Get user data from localStorage
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      const approverId = userData.employeeId || userData.id || 'admin001';
-
       const response = await fetch(`/api/purchase-requisitions/${prId}/approve`, {
         method: 'POST',
         headers: {
@@ -129,9 +124,7 @@ export default function PRApprovalPage() {
         },
         body: JSON.stringify({
           action,
-          approverId, // Use actual logged-in user
-          comments,
-          level: currentLevel // Use the actual pending approval level
+          comments
         }),
       });
 
@@ -255,6 +248,7 @@ export default function PRApprovalPage() {
   const approvalReq = getApprovalRequirement();
   const canApprove = pr.status === 'SUBMITTED' || pr.status === 'PENDING_APPROVAL';
   const isAlreadyProcessed = ['APPROVED', 'REJECTED'].includes(pr.status || '');
+  const isApproverRole = ['PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole);
 
   return (
     <div className="w-full space-y-6">
@@ -535,7 +529,7 @@ export default function PRApprovalPage() {
           )}
 
           {/* Approval Actions */}
-          {canApprove && (
+          {canApprove && isApproverRole && (
             <div className="border-t border-gray-200 pt-8">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <MessageSquare className="h-5 w-5 mr-2" />
@@ -638,6 +632,21 @@ export default function PRApprovalPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          {canApprove && !isApproverRole && (
+            <div className="border-t border-gray-200 pt-8">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <div className="flex">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">Approval Restricted</h3>
+                    <p className="mt-1 text-sm text-yellow-700">
+                      Only Procurement Manager or Admin can approve this requisition.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
