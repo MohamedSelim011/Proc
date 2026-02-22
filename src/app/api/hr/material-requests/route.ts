@@ -1,85 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-type HrMaterialRequestResponse = {
-  success: boolean;
-  data?: unknown[];
-  message?: string;
-};
+import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
-    const baseUrl = process.env.HR_API_URL?.replace(/\/$/, '');
-    console.log('[HR Material Requests] Start', {
-      hasBaseUrl: Boolean(baseUrl),
-      method: request.method,
-      path: request.nextUrl.pathname,
-    });
+    const searchParams = request.nextUrl.searchParams;
+    const page = Math.max(1, Number(searchParams.get('page') || 1));
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 20)));
+    const search = (searchParams.get('search') || '').trim();
+    const status = (searchParams.get('status') || '').trim();
+    const department = (searchParams.get('department') || '').trim();
 
-    if (!baseUrl) {
-      console.error('[HR Material Requests] Missing HR_API_URL');
-      return NextResponse.json(
-        { error: 'HR_API_URL is not configured' },
-        { status: 500 }
-      );
+    const where: Prisma.HrMaterialRequestWhereInput = {};
+
+    if (status) {
+      where.status = { equals: status, mode: 'insensitive' };
     }
 
-    const authHeader = request.headers.get('authorization');
-    const cookieToken = request.cookies.get('token')?.value;
-    const forwardedAuthHeader =
-      authHeader && authHeader.startsWith('Bearer ')
-        ? authHeader
-        : cookieToken
-          ? `Bearer ${cookieToken}`
-          : null;
+    if (department) {
+      where.departmentName = { contains: department, mode: 'insensitive' };
+    }
 
-    console.log('[HR Material Requests] Auth forwarding', {
-      hasAuthorizationHeader: Boolean(authHeader),
-      hasCookieToken: Boolean(cookieToken),
-      isForwardingAuth: Boolean(forwardedAuthHeader),
-    });
+    if (search) {
+      where.OR = [
+        { externalId: { contains: search, mode: 'insensitive' } },
+        { requesterName: { contains: search, mode: 'insensitive' } },
+        { requesterEmail: { contains: search, mode: 'insensitive' } },
+        { categoryName: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
-    const response = await fetch(`${baseUrl}/material-requests`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        ...(forwardedAuthHeader ? { Authorization: forwardedAuthHeader } : {}),
+    const [rows, total] = await Promise.all([
+      prisma.hrMaterialRequest.findMany({
+        where,
+        orderBy: [{ externalUpdatedAt: 'desc' }, { updatedAt: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.hrMaterialRequest.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
       },
-      cache: 'no-store',
     });
-
-    const payload = (await response.json()) as HrMaterialRequestResponse;
-
-    console.log('[HR Material Requests] Upstream response', {
-      status: response.status,
-      ok: response.ok,
-      success: payload?.success,
-      count: Array.isArray(payload?.data) ? payload.data.length : undefined,
-      message: payload?.message,
-    });
-
-    if (!response.ok) {
-      console.error('[HR Material Requests] Upstream error payload', payload);
-      return NextResponse.json(
-        { error: payload?.message || 'Failed to fetch material requests from HR API' },
-        { status: response.status }
-      );
-    }
-
-    if (!payload?.success || !Array.isArray(payload.data)) {
-      console.error('[HR Material Requests] Invalid upstream shape', payload);
-      return NextResponse.json(
-        { error: 'Invalid response from HR API' },
-        { status: 502 }
-      );
-    }
-
-    console.log('[HR Material Requests] Success', { count: payload.data.length });
-    return NextResponse.json({ success: true, data: payload.data });
   } catch (error) {
-    console.error('[HR Material Requests] Exception', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch material requests' },
-      { status: 500 }
-    );
+    console.error('[HR Material Requests][GET] Failed:', error);
+    return NextResponse.json({ error: 'Failed to fetch material requests' }, { status: 500 });
   }
 }

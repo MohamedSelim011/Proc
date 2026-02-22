@@ -43,6 +43,68 @@ model Company {
   users User[]
 }
 
+model HrMaterialRequest {
+  id                String   @id @default(cuid())
+  externalId        String   @unique
+  budgetExternalId  String?
+  departmentExternalId String?
+  categoryExternalId String?
+  status            String
+  quantity          Int?
+  description       String?
+  notes             String?
+  rejectionReason   String?
+  approvedByExternal String?
+  departmentName    String?
+  categoryName      String?
+  categoryPriceLimit Decimal?
+  budgetCategoryBudgets Json?
+  requesterName     String?
+  requesterFirstName String?
+  requesterLastName String?
+  requesterExternalId String?
+  requesterEmail    String?
+  fiscalYear        Int?
+  quarter           Int?
+  externalVersion   Int?
+  budgetTotalAmount Decimal?
+  externalCreatedAt DateTime?
+  externalUpdatedAt DateTime?
+  lastSyncedAt      DateTime @default(now())
+  rawPayload        Json
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([departmentName])
+  @@index([externalUpdatedAt])
+}
+
+model PaymentEscalation {
+  id                String   @id @default(cuid())
+  externalId        String   @unique
+  title             String?
+  status            String
+  priority          String?
+  reason            String?
+  amount            Decimal?
+  currency          String?
+  requestedBy       String?
+  approver          String?
+  dueDate           DateTime?
+  resolvedAt        DateTime?
+  externalCreatedAt DateTime?
+  externalUpdatedAt DateTime?
+  lastSyncedAt      DateTime @default(now())
+  rawPayload        Json
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([externalUpdatedAt])
+}
+
 // User Model
 model User {
   id                  String    @id @default(cuid())

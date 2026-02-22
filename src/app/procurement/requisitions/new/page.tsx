@@ -14,7 +14,9 @@ import {
   FileText,
   BarChart2,
   Loader2,
-  Flag
+  Flag,
+  ClipboardList,
+  Link2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
@@ -65,7 +67,13 @@ interface Item {
 
 export default function NewPurchaseRequisition() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [materialRequestMode, setMaterialRequestMode] = useState<'WITH_REQUEST' | 'WITHOUT_REQUEST' | ''>('');
+  const [selectedMaterialRequestId, setSelectedMaterialRequestId] = useState('');
+  const [availableMaterialRequests, setAvailableMaterialRequests] = useState<
+    Array<{ id: string; externalId: string; status: string; categoryName?: string | null; requesterName?: string | null }>
+  >([]);
+  const [materialRequestsLoading, setMaterialRequestsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,6 +129,8 @@ export default function NewPurchaseRequisition() {
             projectId: prefill.projectId ?? prev.projectId,
           }));
           setCreatePrMode(true);
+          setMaterialRequestMode('WITHOUT_REQUEST');
+          setCurrentStep(1);
           showToast('info', 'Add items from the procurement catalog in Step 2, then submit to create the PR (approval → PO).');
         }
       }
@@ -149,6 +159,27 @@ export default function NewPurchaseRequisition() {
     }
   }, [currentStep, formData.itemType]);
 
+  useEffect(() => {
+    if (currentStep !== 0 || materialRequestMode !== 'WITH_REQUEST') return;
+    const loadMaterialRequests = async () => {
+      try {
+        setMaterialRequestsLoading(true);
+        const response = await fetch('/api/hr/material-requests?status=approved&limit=100');
+        const data = (await response.json()) as { data?: Array<{ id: string; externalId: string; status: string; categoryName?: string | null; requesterName?: string | null }> };
+        if (response.ok) {
+          setAvailableMaterialRequests(Array.isArray(data.data) ? data.data : []);
+        } else {
+          setAvailableMaterialRequests([]);
+        }
+      } catch {
+        setAvailableMaterialRequests([]);
+      } finally {
+        setMaterialRequestsLoading(false);
+      }
+    };
+    void loadMaterialRequests();
+  }, [currentStep, materialRequestMode]);
+
   const fetchItems = async () => {
     try {
       const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
@@ -166,6 +197,15 @@ export default function NewPurchaseRequisition() {
 
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
+
+    if (step === 0) {
+      if (!materialRequestMode) {
+        newErrors.materialRequestMode = 'Please choose how to create this material requisition';
+      }
+      if (materialRequestMode === 'WITH_REQUEST' && !selectedMaterialRequestId) {
+        newErrors.selectedMaterialRequestId = 'Please choose a material request';
+      }
+    }
 
     if (step === 1) {
       const department = formData.departmentId?.trim() || '';
@@ -399,6 +439,7 @@ export default function NewPurchaseRequisition() {
           requesterId,
           estimatedCost: calculateTotalCost(),
           autoSubmit: false,
+          sourceMaterialRequestId: selectedMaterialRequestId || undefined,
         };
         const response = await fetch('/api/purchase-requisitions', {
           method: 'POST',
@@ -454,6 +495,7 @@ export default function NewPurchaseRequisition() {
               requiredDate: formData.requiredByDate,
               purpose: formData.justification?.trim() || 'Material requisition from Procurement',
               priority: formData.priority,
+              sourceMaterialRequestId: selectedMaterialRequestId || undefined,
               items: formData.items.map((i) => ({
                 itemId: i.itemId,
                 quantity: i.quantity,
@@ -475,7 +517,9 @@ export default function NewPurchaseRequisition() {
               items: [],
               budgetCode: '',
             });
-            setCurrentStep(1);
+            setMaterialRequestMode('');
+            setSelectedMaterialRequestId('');
+            setCurrentStep(0);
             setItems([]);
           } else {
             const errMsg = mrData.error || 'Failed to create material requisition';
@@ -501,6 +545,7 @@ export default function NewPurchaseRequisition() {
             projectId: formData.projectId,
             deliveryWarehouseId: warehouseId,
             inventoryProjectId: projectId,
+            sourceMaterialRequestId: selectedMaterialRequestId || undefined,
             items: formData.items.map((i) => ({
               itemCode: i.itemCode,
               quantity: i.quantity,
@@ -551,6 +596,7 @@ export default function NewPurchaseRequisition() {
         requesterId,
         estimatedCost: calculateTotalCost(),
         autoSubmit: false,
+        sourceMaterialRequestId: selectedMaterialRequestId || undefined,
       };
 
       const response = await fetch('/api/purchase-requisitions', {
@@ -610,12 +656,13 @@ export default function NewPurchaseRequisition() {
           <nav aria-label="Progress" className="max-w-4xl mx-auto">
             <ol className="flex items-center justify-between">
               {[
+                { id: 0, name: 'Request Source', description: 'Choose creation source' },
                 { id: 1, name: 'Basic Information', description: 'Department and requirements' },
                 { id: 2, name: 'Add Items', description: 'Select items and quantities' },
                 { id: 3, name: 'Budget & Review', description: 'Budget validation and submit' }
               ].map((step, stepIdx) => (
                 <li key={step.id} className="relative flex-1">
-                  {stepIdx !== 2 && (
+                  {stepIdx !== 3 && (
                     <div className="absolute top-4 left-1/2 w-full h-0.5 bg-gray-200 -translate-y-1/2" aria-hidden="true">
                       <div className={`h-full transition-all duration-300 ${
                         step.id < currentStep ? 'bg-wujha-primary w-full' : 'w-0'
@@ -664,6 +711,121 @@ export default function NewPurchaseRequisition() {
                   <strong>Creating a Purchase Requisition (PR) for procurement.</strong> Your details are pre-filled. Go to <strong>Step 2</strong>, add the same or equivalent items from the <strong>procurement catalog</strong>, then <strong>Step 3</strong> and submit. This PR will enter the approval cycle; after approval it can be converted to a Purchase Order (PO).
                 </p>
                 <p className="mt-1 text-xs text-amber-800">PR → Approval → Purchase Order</p>
+              </div>
+            )}
+            {/* Step 0: Source Selection */}
+            {currentStep === 0 && (
+              <div className="space-y-8">
+                <div className="text-center pb-6 border-b border-gray-100">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Material Requisition Source</h3>
+                  <p className="text-gray-600">Choose whether to create this requisition from an existing material request or without one.</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaterialRequestMode('WITH_REQUEST');
+                      if (errors.materialRequestMode) {
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.materialRequestMode;
+                          return next;
+                        });
+                      }
+                    }}
+                    className={`rounded-xl border p-5 text-left transition ${
+                      materialRequestMode === 'WITH_REQUEST'
+                        ? 'border-wujha-primary bg-wujha-primary/5'
+                        : 'border-gray-200 bg-white hover:border-wujha-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-lg bg-wujha-primary/10 p-2">
+                        <Link2 className="h-5 w-5 text-wujha-primary" />
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-gray-900">Create For Material Request</p>
+                        <p className="mt-1 text-sm text-gray-600">Link this requisition to an existing approved material request.</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaterialRequestMode('WITHOUT_REQUEST');
+                      setSelectedMaterialRequestId('');
+                      if (errors.materialRequestMode || errors.selectedMaterialRequestId) {
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.materialRequestMode;
+                          delete next.selectedMaterialRequestId;
+                          return next;
+                        });
+                      }
+                    }}
+                    className={`rounded-xl border p-5 text-left transition ${
+                      materialRequestMode === 'WITHOUT_REQUEST'
+                        ? 'border-wujha-primary bg-wujha-primary/5'
+                        : 'border-gray-200 bg-white hover:border-wujha-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-lg bg-wujha-primary/10 p-2">
+                        <ClipboardList className="h-5 w-5 text-wujha-primary" />
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-gray-900">Create Without Material Request</p>
+                        <p className="mt-1 text-sm text-gray-600">Create a new requisition directly from procurement side.</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {errors.materialRequestMode && (
+                  <p className="text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.materialRequestMode}
+                  </p>
+                )}
+
+                {materialRequestMode === 'WITH_REQUEST' && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                    <label className="block text-sm font-semibold text-gray-800">
+                      Select Material Request <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      className="mt-2 block w-full rounded-lg border-gray-300 bg-white py-3 px-4 text-base text-gray-900 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      value={selectedMaterialRequestId}
+                      onChange={(e) => {
+                        setSelectedMaterialRequestId(e.target.value);
+                        if (errors.selectedMaterialRequestId && e.target.value) {
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.selectedMaterialRequestId;
+                            return next;
+                          });
+                        }
+                      }}
+                    >
+                      <option value="">{materialRequestsLoading ? 'Loading approved requests...' : 'Select approved material request'}</option>
+                      {availableMaterialRequests.map((mr) => (
+                        <option key={mr.id} value={mr.id}>
+                          {mr.externalId} - {(mr.categoryName || 'Uncategorized')} - {(mr.requesterName || 'Unknown requester')}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.selectedMaterialRequestId && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.selectedMaterialRequestId}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-gray-500">
+                      Approved material requests are loaded from internal DB and kept synced with HR.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {/* Step 1: Basic Information */}
@@ -1313,6 +1475,14 @@ export default function NewPurchaseRequisition() {
                       <dd className="mt-2 text-lg font-bold text-gray-900">{formData.projectId || 'N/A'}</dd>
                     </div>
                     <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Source Request</dt>
+                      <dd className="mt-2 text-lg font-bold text-gray-900">
+                        {selectedMaterialRequestId
+                          ? (availableMaterialRequests.find((r) => r.id === selectedMaterialRequestId)?.externalId || 'Linked')
+                          : 'None'}
+                      </dd>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
                       <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Priority</dt>
                       <dd className="mt-2 text-lg font-bold text-gray-900 flex items-center">
                         <Flag className="h-4 w-4 text-wujha-primary" />
@@ -1472,7 +1642,7 @@ export default function NewPurchaseRequisition() {
           <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-wujha-primary/5 border-t border-gray-200 flex justify-between items-center">
             <button
               onClick={handlePrevious}
-              disabled={currentStep === 1}
+              disabled={currentStep === 0}
               className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <ChevronLeft className="h-5 w-5 mr-2" />
@@ -1480,9 +1650,9 @@ export default function NewPurchaseRequisition() {
             </button>
 
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <span>Step {currentStep} of 3</span>
+              <span>Step {currentStep + 1} of 4</span>
               <div className="flex space-x-1">
-                {[1, 2, 3].map((step) => (
+                {[0, 1, 2, 3].map((step) => (
                   <div
                     key={step}
                     className={`w-2 h-2 rounded-full ${

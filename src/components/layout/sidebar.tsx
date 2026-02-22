@@ -11,18 +11,15 @@ import {
   FileText,
   ShoppingCart,
   Truck,
-  Receipt,
   CreditCard,
   Users,
   BarChart3,
   Settings,
   X,
   ShieldCheck,
-  Clock,
-  MessageSquare,
   ChevronDown,
-  ChevronRight,
   Briefcase,
+  AlertTriangle,
   ClipboardList,
   Send,
   TrendingUp
@@ -68,6 +65,12 @@ const navigation: NavigationItem[] = [
     href: '/procurement/requests',
     icon: ClipboardList,
     description: 'Requests from HR'
+  },
+  {
+    name: 'Payment Escalations',
+    href: '/procurement/payment-escalations',
+    icon: AlertTriangle,
+    description: 'Payment escalation tracking'
   },
 //   {
 //     name: 'Approvals',
