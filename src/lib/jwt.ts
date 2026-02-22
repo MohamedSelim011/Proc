@@ -78,6 +78,8 @@ export function getUserData(): {
   role?: string;
   department?: string;
   employeeId?: string;
+  company?: string[];
+  companyId?: string;
 } | null {
   // First try to get from localStorage
   const userStr = localStorage.getItem('user');
@@ -102,6 +104,8 @@ export function getUserData(): {
         role: decoded.role,
         department: decoded.department,
         employeeId: decoded.employeeId,
+        company: decoded.company,
+        companyId: decoded.companyId,
       };
       
       // Store it for future use
@@ -128,11 +132,16 @@ export function verifyJWT(token: string): {
   role: string;
   department?: string;
   employeeId?: string;
+  company?: string[];
+  companyId?: string;
 } | null {
   try {
     if (!token) return null;
     
-    const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production';
+    const jwtSecret = process.env.NEXTAUTH_SECRET;
+    if (!jwtSecret) {
+      throw new Error('NEXTAUTH_SECRET is not configured');
+    }
     const decoded = jwt.verify(token, jwtSecret) as any;
     
     return {
@@ -142,12 +151,19 @@ export function verifyJWT(token: string): {
       role: decoded.role || 'REQUESTOR',
       department: decoded.department,
       employeeId: decoded.employeeId,
+      company: decoded.company,
+      companyId: decoded.companyId,
     };
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
       console.error('JWT token has expired:', error.expiredAt);
       // Return a special indicator that token is expired
       throw new Error('TOKEN_EXPIRED');
+    }
+    // Invalid signatures are expected after secret rotation or stale browser tokens.
+    // Treat as unauthenticated without noisy stack logs.
+    if (error?.name === 'JsonWebTokenError') {
+      return null;
     }
     console.error('Error verifying JWT:', error);
     return null;
@@ -165,6 +181,8 @@ export function getAuthenticatedUser(request: NextRequest): {
   role: string;
   department?: string;
   employeeId?: string;
+  company?: string[];
+  companyId?: string;
 } | null {
   try {
     // Try Authorization header first
@@ -200,6 +218,8 @@ export function requireAuth(request: NextRequest): {
   role: string;
   department?: string;
   employeeId?: string;
+  company?: string[];
+  companyId?: string;
 } {
   const user = getAuthenticatedUser(request);
   if (!user) {
