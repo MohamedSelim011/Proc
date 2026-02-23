@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   ChevronDown,
   Briefcase,
-  AlertTriangle,
   ClipboardList,
   Send,
   TrendingUp
@@ -65,12 +64,6 @@ const navigation: NavigationItem[] = [
     href: '/procurement/requests',
     icon: ClipboardList,
     description: 'Requests from HR'
-  },
-  {
-    name: 'Payment Escalations',
-    href: '/procurement/payment-escalations',
-    icon: AlertTriangle,
-    description: 'Payment escalation tracking'
   },
 //   {
 //     name: 'Approvals',
