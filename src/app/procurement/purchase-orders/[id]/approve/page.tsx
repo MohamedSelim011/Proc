@@ -72,6 +72,7 @@ export default function POApprovalPage() {
   const [comments, setComments] = useState('');
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string>('');
+  const roleUpper = userRole.toUpperCase();
 
   useEffect(() => {
     const role = localStorage.getItem('role') || '';
@@ -237,7 +238,14 @@ export default function POApprovalPage() {
   const isAlreadyProcessed = ['APPROVED', 'REJECTED'].includes(po.status || '');
   
   // Check if user has permission to approve
-  const hasApprovalPermission = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN'].includes(userRole);
+  const hasApprovalPermission = [
+    'DEPARTMENT_MANAGER',
+    'PROCUREMENT_MANAGER',
+    'FINANCE_MANAGER',
+    'ADMIN',
+    'SYSTEM_ADMIN',
+    'SUPER_ADMIN',
+  ].includes(roleUpper);
 
   // If user doesn't have permission, show warning
   if (!hasApprovalPermission) {
@@ -264,7 +272,7 @@ export default function POApprovalPage() {
                 You do not have permission to approve purchase orders. Only Department Managers, Procurement Managers, Finance Managers, and Administrators can approve purchase orders.
               </p>
               <p className="mt-2 text-sm text-red-700">
-                Your current role: <span className="font-semibold">{userRole || 'Unknown'}</span>
+                Your current role: <span className="font-semibold">{roleUpper || 'Unknown'}</span>
               </p>
             </div>
           </div>
@@ -636,4 +644,3 @@ export default function POApprovalPage() {
     </div>
   );
 }
-

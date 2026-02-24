@@ -26,6 +26,8 @@ export const mapInventoryMaterialRequisitionRecord = (entry: unknown) => {
   const project = asObject(record.project);
   const department = asObject(record.department);
   const requester = asObject(record.requestedBy || record.requester || record.user);
+  const requestedProject = asObject(record.requestedProject);
+  const requestedDepartment = asObject(record.requestedDepartment);
 
   return {
     externalId: pickInventoryExternalId(record),
@@ -37,11 +39,25 @@ export const mapInventoryMaterialRequisitionRecord = (entry: unknown) => {
         asString(record.code),
       status: asString(record.status) || 'unknown',
       priority: asString(record.priority),
-      projectExternalId: asString(project.id) || asString(record.projectId),
-      projectCode: asString(project.code),
-      projectName: asString(project.name),
-      departmentExternalId: asString(department.id) || asString(record.departmentId),
-      departmentName: asString(department.name),
+      projectExternalId:
+        asString(project.id) ||
+        asString(requestedProject.id) ||
+        asString(record.projectId) ||
+        asString(record.requestedProjectId),
+      projectCode: asString(project.code) || asString(requestedProject.code),
+      projectName:
+        asString(project.name) ||
+        asString(requestedProject.name) ||
+        asString(record.requestedProjectName),
+      departmentExternalId:
+        asString(department.id) ||
+        asString(requestedDepartment.id) ||
+        asString(record.departmentId) ||
+        asString(record.requestedDepartmentId),
+      departmentName:
+        asString(department.name) ||
+        asString(requestedDepartment.name) ||
+        asString(record.requestedDepartmentName),
       requesterExternalId: asString(requester.id) || asString(requester._id),
       requesterName: asString(requester.name),
       requesterEmail: asString(requester.email),
@@ -55,4 +71,3 @@ export const mapInventoryMaterialRequisitionRecord = (entry: unknown) => {
     },
   };
 };
-

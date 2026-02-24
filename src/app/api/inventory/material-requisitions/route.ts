@@ -42,9 +42,49 @@ export async function GET(request: NextRequest) {
       prisma.inventoryMaterialRequisition.count({ where }),
     ]);
 
+    const normalizedRows = rows.map((row) => {
+      const raw = (row.rawPayload && typeof row.rawPayload === 'object'
+        ? (row.rawPayload as Record<string, unknown>)
+        : {}) as Record<string, unknown>;
+
+      const project =
+        raw.project && typeof raw.project === 'object'
+          ? (raw.project as Record<string, unknown>)
+          : {};
+      const department =
+        raw.department && typeof raw.department === 'object'
+          ? (raw.department as Record<string, unknown>)
+          : {};
+
+      return {
+        ...row,
+        projectExternalId:
+          row.projectExternalId ||
+          (typeof raw.requestedProjectId === 'string' ? raw.requestedProjectId : null) ||
+          (typeof raw.projectId === 'string' ? raw.projectId : null) ||
+          (typeof project.id === 'string' ? project.id : null),
+        projectCode:
+          row.projectCode ||
+          (typeof project.code === 'string' ? project.code : null),
+        projectName:
+          row.projectName ||
+          (typeof raw.requestedProjectName === 'string' ? raw.requestedProjectName : null) ||
+          (typeof project.name === 'string' ? project.name : null),
+        departmentExternalId:
+          row.departmentExternalId ||
+          (typeof raw.requestedDepartmentId === 'string' ? raw.requestedDepartmentId : null) ||
+          (typeof raw.departmentId === 'string' ? raw.departmentId : null) ||
+          (typeof department.id === 'string' ? department.id : null),
+        departmentName:
+          row.departmentName ||
+          (typeof raw.requestedDepartmentName === 'string' ? raw.requestedDepartmentName : null) ||
+          (typeof department.name === 'string' ? department.name : null),
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: rows,
+      data: normalizedRows,
       pagination: {
         page,
         limit,
@@ -57,4 +97,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch material requisitions' }, { status: 500 });
   }
 }
-

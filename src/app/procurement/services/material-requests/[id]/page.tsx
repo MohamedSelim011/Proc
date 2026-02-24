@@ -12,9 +12,11 @@ type MaterialRequisitionDetail = {
   requisitionNumber?: string | null;
   status: string;
   priority?: string | null;
+  projectExternalId?: string | null;
   projectName?: string | null;
   requesterName?: string | null;
   requesterEmail?: string | null;
+  departmentExternalId?: string | null;
   departmentName?: string | null;
   requiredDate?: string | null;
   purpose?: string | null;
@@ -193,12 +195,12 @@ export default function MaterialRequestDetailsPage() {
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-gray-500">Department</p>
-                <p className="mt-1 text-sm text-gray-900">{row.departmentName || 'N/A'}</p>
+                <p className="mt-1 text-sm text-gray-900">{row.departmentName || row.departmentExternalId || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-gray-500">Project</p>
                 <p className="mt-1 text-sm text-gray-900">
-                  {row.projectName || 'N/A'}
+                  {row.projectName || row.projectExternalId || 'N/A'}
                 </p>
               </div>
             </div>

@@ -12,6 +12,7 @@ type InventoryMaterialRequisition = {
   requisitionNumber?: string | null;
   status: string;
   priority?: string | null;
+  projectExternalId?: string | null;
   projectName?: string | null;
   requesterName?: string | null;
   requesterEmail?: string | null;
@@ -240,7 +241,7 @@ export default function MaterialRequestsPage() {
                       <div className="text-xs text-gray-500">{row.externalId}</div>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-600">{row.requesterName || row.requesterEmail || 'N/A'}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600">{row.projectName || 'N/A'}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600">{row.projectName || row.projectExternalId || 'N/A'}</td>
                     <td className="px-4 py-4 text-sm text-gray-600">{row.priority || 'N/A'}</td>
                     <td className="px-4 py-4">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(row.status)}`}>

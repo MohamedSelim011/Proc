@@ -514,19 +514,35 @@ export default function PurchaseOrderDetailPage() {
   // Check permissions
   const roleUpper = userRole?.toUpperCase() || '';
   const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
-  const isAdmin = roleUpper === 'ADMIN' || isSuperAdmin;
+  const isSystemAdmin = roleUpper === 'SYSTEM_ADMIN';
+  const isAdmin = roleUpper === 'ADMIN' || isSuperAdmin || isSystemAdmin;
   
-  // Only Department Manager, Procurement Manager, Finance Manager, Admin, and Super Admin can approve
-  const hasApprovalRole = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
+  // Roles that can approve POs
+  const hasApprovalRole = [
+    'DEPARTMENT_MANAGER',
+    'PROCUREMENT_MANAGER',
+    'FINANCE_MANAGER',
+    'ADMIN',
+    'SYSTEM_ADMIN',
+    'SUPER_ADMIN',
+  ].includes(roleUpper);
   
   const isCreator = po?.createdBy === userId || po?.createdBy === userEmployeeId;
   
-  // Super Admin can approve even if they're the creator, others cannot approve their own POs
-  const canApprove = hasApprovalRole && (isSuperAdmin || !isCreator);
+  // Admin-level roles can approve regardless of creator to avoid deadlocks.
+  const canApprove = hasApprovalRole && (isSuperAdmin || isSystemAdmin || roleUpper === 'ADMIN' || !isCreator);
   
   // Only Buyer (REQUESTOR), Procurement Officer (PROCUREMENT_MANAGER), and Admin can submit POs for approval
   // Also allow if user is the creator of the PO
-  const canSubmit = ['BUYER', 'REQUESTOR', 'PROCUREMENT_OFFICER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper) || isCreator;
+  const canSubmit = [
+    'BUYER',
+    'REQUESTOR',
+    'PROCUREMENT_OFFICER',
+    'PROCUREMENT_MANAGER',
+    'ADMIN',
+    'SYSTEM_ADMIN',
+    'SUPER_ADMIN',
+  ].includes(roleUpper) || isCreator;
 
   // Debug logging (only in browser)
   if (typeof window !== 'undefined') {

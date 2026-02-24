@@ -839,7 +839,7 @@ function NewPurchaseOrderContent() {
                               {mr.requesterName || mr.requesterEmail || 'N/A'} • {mr.projectName || 'No project'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {mr.departmentName || 'No department'} • {mr.status}
+                              {mr.departmentName || mr.departmentExternalId || 'No department'} • {mr.status}
                             </p>
                           </div>
                           {formData.sourceMaterialRequisitionId === mr.id && (
