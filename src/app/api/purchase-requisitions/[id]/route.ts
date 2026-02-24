@@ -13,6 +13,13 @@ export async function GET(
         id: id,
       },
       include: {
+        sourceMaterialRequest: {
+          select: {
+            id: true,
+            externalId: true,
+            status: true,
+          },
+        },
         items: {
           include: {
             item: {
@@ -77,14 +84,28 @@ export async function PUT(
       itemType,
       departmentId,
       projectId,
-      boqReference,
       priority,
       requiredByDate,
       justification,
-      budgetCode,
-      costCenter,
       items,
+      sourceMaterialRequestId,
     } = body;
+
+    let resolvedSourceMaterialRequestId: string | null | undefined = undefined;
+    if (typeof sourceMaterialRequestId === 'string') {
+      const trimmed = sourceMaterialRequestId.trim();
+      if (!trimmed) {
+        resolvedSourceMaterialRequestId = null;
+      } else {
+        const sourceRequest = await prisma.hrMaterialRequest.findFirst({
+          where: {
+            OR: [{ id: trimmed }, { externalId: trimmed }],
+          },
+          select: { id: true },
+        });
+        resolvedSourceMaterialRequestId = sourceRequest?.id || null;
+      }
+    }
 
     // Calculate total estimated cost
     const estimatedCost = items.reduce(
@@ -100,13 +121,13 @@ export async function PUT(
         itemType,
         departmentId,
         projectId,
-        boqReference,
         priority,
         requiredByDate: new Date(requiredByDate),
         justification,
-        budgetCode,
-        costCenter,
         estimatedCost,
+        ...(resolvedSourceMaterialRequestId !== undefined
+          ? { sourceMaterialRequestId: resolvedSourceMaterialRequestId }
+          : {}),
         updatedAt: new Date(),
         // Update items
         items: {

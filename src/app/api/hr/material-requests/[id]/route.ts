@@ -42,11 +42,14 @@ export async function PUT(
       status?: string;
       approved_by_external?: string;
       rejection_reason?: string;
+      updatedAt?: string;
+      updated_at?: string;
     };
 
-    const normalizedStatus = (payload.status || '').toLowerCase();
-    if (!['approved', 'rejected'].includes(normalizedStatus)) {
-      return NextResponse.json({ error: 'Invalid status. Must be approved or rejected' }, { status: 400 });
+    const rawStatus = (payload.status || '').toLowerCase();
+    const normalizedStatus = rawStatus === 'fulfilled' ? 'fullfilled' : rawStatus;
+    if (!['approved', 'rejected', 'fullfilled'].includes(normalizedStatus)) {
+      return NextResponse.json({ error: 'Invalid status. Must be approved, rejected, or fullfilled' }, { status: 400 });
     }
     if (normalizedStatus === 'rejected' && !payload.rejection_reason?.trim()) {
       return NextResponse.json({ error: 'rejection_reason is required when rejecting a request' }, { status: 400 });
@@ -77,10 +80,13 @@ export async function PUT(
             ? `Bearer ${hrApiToken}`
             : null;
 
+    const updatedTimestamp = payload.updated_at || payload.updatedAt || new Date().toISOString();
     const approverExternalId = payload.approved_by_external || authUser.employeeId || authUser.id;
     const externalBody = {
       status: normalizedStatus,
       approved_by_external: approverExternalId,
+      updated_at: updatedTimestamp,
+      updatedAt: updatedTimestamp,
       ...(normalizedStatus === 'rejected' ? { rejection_reason: payload.rejection_reason?.trim() } : {}),
     };
 

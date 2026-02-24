@@ -22,49 +22,76 @@ export async function POST(request: NextRequest) {
             ? `Bearer ${hrApiToken}`
             : null;
 
-    const response = await fetch(`${baseUrl}/material-requests`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        ...(forwardedAuthHeader ? { Authorization: forwardedAuthHeader } : {}),
-        ...(hrApiKey ? { 'X-API-Key': hrApiKey } : {}),
-      },
-      cache: 'no-store',
-    });
-
-    const payload = (await response.json()) as { success?: boolean; data?: unknown[]; message?: string };
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: payload?.message || 'Failed to sync material requests from HR API' },
-        { status: response.status }
-      );
-    }
-
-    if (!payload?.success || !Array.isArray(payload.data)) {
-      return NextResponse.json({ error: 'Invalid response from HR API' }, { status: 502 });
-    }
-
     let synced = 0;
-    for (const entry of payload.data) {
-      const mapped = mapHrMaterialRequestRecord(entry);
-      const externalId = mapped.externalId;
-      if (!externalId) continue;
+    let page = 1;
+    const limit = 100;
+    let totalPages: number | null = null;
+    let pagesSynced = 0;
 
-      await prisma.hrMaterialRequest.upsert({
-        where: { externalId },
-        update: {
-          ...mapped.data,
+    while (totalPages === null || page <= totalPages) {
+      const response = await fetch(`${baseUrl}/material-requests?page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          ...(forwardedAuthHeader ? { Authorization: forwardedAuthHeader } : {}),
+          ...(hrApiKey ? { 'X-API-Key': hrApiKey } : {}),
         },
-        create: {
-          externalId,
-          ...mapped.data,
-        },
+        cache: 'no-store',
       });
-      synced += 1;
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        data?: unknown[];
+        message?: string;
+        pagination?: { page?: number; totalPages?: number };
+      };
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: payload?.message || 'Failed to sync material requests from HR API' },
+          { status: response.status }
+        );
+      }
+
+      if (!payload?.success || !Array.isArray(payload.data)) {
+        return NextResponse.json({ error: 'Invalid response from HR API' }, { status: 502 });
+      }
+
+      if (typeof payload.pagination?.totalPages === 'number' && payload.pagination.totalPages > 0) {
+        totalPages = payload.pagination.totalPages;
+      }
+      pagesSynced += 1;
+
+      for (const entry of payload.data) {
+        const mapped = mapHrMaterialRequestRecord(entry);
+        const externalId = mapped.externalId;
+        if (!externalId) continue;
+
+        await prisma.hrMaterialRequest.upsert({
+          where: { externalId },
+          update: {
+            ...mapped.data,
+          },
+          create: {
+            externalId,
+            ...mapped.data,
+          },
+        });
+        synced += 1;
+      }
+
+      // Fallback in case external API does not return pagination metadata.
+      if (totalPages === null && payload.data.length < limit) {
+        break;
+      }
+      if (payload.data.length === 0) {
+        break;
+      }
+
+      page += 1;
     }
 
-    return NextResponse.json({ success: true, synced });
+    return NextResponse.json({ success: true, synced, pagesSynced });
   } catch (error) {
     console.error('[HR Material Requests][SYNC] Failed:', error);
     return NextResponse.json({ error: 'Failed to sync material requests' }, { status: 500 });

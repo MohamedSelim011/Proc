@@ -234,7 +234,6 @@ async function main() {
       businessType: 'Limited Liability Company',
       yearEstablished: 2005,
       numberOfEmployees: 150,
-      omanizationPercentage: 75.5,
       status: VendorStatus.ACTIVE,
       performanceScore: 4.5,
     },
@@ -259,7 +258,6 @@ async function main() {
       businessType: 'SAOG',
       yearEstablished: 1998,
       numberOfEmployees: 500,
-      omanizationPercentage: 82.0,
       status: VendorStatus.ACTIVE,
       performanceScore: 4.8,
     },
@@ -284,7 +282,6 @@ async function main() {
       businessType: 'Group of Companies',
       yearEstablished: 1984,
       numberOfEmployees: 1200,
-      omanizationPercentage: 90.0,
       status: VendorStatus.ACTIVE,
       performanceScore: 4.7,
     },
@@ -309,7 +306,6 @@ async function main() {
       businessType: 'Corporation',
       yearEstablished: 1967,
       numberOfEmployees: 3000,
-      omanizationPercentage: 95.0,
       status: VendorStatus.ACTIVE,
       performanceScore: 4.9,
     },
@@ -334,7 +330,6 @@ async function main() {
       businessType: 'Trading',
       yearEstablished: 2010,
       numberOfEmployees: 75,
-      omanizationPercentage: 70.0,
       status: VendorStatus.ACTIVE,
       performanceScore: 4.2,
     },
@@ -455,88 +450,28 @@ async function main() {
     )
   )
 
-  // Create Purchase Requisitions (check if they exist first)
+  // Material requisitions are no longer seeded here.
+  // Keep references to existing PRs only for dependent demo data.
   const pr1 = await prisma.purchaseRequisition.findUnique({
     where: { prNumber: 'PR-2024-001' },
   })
   const pr2 = await prisma.purchaseRequisition.findUnique({
     where: { prNumber: 'PR-2024-002' },
   })
-
-  const purchaseRequisitions = await Promise.all([
-    pr1
-      ? pr1
-      : prisma.purchaseRequisition.create({
-          data: {
-            prNumber: 'PR-2024-001',
-            requesterId: 'emp001',
-            departmentId: 'dept001',
-            itemType: 'STOCK',
-            priority: 'HIGH',
-            status: 'APPROVED',
-            estimatedCost: 15000.00,
-            budgetCode: 'CONST-2024-Q1',
-            justification: 'Urgent requirement for ongoing construction project in Sohar',
-            items: {
-              create: [
-                {
-                  itemId: items[0].id,
-                  quantity: 200,
-                  estimatedPrice: 3.5,
-                  specifications: 'Grade 53 Portland Cement',
-                  requiredDate: new Date('2024-03-15'),
-                },
-                {
-                  itemId: items[1].id,
-                  quantity: 10,
-                  estimatedPrice: 450.0,
-                  specifications: '12mm diameter bars',
-                  requiredDate: new Date('2024-03-15'),
-                },
-              ],
-            },
-          },
-        }),
-    pr2
-      ? pr2
-      : prisma.purchaseRequisition.create({
-          data: {
-            prNumber: 'PR-2024-002',
-            requesterId: 'emp002',
-            departmentId: 'dept002',
-            itemType: 'NON_STOCK',
-            priority: 'NORMAL',
-            status: 'SUBMITTED',
-            estimatedCost: 5000.00,
-            budgetCode: 'IT-2024-Q1',
-            justification: 'New employee onboarding - IT equipment',
-            items: {
-              create: [
-                {
-                  itemId: items[2].id,
-                  quantity: 3,
-                  estimatedPrice: 1500.0,
-                  specifications: 'Core i7, 16GB RAM, 512GB SSD',
-                  requiredDate: new Date('2024-03-20'),
-                },
-              ],
-            },
-          },
-        }),
-  ])
+  const purchaseRequisitions = [pr1, pr2].filter(Boolean)
 
   // Create RFQs (check if they exist first)
   let rfq1 = await prisma.rFQ.findUnique({
     where: { rfqNumber: 'RFQ-2024-001' },
   })
 
-  if (!rfq1) {
+  if (!rfq1 && pr1) {
     rfq1 = await prisma.rFQ.create({
       data: {
         rfqNumber: 'RFQ-2024-001',
         pr: {
           connect: {
-            id: purchaseRequisitions[0].id
+            id: pr1.id
           }
         },
         title: 'Construction Materials Supply - Sohar Project',
@@ -547,23 +482,23 @@ async function main() {
     })
   }
 
-  const rfqs = [rfq1]
+  const rfqs = rfq1 ? [rfq1] : []
 
   // Create RFQ Responses (check if they exist first)
-  const existingRFQResponse1 = await prisma.rFQResponse.findFirst({
+  const existingRFQResponse1 = rfqs[0] ? await prisma.rFQResponse.findFirst({
     where: {
       rfqId: rfqs[0].id,
       vendorId: vendors[0].id,
     },
-  })
-  const existingRFQResponse2 = await prisma.rFQResponse.findFirst({
+  }) : null
+  const existingRFQResponse2 = rfqs[0] ? await prisma.rFQResponse.findFirst({
     where: {
       rfqId: rfqs[0].id,
       vendorId: vendors[2].id,
     },
-  })
+  }) : null
 
-  if (!existingRFQResponse1) {
+  if (rfqs[0] && !existingRFQResponse1) {
     await prisma.rFQResponse.create({
       data: {
         rfqId: rfqs[0].id,
@@ -576,7 +511,7 @@ async function main() {
       },
     })
   }
-  if (!existingRFQResponse2) {
+  if (rfqs[0] && !existingRFQResponse2) {
     await prisma.rFQResponse.create({
       data: {
         rfqId: rfqs[0].id,
@@ -601,10 +536,11 @@ async function main() {
   const purchaseOrders = await Promise.all([
     po1
       ? po1
-      : prisma.purchaseOrder.create({
+      : pr1
+        ? prisma.purchaseOrder.create({
           data: {
             poNumber: 'PO-2024-001',
-            prId: purchaseRequisitions[0].id,
+            prId: pr1.id,
             vendorId: vendors[0].id,
             deliveryDate: new Date('2024-03-15'),
             deliveryAddress: {
@@ -637,7 +573,8 @@ async function main() {
               ],
             },
           },
-        }),
+        })
+        : Promise.resolve(null),
     po2
       ? po2
       : prisma.purchaseOrder.create({
@@ -671,17 +608,18 @@ async function main() {
           },
         }),
   ])
+  const materialFlowPO = purchaseOrders.find((po) => po?.poNumber === 'PO-2024-001')
 
   // Create Goods Receipts (check if they exist first)
   let gr1 = await prisma.goodsReceipt.findUnique({
     where: { grNumber: 'GR-2024-001' },
   })
 
-  if (!gr1) {
+  if (!gr1 && materialFlowPO) {
     gr1 = await prisma.goodsReceipt.create({
       data: {
         grNumber: 'GR-2024-001',
-        poId: purchaseOrders[0].id,
+        poId: materialFlowPO.id,
         receivedBy: 'emp003',
         status: 'PARTIAL',
         qualityChecked: true,
@@ -701,19 +639,19 @@ async function main() {
     })
   }
 
-  const goodsReceipts = [gr1]
+  const goodsReceipts = gr1 ? [gr1] : []
 
   // Create Invoices (check if they exist first)
   const existingInvoice = await prisma.invoice.findUnique({
     where: { invoiceNumber: 'INV-2024-001' },
   })
 
-  if (!existingInvoice) {
+  if (!existingInvoice && materialFlowPO) {
     await prisma.invoice.create({
       data: {
         invoiceNumber: 'INV-2024-001',
         vendorId: vendors[0].id,
-        poId: purchaseOrders[0].id,
+        poId: materialFlowPO.id,
         invoiceDate: new Date('2024-03-16'),
         dueDate: new Date('2024-04-15'),
         totalAmount: 14500.00,
@@ -774,30 +712,38 @@ async function main() {
 
   // Create Approvals (skip if they already exist)
   try {
-    await Promise.all([
-      prisma.approval.create({
-        data: {
-          documentType: 'PURCHASE_REQUISITION',
-          documentId: purchaseRequisitions[0].id,
-          prId: purchaseRequisitions[0].id,
-          approverId: 'manager001',
-          status: 'APPROVED',
-          comments: 'Approved for urgent project requirement',
-          approvedAt: new Date('2024-03-01'),
-          level: 1,
-        },
-      }),
-      prisma.approval.create({
-        data: {
-          documentType: 'PURCHASE_REQUISITION',
-          documentId: purchaseRequisitions[1].id,
-          prId: purchaseRequisitions[1].id,
-          approverId: 'manager002',
-          status: 'PENDING',
-          level: 1,
-        },
-      }),
-    ])
+    const approvalCreates = []
+    if (pr1) {
+      approvalCreates.push(
+        prisma.approval.create({
+          data: {
+            documentType: 'PURCHASE_REQUISITION',
+            documentId: pr1.id,
+            prId: pr1.id,
+            approverId: 'manager001',
+            status: 'APPROVED',
+            comments: 'Approved for urgent project requirement',
+            approvedAt: new Date('2024-03-01'),
+            level: 1,
+          },
+        })
+      )
+    }
+    if (pr2) {
+      approvalCreates.push(
+        prisma.approval.create({
+          data: {
+            documentType: 'PURCHASE_REQUISITION',
+            documentId: pr2.id,
+            prId: pr2.id,
+            approverId: 'manager002',
+            status: 'PENDING',
+            level: 1,
+          },
+        })
+      )
+    }
+    await Promise.all(approvalCreates)
   } catch (error) {
     // Approvals may already exist, skip
     console.log('⚠️  Approvals may already exist, skipping...')

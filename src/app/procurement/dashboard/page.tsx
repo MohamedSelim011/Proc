@@ -419,10 +419,10 @@ export default function ProcurementDashboard() {
                         {formatCurrency(approval.amount)}
                       </div>
                       <Link 
-                        href={`/procurement/requisitions/${approval.id}/approve`}
+                        href={`/procurement/requisitions/${approval.id}`}
                         className="inline-flex items-center text-xs font-medium text-wujha-primary hover:text-wujha-primary-hover hover:underline"
                       >
-                        Review
+                        View
                       </Link>
                     </div>
                   </div>

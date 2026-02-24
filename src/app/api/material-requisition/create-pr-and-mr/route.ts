@@ -37,7 +37,7 @@ async function getOrCreateInventorySyncCategory() {
  * Inventory with status "Needs PO" so both systems are in sync.
  * Inventory is the master for items: if an item does not exist in Procurement, it is created from Inventory.
  * Requires authenticated user.
- * Body: departmentId, budgetCode, justification, requiredByDate, priority, items (itemCode, quantity, estimatedPrice, inventoryItemId), deliveryWarehouseId, inventoryProjectId, ...
+ * Body: departmentId, justification, requiredByDate, priority, items (itemCode, quantity, estimatedPrice, inventoryItemId), deliveryWarehouseId, inventoryProjectId, ...
  */
 const LOG_PREFIX = '[req] create-pr-and-mr';
 
@@ -61,14 +61,13 @@ export async function POST(request: NextRequest) {
 
   const b = body as {
     departmentId?: string;
-    budgetCode?: string;
     justification?: string;
     requiredByDate?: string;
     priority?: string;
-    costCenter?: string;
     projectId?: string;
     deliveryWarehouseId?: string;
     inventoryProjectId?: string;
+    sourceMaterialRequestId?: string;
     items?: Array<{
       itemCode?: string;
       quantity?: number;
@@ -79,11 +78,11 @@ export async function POST(request: NextRequest) {
   };
 
   const departmentId = b.departmentId?.trim();
-  const budgetCode = b.budgetCode?.trim();
-  if (!departmentId || !budgetCode) {
-    console.error(`${LOG_PREFIX} → Validation: missing departmentId or budgetCode`);
+  const budgetCode = 'AUTO';
+  if (!departmentId) {
+    console.error(`${LOG_PREFIX} → Validation: missing departmentId`);
     return Response.json(
-      { error: 'departmentId and budgetCode are required.' },
+      { error: 'departmentId is required.' },
       { status: 400 }
     );
   }
@@ -95,7 +94,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  console.log(`${LOG_PREFIX} → departmentId=${departmentId} budgetCode=${budgetCode} items=${b.items.length}`);
+  console.log(`${LOG_PREFIX} → departmentId=${departmentId} items=${b.items.length}`);
 
   const priority = (b.priority?.toUpperCase() || 'NORMAL') as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'CRITICAL';
   const validPriorities = ['LOW', 'NORMAL', 'HIGH', 'URGENT', 'CRITICAL'];
@@ -162,6 +161,23 @@ export async function POST(request: NextRequest) {
   }
 
   const requesterId = user.employeeId || user.id || 'emp001';
+  const incomingSourceMaterialRequestId =
+    typeof b.sourceMaterialRequestId === 'string' && b.sourceMaterialRequestId.trim()
+      ? b.sourceMaterialRequestId.trim()
+      : null;
+  let sourceMaterialRequestId: string | null = null;
+  if (incomingSourceMaterialRequestId) {
+    const sourceRequest = await prisma.hrMaterialRequest.findFirst({
+      where: {
+        OR: [
+          { id: incomingSourceMaterialRequestId },
+          { externalId: incomingSourceMaterialRequestId },
+        ],
+      },
+      select: { id: true },
+    });
+    sourceMaterialRequestId = sourceRequest?.id || null;
+  }
   const prItems = b.items.map((it) => {
     const code = String(it?.itemCode ?? '').trim();
     const qty = Number(it?.quantity) || 0;
@@ -197,7 +213,8 @@ export async function POST(request: NextRequest) {
       justification: b.justification?.trim() || null,
       requiredByDate: b.requiredByDate ? new Date(b.requiredByDate) : null,
       projectId: b.projectId?.trim() || null,
-      costCenter: b.costCenter?.trim() || null,
+      costCenter: null,
+      sourceMaterialRequestId,
       createdBy: requesterId,
       items: {
         create: prItems.map((i) => ({

@@ -26,8 +26,7 @@ export async function GET(request: NextRequest) {
         where: { status: 'ACTIVE' },
         _count: true,
         _avg: {
-          performanceScore: true,
-          omanizationPercentage: true
+          performanceScore: true
         }
       }),
 
@@ -166,7 +165,6 @@ export async function GET(request: NextRequest) {
       overview: {
         activeVendors: vendorStats._count,
         averageVendorScore: vendorStats._avg.performanceScore || 0,
-        averageOmanization: vendorStats._avg.omanizationPercentage || 0,
         monthlySpend: Number(poStats._sum.totalAmount || 0),
         monthlyOrders: poStats._count,
         pendingApprovals

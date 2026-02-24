@@ -75,6 +75,8 @@ model HrMaterialRequest {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  purchaseRequisitions PurchaseRequisition[]
+
   @@index([status])
   @@index([departmentName])
   @@index([externalUpdatedAt])
@@ -102,6 +104,37 @@ model PaymentEscalation {
 
   @@index([status])
   @@index([priority])
+  @@index([externalUpdatedAt])
+}
+
+model InventoryMaterialRequisition {
+  id                   String   @id @default(cuid())
+  externalId           String   @unique
+  requisitionNumber    String?
+  status               String
+  priority             String?
+  projectExternalId    String?
+  projectCode          String?
+  projectName          String?
+  departmentExternalId String?
+  departmentName       String?
+  requesterExternalId  String?
+  requesterName        String?
+  requesterEmail       String?
+  requiredDate         DateTime?
+  purpose              String?
+  justification        String?
+  externalCreatedAt    DateTime?
+  externalUpdatedAt    DateTime?
+  lastSyncedAt         DateTime @default(now())
+  rawPayload           Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  purchaseOrders       PurchaseOrder[]
+
+  @@index([status])
+  @@index([projectName])
   @@index([externalUpdatedAt])
 }
 
@@ -259,7 +292,6 @@ model Vendor {
   businessType          String
   yearEstablished       Int
   numberOfEmployees     Int
-  omanizationPercentage Float?
 
   // Status
   status           VendorStatus @default(PENDING)
@@ -373,8 +405,9 @@ model PurchaseRequisition {
   // Additional fields
   requiredByDate DateTime?
   projectId      String?
-  boqReference   String?
   costCenter     String?
+  sourceMaterialRequestId String?
+  sourceMaterialRequest   HrMaterialRequest? @relation(fields: [sourceMaterialRequestId], references: [id], onDelete: SetNull)
   createdBy      String?
 
   // Items
@@ -389,11 +422,30 @@ model PurchaseRequisition {
   servicePR        ServicePR?
   serviceRFPs      ServiceRFP[]
   serviceContracts ServiceContract[]
+  documents        PurchaseRequisitionDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([requesterId])
+  @@index([sourceMaterialRequestId])
+}
+
+model PurchaseRequisitionDocument {
+  id           String              @id @default(cuid())
+  prId         String
+  pr           PurchaseRequisition @relation(fields: [prId], references: [id], onDelete: Cascade)
+  documentType String?
+  documentName String
+  fileUrl      String
+  storageKey   String
+  fileSize     Int
+  fileType     String
+  uploadedBy   String?
+  uploadedAt   DateTime @default(now())
+
+  @@index([prId])
+  @@index([uploadedAt])
 }
 
 model PRItem {
@@ -610,6 +662,12 @@ model PurchaseOrder {
   poNumber            String               @unique
   prId                String?
   pr                  PurchaseRequisition? @relation(fields: [prId], references: [id])
+  sourceMaterialRequisitionId String?
+  sourceMaterialRequisition   InventoryMaterialRequisition? @relation(fields: [sourceMaterialRequisitionId], references: [id], onDelete: SetNull)
+  sourceDepartmentId   String?
+  sourceDepartmentName String?
+  sourceProjectId      String?
+  sourceProjectName    String?
   vendorId            String
   vendor              Vendor               @relation(fields: [vendorId], references: [id])
   orderDate           DateTime             @default(now())
@@ -639,6 +697,8 @@ model PurchaseOrder {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([sourceMaterialRequisitionId])
 }
 
 model PurchaseOrderDocument {

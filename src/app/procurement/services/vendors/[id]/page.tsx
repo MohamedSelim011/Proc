@@ -41,7 +41,6 @@ interface Vendor {
   businessType: string;
   yearEstablished: number;
   numberOfEmployees: number;
-  omanizationPercentage?: number;
   status: string;
   performanceScore?: number;
   createdAt: string;
@@ -291,12 +290,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                 <label className="text-sm font-medium text-gray-500">Number of Employees</label>
                 <p className="mt-1 text-sm text-gray-900">{vendor.numberOfEmployees}</p>
               </div>
-              {vendor.omanizationPercentage !== null && vendor.omanizationPercentage !== undefined && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Omanization</label>
-                  <p className="mt-1 text-sm text-gray-900">{vendor.omanizationPercentage}%</p>
-                </div>
-              )}
             </div>
           </div>
 

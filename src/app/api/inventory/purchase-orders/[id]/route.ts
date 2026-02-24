@@ -42,8 +42,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getInventoryAuth(request);
+  const { id } = await params;
+
+  console.log('[inventory/purchase-orders/[id]][GET] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    id,
+  });
+
   if (!auth.ok) {
+    console.warn('[inventory/purchase-orders/[id]][GET] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      id,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -52,13 +67,23 @@ export async function GET(
   }
 
   try {
-    const { id } = await params;
+    console.log('[inventory/purchase-orders/[id]][GET] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+      id,
+    });
     const order = await prisma.purchaseOrder.findUnique({
       where: { id },
       include: poInclude,
     });
 
     if (!order) {
+      console.warn('[inventory/purchase-orders/[id]][GET] PO not found', {
+        requestId,
+        authMethod: auth.authMethod,
+        id,
+        durationMs: Date.now() - startedAt,
+      });
       return financeError('Purchase order not found.', 404, requestId);
     }
 
@@ -128,9 +153,24 @@ export async function GET(
       },
     };
 
+    console.log('[inventory/purchase-orders/[id]][GET] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      id,
+      poNumber: order.poNumber,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(data, undefined, requestId);
   } catch (error) {
-    console.error('[inventory/purchase-orders/[id]]', error);
+    console.error('[inventory/purchase-orders/[id]][GET] Failed', {
+      requestId,
+      id,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError(
       'Failed to fetch purchase order.',
       500,

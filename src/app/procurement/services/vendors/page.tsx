@@ -38,6 +38,11 @@ interface ServiceVendor {
   }>;
 }
 
+type ServiceContractSummary = {
+  status: string;
+  totalValue: string | number;
+};
+
 interface Filters {
   search: string;
   status: string;
@@ -97,13 +102,25 @@ export default function ServiceVendors() {
 
       if (response.ok) {
         // Calculate performance metrics for each vendor
-        const vendorsWithMetrics = (data.vendors || []).map((vendor: any) => ({
-          ...vendor,
-          performanceRating: vendor.performanceScore ?? 0,
-          activeContracts: vendor._count?.purchaseOrders || 0,
-          totalContractValue: Math.random() * 100000 + 10000,
-          phone: vendor.mobile || vendor.phone || ''
-        }));
+        const activeContractStatuses = new Set(['APPROVED', 'SIGNED', 'ACTIVE']);
+        const vendorsWithMetrics = (data.vendors || []).map((vendor: any) => {
+          const contracts: ServiceContractSummary[] = Array.isArray(vendor.serviceContracts)
+            ? vendor.serviceContracts
+            : [];
+          const activeContracts = contracts.filter((c) => activeContractStatuses.has(c.status));
+          const totalContractValue = activeContracts.reduce(
+            (sum, c) => sum + Number(c.totalValue || 0),
+            0
+          );
+
+          return {
+            ...vendor,
+            performanceRating: vendor.performanceScore ?? 0,
+            activeContracts: activeContracts.length,
+            totalContractValue,
+            phone: vendor.mobile || vendor.phone || ''
+          };
+        });
 
         setAllVendors(vendorsWithMetrics);
       } else {

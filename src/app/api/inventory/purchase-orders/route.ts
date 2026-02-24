@@ -14,8 +14,32 @@ import {
  */
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getInventoryAuth(request);
+  const searchParams = request.nextUrl.searchParams;
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(
+    parseInt(searchParams.get('limit') || '50'),
+    100
+  );
+  const status = searchParams.get('status') || '';
+  const vendorId = searchParams.get('vendorId') || '';
+
+  console.log('[inventory/purchase-orders][GET] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    page,
+    limit,
+    status: status || null,
+    vendorId: vendorId || null,
+  });
+
   if (!auth.ok) {
+    console.warn('[inventory/purchase-orders][GET] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -24,14 +48,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(
-      parseInt(searchParams.get('limit') || '50'),
-      100
-    );
-    const status = searchParams.get('status') || '';
-    const vendorId = searchParams.get('vendorId') || '';
+    console.log('[inventory/purchase-orders][GET] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+    });
 
     const skip = (page - 1) * limit;
     const where: Record<string, unknown> = {};
@@ -73,13 +93,28 @@ export async function GET(request: NextRequest) {
     ]);
 
     const totalPages = Math.ceil(total / limit);
+    console.log('[inventory/purchase-orders][GET] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      count: orders.length,
+      total,
+      totalPages,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(
       { purchaseOrders: orders },
       { page, limit, total, totalPages },
       requestId
     );
   } catch (error) {
-    console.error('[inventory/purchase-orders]', error);
+    console.error('[inventory/purchase-orders][GET] Failed', {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError(
       'Failed to fetch purchase orders.',
       500,

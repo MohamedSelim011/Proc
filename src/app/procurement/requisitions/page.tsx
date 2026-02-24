@@ -4,12 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Plus, 
-  Search, 
-  Filter, 
   Download, 
   Eye, 
   Edit, 
-  Trash2,
   CheckCircle,
   Clock,
   XCircle,
@@ -19,6 +16,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import ConfirmActionModal from '@/components/ui/confirm-action-modal';
 
 interface PurchaseRequisition {
   id: string;
@@ -55,6 +53,9 @@ export default function PurchaseRequisitionsPage() {
   const [showNewReqMenu, setShowNewReqMenu] = useState(false);
   const [requisitions, setRequisitions] = useState<PurchaseRequisition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryBaseUrlConfigured, setInventoryBaseUrlConfigured] = useState<boolean | null>(null);
+  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
+  const [approvalModalState, setApprovalModalState] = useState<{ prId: string; action: 'APPROVE' | 'REJECT' } | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
     limit: 10,
@@ -80,6 +81,19 @@ export default function PurchaseRequisitionsPage() {
     departmentId: '',
     search: ''
   });
+
+  useEffect(() => {
+    const loadIntegrationFlags = async () => {
+      try {
+        const response = await fetch('/api/system/integration-flags', { cache: 'no-store' });
+        const data = await response.json();
+        setInventoryBaseUrlConfigured(Boolean(data?.data?.inventoryBaseUrlConfigured));
+      } catch {
+        setInventoryBaseUrlConfigured(false);
+      }
+    };
+    void loadIntegrationFlags();
+  }, []);
 
   useEffect(() => {
     fetchRequisitions();
@@ -146,6 +160,45 @@ export default function PurchaseRequisitionsPage() {
       }
     } catch (error) {
       showToast('error', 'An error occurred while submitting the requisition.');
+    }
+  };
+
+  const handleApprovalAction = async (prId: string, action: 'APPROVE' | 'REJECT') => {
+    const verb = action === 'APPROVE' ? 'approve' : 'reject';
+    try {
+      setApprovalSubmitting(true);
+      const token =
+        (typeof window !== 'undefined' && (
+          localStorage.getItem('token') ||
+          localStorage.getItem('authToken') ||
+          localStorage.getItem('auth-token')
+        )) || null;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/purchase-requisitions/${prId}/approve`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast('error', data.error || `Failed to ${verb} requisition`);
+        return;
+      }
+
+      showToast('success', action === 'APPROVE' ? 'Requisition approved successfully' : 'Requisition rejected successfully');
+      await fetchRequisitions();
+      setApprovalModalState(null);
+    } catch (error) {
+      showToast('error', `Failed to ${verb} requisition`);
+    } finally {
+      setApprovalSubmitting(false);
     }
   };
 
@@ -315,13 +368,15 @@ export default function PurchaseRequisitionsPage() {
             </button>
             {showNewReqMenu && (
               <div className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg z-20">
-                <Link
-                  href="/procurement/requisitions/new"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => setShowNewReqMenu(false)}
-                >
-                  Material Requisition
-                </Link>
+                {inventoryBaseUrlConfigured === false ? (
+                  <Link
+                    href="/procurement/requisitions/new"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowNewReqMenu(false)}
+                  >
+                    Material Requisition
+                  </Link>
+                ) : null}
                 <Link
                   href="/procurement/services/requisitions/new"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -519,13 +574,28 @@ export default function PurchaseRequisitionsPage() {
                          pr.requesterId !== userId && 
                          pr.requesterId !== userEmployeeId &&
                          pr.createdBy !== userId && (
-                          <Link
-                            href={`/procurement/requisitions/${pr.id}/approve`}
-                            className="text-wujha-primary hover:text-wujha-primary-hover"
-                            title="Review & Approve"
+                          <button
+                            type="button"
+                            onClick={() => setApprovalModalState({ prId: pr.id, action: 'APPROVE' })}
+                            className="text-green-600 hover:text-green-700"
+                            title="Approve"
                           >
                             <CheckCircle className="h-4 w-4" />
-                          </Link>
+                          </button>
+                        )}
+                        {pr.itemType !== 'SERVICE' && (pr.status === 'PENDING_APPROVAL' || pr.status === 'SUBMITTED') && 
+                         canApprove && 
+                         pr.requesterId !== userId && 
+                         pr.requesterId !== userEmployeeId &&
+                         pr.createdBy !== userId && (
+                          <button
+                            type="button"
+                            onClick={() => setApprovalModalState({ prId: pr.id, action: 'REJECT' })}
+                            className="text-red-600 hover:text-red-700"
+                            title="Reject"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -608,6 +678,22 @@ export default function PurchaseRequisitionsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmActionModal
+        open={approvalModalState !== null}
+        title={approvalModalState?.action === 'APPROVE' ? 'Approve Requisition' : 'Reject Requisition'}
+        message={`Are you sure you want to ${
+          approvalModalState?.action === 'APPROVE' ? 'approve' : 'reject'
+        } this requisition?`}
+        confirmLabel={approvalModalState?.action === 'APPROVE' ? 'Approve' : 'Reject'}
+        confirmVariant={approvalModalState?.action === 'APPROVE' ? 'success' : 'danger'}
+        loading={approvalSubmitting}
+        onCancel={() => setApprovalModalState(null)}
+        onConfirm={() => {
+          if (!approvalModalState) return;
+          void handleApprovalAction(approvalModalState.prId, approvalModalState.action);
+        }}
+      />
     </div>
   );
 }

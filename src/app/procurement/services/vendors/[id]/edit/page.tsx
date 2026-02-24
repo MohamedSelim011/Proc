@@ -21,7 +21,6 @@ interface VendorFormData {
   businessType: string;
   yearEstablished: number;
   numberOfEmployees: number;
-  omanizationPercentage?: number;
   address: {
     building?: string;
     street?: string;
@@ -103,7 +102,6 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
           businessType: data.businessType || '',
           yearEstablished: data.yearEstablished || new Date().getFullYear(),
           numberOfEmployees: data.numberOfEmployees || 0,
-          omanizationPercentage: data.omanizationPercentage,
           address: data.address || {
             building: '',
             street: '',
@@ -610,21 +608,6 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Omanization Percentage
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={formData.omanizationPercentage || ''}
-                onChange={(e) => handleInputChange('omanizationPercentage', parseFloat(e.target.value) || undefined)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
-                placeholder="e.g., 15.5"
-              />
-            </div>
           </div>
         </div>
 

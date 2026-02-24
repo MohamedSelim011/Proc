@@ -16,8 +16,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getFinanceAuth(request);
+  const { id } = await params;
+
+  console.log('[finance/contracts/[id]][GET] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    id,
+  });
+
   if (!auth.ok) {
+    console.warn('[finance/contracts/[id]][GET] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      id,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -26,7 +41,11 @@ export async function GET(
   }
 
   try {
-    const { id } = await params;
+    console.log('[finance/contracts/[id]][GET] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+      id,
+    });
     const contract = await prisma.serviceContract.findUnique({
       where: { id },
       include: {
@@ -65,12 +84,33 @@ export async function GET(
     });
 
     if (!contract) {
+      console.warn('[finance/contracts/[id]][GET] Contract not found', {
+        requestId,
+        authMethod: auth.authMethod,
+        id,
+        durationMs: Date.now() - startedAt,
+      });
       return financeError('Service contract not found.', 404, requestId);
     }
 
+    console.log('[finance/contracts/[id]][GET] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      id,
+      contractNumber: contract.contractNumber,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(contract, undefined, requestId);
   } catch (error) {
-    console.error('[finance/contracts/[id]]', error);
+    console.error('[finance/contracts/[id]][GET] Failed', {
+      requestId,
+      id,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError(
       'Failed to fetch contract.',
       500,

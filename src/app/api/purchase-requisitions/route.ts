@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getInventoryItemById, isInventoryConfigured } from '@/lib/inventory-client';
 
+const INVENTORY_SYNC_CATEGORY_CODE = 'INVENTORY';
+
+async function getOrCreateInventorySyncCategory() {
+  const existing = await prisma.category.findUnique({
+    where: { code: INVENTORY_SYNC_CATEGORY_CODE },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const created = await prisma.category.create({
+    data: {
+      code: INVENTORY_SYNC_CATEGORY_CODE,
+      nameEn: 'Inventory (synced)',
+      nameAr: 'Inventory (synced)',
+      description: 'Items synced from external inventory catalogs.',
+    },
+    select: { id: true },
+  });
+  return created.id;
+}
 
 // GET /api/purchase-requisitions - Get all PRs with filtering
 export async function GET(request: NextRequest) {
@@ -148,18 +169,158 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one item is required' },
+        { status: 400 }
+      );
+    }
+
+    // Resolve incoming items to valid local Item ids.
+    // Some callers send inventory/external ids; in that case we fallback to itemCode mapping.
+    const requestedIds = [...new Set(
+      body.items
+        .map((item: any) => (typeof item?.itemId === 'string' ? item.itemId.trim() : ''))
+        .filter(Boolean)
+    )];
+
+    const requestedCodes = [...new Set(
+      body.items
+        .map((item: any) => (typeof item?.itemCode === 'string' ? item.itemCode.trim() : ''))
+        .filter(Boolean)
+    )];
+
+    const [itemsById, itemsByCode] = await Promise.all([
+      requestedIds.length > 0
+        ? prisma.item.findMany({
+            where: { id: { in: requestedIds } },
+            select: { id: true }
+          })
+        : Promise.resolve([]),
+      requestedCodes.length > 0
+        ? prisma.item.findMany({
+            where: { itemCode: { in: requestedCodes } },
+            select: { id: true, itemCode: true }
+          })
+        : Promise.resolve([])
+    ]);
+
+    const validIdSet = new Set(itemsById.map((item) => item.id));
+    const idByCode = new Map(itemsByCode.map((item) => [item.itemCode, item.id]));
+
+    // Auto-create missing local catalog items by itemCode to avoid hard failures
+    // when UI lines come from external/inventory sources.
+    const missingCodes = requestedCodes.filter((code) => !idByCode.has(code));
+    if (missingCodes.length > 0) {
+      const categoryId = await getOrCreateInventorySyncCategory();
+      const createdItems = await Promise.all(
+        missingCodes.map((code) =>
+          prisma.item.upsert({
+            where: { itemCode: code },
+            create: {
+              itemCode: code,
+              nameEn: code,
+              nameAr: code,
+              categoryId,
+              unitOfMeasure: 'EA',
+            },
+            update: {},
+            select: { id: true, itemCode: true },
+          })
+        )
+      );
+      for (const created of createdItems) {
+        idByCode.set(created.itemCode, created.id);
+      }
+    }
+
+    const resolvedItems = body.items.map((item: any, index: number) => {
+      const incomingId = typeof item?.itemId === 'string' ? item.itemId.trim() : '';
+      const incomingCode = typeof item?.itemCode === 'string' ? item.itemCode.trim() : '';
+      const resolvedItemId = validIdSet.has(incomingId) ? incomingId : (idByCode.get(incomingCode) || '');
+
+      return {
+        index,
+        resolvedItemId,
+        quantity: Number(item?.quantity) || 0,
+        estimatedPrice: Number(item?.estimatedPrice) || 0,
+        specifications: item?.specifications,
+        requiredDate: item?.requiredDate
+      };
+    });
+
+    // Second fallback: for unresolved lines with an external/inventory itemId and no code,
+    // fetch inventory item details and create local catalog entries on the fly.
+    const unresolvedBeforeFallback = resolvedItems.filter((item) => !item.resolvedItemId);
+    if (unresolvedBeforeFallback.length > 0 && isInventoryConfigured()) {
+      const categoryId = await getOrCreateInventorySyncCategory();
+      for (const unresolvedItem of unresolvedBeforeFallback) {
+        const originalLine = body.items[unresolvedItem.index];
+        const externalId = typeof originalLine?.itemId === 'string' ? originalLine.itemId.trim() : '';
+        if (!externalId) continue;
+
+        const inv = await getInventoryItemById(externalId);
+        if (!inv.success) continue;
+
+        const code = inv.data.code?.trim() || externalId;
+        const upserted = await prisma.item.upsert({
+          where: { itemCode: code },
+          create: {
+            itemCode: code,
+            nameEn: inv.data.name?.trim() || code,
+            nameAr: inv.data.arabicName?.trim() || inv.data.name?.trim() || code,
+            description: inv.data.description?.trim() || null,
+            categoryId,
+            unitOfMeasure: inv.data.baseUom?.abbreviation?.trim() || inv.data.baseUom?.name?.trim() || 'EA',
+          },
+          update: {},
+          select: { id: true, itemCode: true },
+        });
+
+        resolvedItems[unresolvedItem.index].resolvedItemId = upserted.id;
+      }
+    }
+
+    const unresolved = resolvedItems.filter((item) => !item.resolvedItemId);
+    if (unresolved.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Some requisition items could not be mapped to local catalog items',
+          unresolvedItemIndexes: unresolved.map((item) => item.index)
+        },
+        { status: 400 }
+      );
+    }
     
     // Generate PR number
     const count = await prisma.purchaseRequisition.count();
     const prNumber = `PR-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
     // Calculate total estimated cost
-    const estimatedCost = body.items.reduce((sum: number, item: any) => 
+    const estimatedCost = resolvedItems.reduce((sum: number, item: any) => 
       sum + (item.quantity * item.estimatedPrice), 0
     );
 
     // Set requesterId from body or use a default for now
     const requesterId = body.requesterId || 'emp001';
+    const incomingSourceMaterialRequestId =
+      typeof body.sourceMaterialRequestId === 'string' && body.sourceMaterialRequestId.trim()
+        ? body.sourceMaterialRequestId.trim()
+        : null;
+    let sourceMaterialRequestId: string | null = null;
+    if (incomingSourceMaterialRequestId) {
+      const sourceRequest = await prisma.hrMaterialRequest.findFirst({
+        where: {
+          OR: [
+            { id: incomingSourceMaterialRequestId },
+            { externalId: incomingSourceMaterialRequestId },
+          ],
+        },
+        select: { id: true },
+      });
+      sourceMaterialRequestId = sourceRequest?.id || null;
+    }
 
     const requisition = await prisma.purchaseRequisition.create({
       data: {
@@ -171,16 +332,16 @@ export async function POST(request: NextRequest) {
         priority: body.priority,
         status: 'DRAFT',
         estimatedCost,
-        budgetCode: body.budgetCode,
+        budgetCode: typeof body.budgetCode === 'string' && body.budgetCode.trim() ? body.budgetCode.trim() : 'AUTO',
         justification: body.justification,
         requiredByDate: body.requiredByDate ? new Date(body.requiredByDate) : null,
         projectId: body.projectId || null,
-        boqReference: body.boqReference || null,
-        costCenter: body.costCenter || null,
+        costCenter: null,
+        sourceMaterialRequestId,
         createdBy: requesterId,
         items: {
-          create: body.items.map((item: any) => ({
-            itemId: item.itemId,
+          create: resolvedItems.map((item: any) => ({
+            itemId: item.resolvedItemId,
             quantity: item.quantity,
             estimatedPrice: item.estimatedPrice,
             specifications: item.specifications,

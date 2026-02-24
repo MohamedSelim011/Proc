@@ -30,6 +30,7 @@ export async function GET(
             }
           }
         },
+        sourceMaterialRequisition: true,
         items: {
           include: {
             item: {

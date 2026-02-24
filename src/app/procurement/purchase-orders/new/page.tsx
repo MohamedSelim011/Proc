@@ -63,9 +63,25 @@ interface PurchaseRequisition {
   };
 }
 
+interface InventoryMaterialRequisition {
+  id: string;
+  externalId: string;
+  requisitionNumber?: string | null;
+  status: string;
+  departmentExternalId?: string | null;
+  departmentName?: string | null;
+  projectExternalId?: string | null;
+  projectName?: string | null;
+  requesterName?: string | null;
+  requesterEmail?: string | null;
+  rawPayload?: any;
+}
+
 interface POFormData {
   // Step 1: PR Selection & Vendor
+  sourceType: 'PR' | 'MR';
   prId?: string;
+  sourceMaterialRequisitionId?: string;
   vendorId: string;
   
   // Step 2: PO Details
@@ -84,6 +100,8 @@ interface POFormData {
   // Step 3: Items & Pricing
   items: Array<{
     itemId: string;
+    itemCode?: string;
+    inventoryItemId?: string;
     quantity: number;
     unitPrice: number;
     totalPrice: number;
@@ -108,13 +126,17 @@ function NewPurchaseOrderContent() {
   const [loading, setLoading] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [approvedPRs, setApprovedPRs] = useState<PurchaseRequisition[]>([]);
+  const [materialRequisitions, setMaterialRequisitions] = useState<InventoryMaterialRequisition[]>([]);
   const [selectedPR, setSelectedPR] = useState<PurchaseRequisition | null>(null);
+  const [selectedMR, setSelectedMR] = useState<InventoryMaterialRequisition | null>(null);
   const [searchVendor, setSearchVendor] = useState('');
   const [winningVendorId, setWinningVendorId] = useState<string | null>(null);
   const [rfqData, setRfqData] = useState<any>(null);
 
   const [formData, setFormData] = useState<POFormData>({
+    sourceType: 'PR',
     prId: prId || '',
+    sourceMaterialRequisitionId: '',
     vendorId: vendorIdFromUrl || '',
     deliveryDate: '',
     deliveryAddress: {
@@ -135,6 +157,7 @@ function NewPurchaseOrderContent() {
   useEffect(() => {
     fetchVendors();
     fetchApprovedPRs();
+    fetchMaterialRequisitions();
     if (prId) {
       fetchPRDetails(prId);
     }
@@ -173,6 +196,31 @@ function NewPurchaseOrderContent() {
       }
     } catch (error) {
       console.error('Error fetching approved PRs:', error);
+    }
+  };
+
+  const fetchMaterialRequisitions = async () => {
+    try {
+      const response = await fetch('/api/inventory/material-requisitions?limit=100');
+      const data = await response.json();
+      if (response.ok) {
+        setMaterialRequisitions(Array.isArray(data.data) ? data.data : []);
+      }
+
+      // Keep list synced from inventory in background
+      void fetch('/api/inventory/material-requisitions/sync', { method: 'POST' })
+        .then(async (syncRes) => {
+          if (!syncRes.ok) return;
+          const refetch = await fetch('/api/inventory/material-requisitions?limit=100');
+          if (!refetch.ok) return;
+          const refetchedData = await refetch.json();
+          setMaterialRequisitions(Array.isArray(refetchedData.data) ? refetchedData.data : []);
+        })
+        .catch(() => {
+          // no-op
+        });
+    } catch (error) {
+      console.error('Error fetching material requisitions:', error);
     }
   };
 
@@ -264,7 +312,9 @@ function NewPurchaseOrderContent() {
         
         setFormData(prev => ({
           ...prev,
+          sourceType: 'PR',
           prId: id,
+          sourceMaterialRequisitionId: '',
           items: items
         }));
         
@@ -331,7 +381,13 @@ function NewPurchaseOrderContent() {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.prId) newErrors.prId = 'Purchase requisition is required';
+      if (formData.sourceType === 'PR') {
+        if (!formData.prId) newErrors.prId = 'Purchase requisition is required';
+      } else {
+        if (!formData.sourceMaterialRequisitionId) {
+          newErrors.sourceMaterialRequisitionId = 'Material requisition is required';
+        }
+      }
       if (!formData.vendorId) newErrors.vendorId = 'Vendor is required';
     }
 
@@ -415,6 +471,7 @@ function NewPurchaseOrderContent() {
 
   const handlePRSelection = async (pr: PurchaseRequisition) => {
     setSelectedPR(pr);
+    setSelectedMR(null);
     console.log('Selected PR:', pr);
     
     let items = [];
@@ -440,12 +497,57 @@ function NewPurchaseOrderContent() {
     
     setFormData(prev => ({
       ...prev,
+      sourceType: 'PR',
       prId: pr.id,
+      sourceMaterialRequisitionId: '',
       items: items
     }));
     
     // Check if this PR has an RFQ with a selected winner
     await checkRFQForPR(pr.id);
+  };
+
+  const handleMRSelection = (mr: InventoryMaterialRequisition) => {
+    setSelectedMR(mr);
+    setSelectedPR(null);
+    setWinningVendorId(null);
+    setRfqData(null);
+
+    const raw = mr.rawPayload || {};
+    const rawItems = Array.isArray(raw.items) ? raw.items : [];
+    const mappedItems = rawItems.map((item: any) => {
+      const quantity = Number(item?.quantity ?? item?.requestedQuantity ?? 0) || 0;
+      const unitPrice = Number(item?.unitPrice ?? item?.estimatedUnitCost ?? item?.estimatedPrice ?? 0) || 0;
+      const inventoryItemId =
+        typeof item?.itemId === 'string'
+          ? item.itemId
+          : typeof item?.inventoryItemId === 'string'
+            ? item.inventoryItemId
+            : '';
+      const itemCode =
+        typeof item?.itemCode === 'string'
+          ? item.itemCode
+          : typeof item?.code === 'string'
+            ? item.code
+            : '';
+
+      return {
+        itemId: inventoryItemId || itemCode || '',
+        inventoryItemId: inventoryItemId || undefined,
+        itemCode: itemCode || undefined,
+        quantity,
+        unitPrice,
+        totalPrice: quantity * unitPrice,
+      };
+    }).filter((item: any) => item.quantity > 0);
+
+    setFormData((prev) => ({
+      ...prev,
+      sourceType: 'MR',
+      prId: '',
+      sourceMaterialRequisitionId: mr.id,
+      items: mappedItems,
+    }));
   };
 
   const updateItemPrice = (index: number, unitPrice: number) => {
@@ -472,7 +574,7 @@ function NewPurchaseOrderContent() {
       setLoading(true);
 
       // For service requisitions, redirect to service contract creation
-      if (selectedPR?.itemType === 'SERVICE') {
+      if (formData.sourceType === 'PR' && selectedPR?.itemType === 'SERVICE') {
         router.push(`/procurement/services/contracts/new?prId=${formData.prId}`);
         return;
       }
@@ -482,7 +584,9 @@ function NewPurchaseOrderContent() {
       const createdBy = userData.employeeId || userData.id || '';
 
       const submitData = {
-        prId: formData.prId,
+        prId: formData.sourceType === 'PR' ? formData.prId : null,
+        sourceMaterialRequisitionId:
+          formData.sourceType === 'MR' ? formData.sourceMaterialRequisitionId : null,
         vendorId: formData.vendorId,
         deliveryDate: formData.deliveryDate,
         deliveryAddress: formData.deliveryAddress,
@@ -490,7 +594,11 @@ function NewPurchaseOrderContent() {
         currency: formData.currency,
         status: 'DRAFT',
         items: formData.items,
-        createdBy: createdBy
+        createdBy: createdBy,
+        sourceDepartmentId: selectedMR?.departmentExternalId || null,
+        sourceDepartmentName: selectedMR?.departmentName || null,
+        sourceProjectId: selectedMR?.projectExternalId || null,
+        sourceProjectName: selectedMR?.projectName || null,
       };
 
       const response = await fetch('/api/purchase-orders', {
@@ -543,7 +651,7 @@ function NewPurchaseOrderContent() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Create Purchase Order</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Convert approved purchase requisition to purchase order
+          Create a purchase order from an approved requisition or synced material requisition
         </p>
       </div>
 
@@ -611,14 +719,60 @@ function NewPurchaseOrderContent() {
           {/* Step 1: PR & Vendor Selection */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Select Purchase Requisition & Vendor</h3>
+              <h3 className="text-lg font-medium text-gray-900">Select Source & Vendor</h3>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Source Type *
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMR(null);
+                      setFormData((prev) => ({
+                        ...prev,
+                        sourceType: 'PR',
+                        sourceMaterialRequisitionId: '',
+                      }));
+                    }}
+                    className={`rounded-lg border px-4 py-3 text-left ${
+                      formData.sourceType === 'PR'
+                        ? 'border-wujha-primary bg-wujha-primary/10'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900">Purchase Requisition</p>
+                    <p className="mt-1 text-xs text-gray-600">Create PO from approved PR</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        sourceType: 'MR',
+                        prId: '',
+                      }));
+                      setSelectedPR(null);
+                    }}
+                    className={`rounded-lg border px-4 py-3 text-left ${
+                      formData.sourceType === 'MR'
+                        ? 'border-wujha-primary bg-wujha-primary/10'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900">Material Requisition</p>
+                    <p className="mt-1 text-xs text-gray-600">Create PO from synced Inventory MR</p>
+                  </button>
+                </div>
+              </div>
               
               {/* PR Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Purchase Requisition *
+                  {formData.sourceType === 'PR' ? 'Purchase Requisition *' : 'Material Requisition *'}
                 </label>
-                {prId ? (
+                {formData.sourceType === 'PR' && prId ? (
                   selectedPR && (
                     <div className="bg-wujha-primary/10 border border-wujha-primary/30 rounded-lg p-4">
                       <div className="flex items-center justify-between">
@@ -635,7 +789,7 @@ function NewPurchaseOrderContent() {
                       </div>
                     </div>
                   )
-                ) : (
+                ) : formData.sourceType === 'PR' ? (
                   <div className="space-y-3">
                     {approvedPRs.map((pr) => (
                       <div
@@ -664,9 +818,45 @@ function NewPurchaseOrderContent() {
                       </div>
                     ))}
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    {materialRequisitions.map((mr) => (
+                      <div
+                        key={mr.id}
+                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                          formData.sourceMaterialRequisitionId === mr.id
+                            ? 'border-wujha-primary bg-wujha-primary/10'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => handleMRSelection(mr)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900">
+                              {mr.requisitionNumber || 'MR'} ({mr.externalId})
+                            </h4>
+                            <p className="text-sm text-gray-500">
+                              {mr.requesterName || mr.requesterEmail || 'N/A'} • {mr.projectName || 'No project'}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {mr.departmentName || 'No department'} • {mr.status}
+                            </p>
+                          </div>
+                          {formData.sourceMaterialRequisitionId === mr.id && (
+                            <CheckCircle className="h-5 w-5 text-wujha-primary" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {materialRequisitions.length === 0 && (
+                      <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-600">
+                        No synced material requisitions found.
+                      </div>
+                    )}
+                  </div>
                 )}
-                {errors.prId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.prId}</p>
+                {(errors.prId || errors.sourceMaterialRequisitionId) && (
+                  <p className="mt-1 text-sm text-red-600">{errors.prId || errors.sourceMaterialRequisitionId}</p>
                 )}
               </div>
 
@@ -1221,23 +1411,29 @@ function NewPurchaseOrderContent() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {selectedPR?.itemType === 'SERVICE' 
-                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.serviceCode 
-                                  : selectedPR?.items[index]?.item?.itemCode}
+                                {formData.sourceType === 'PR'
+                                  ? selectedPR?.itemType === 'SERVICE'
+                                    ? selectedPR.servicePR?.items[index]?.serviceItem?.serviceCode
+                                    : selectedPR?.items[index]?.item?.itemCode
+                                  : poItem.itemCode || poItem.inventoryItemId || poItem.itemId}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {selectedPR?.itemType === 'SERVICE' 
-                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.nameEn 
-                                  : selectedPR?.items[index]?.item?.nameEn}
+                                {formData.sourceType === 'PR'
+                                  ? selectedPR?.itemType === 'SERVICE'
+                                    ? selectedPR.servicePR?.items[index]?.serviceItem?.nameEn
+                                    : selectedPR?.items[index]?.item?.nameEn
+                                  : 'Material requisition item'}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
                               {poItem.quantity} {
-                                selectedPR?.itemType === 'SERVICE' 
-                                  ? selectedPR.servicePR?.items[index]?.serviceItem?.unitOfMeasure 
-                                  : selectedPR?.items[index]?.item?.unitOfMeasure
+                                formData.sourceType === 'PR'
+                                  ? selectedPR?.itemType === 'SERVICE'
+                                    ? selectedPR.servicePR?.items[index]?.serviceItem?.unitOfMeasure
+                                    : selectedPR?.items[index]?.item?.unitOfMeasure
+                                  : 'EA'
                               }
                             </div>
                           </td>
@@ -1344,8 +1540,14 @@ function NewPurchaseOrderContent() {
                 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Purchase Requisition</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{selectedPR?.prNumber}</dd>
+                    <dt className="text-sm font-medium text-gray-500">
+                      {formData.sourceType === 'PR' ? 'Purchase Requisition' : 'Material Requisition'}
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {formData.sourceType === 'PR'
+                        ? selectedPR?.prNumber
+                        : (selectedMR?.requisitionNumber || selectedMR?.externalId)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Vendor</dt>
@@ -1369,6 +1571,18 @@ function NewPurchaseOrderContent() {
                     <dt className="text-sm font-medium text-gray-500">Total Items</dt>
                     <dd className="mt-1 text-sm text-gray-900">{formData.items.length}</dd>
                   </div>
+                  {formData.sourceType === 'MR' ? (
+                    <>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Department</dt>
+                        <dd className="mt-1 text-sm text-gray-900">{selectedMR?.departmentName || 'N/A'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Project</dt>
+                        <dd className="mt-1 text-sm text-gray-900">{selectedMR?.projectName || 'N/A'}</dd>
+                      </div>
+                    </>
+                  ) : null}
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
                     <dd className="mt-1 text-lg font-bold text-gray-900">

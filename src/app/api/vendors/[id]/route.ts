@@ -75,7 +75,6 @@ export async function PUT(
         businessType: body.businessType,
         yearEstablished: body.yearEstablished,
         numberOfEmployees: body.numberOfEmployees,
-        omanizationPercentage: body.omanizationPercentage,
         status: body.status,
         performanceScore: body.performanceScore ?? 0
       },

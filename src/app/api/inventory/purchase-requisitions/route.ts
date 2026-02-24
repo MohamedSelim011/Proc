@@ -78,10 +78,7 @@ export async function POST(request: NextRequest) {
     ? b.priority
     : 'NORMAL';
   const requesterId = typeof b.requesterId === 'string' ? b.requesterId.trim() || 'inventory-system' : 'inventory-system';
-  const budgetCode = typeof b.budgetCode === 'string' ? b.budgetCode.trim() : '';
-  if (!budgetCode) {
-    return financeError('budgetCode is required.', 400, requestId);
-  }
+  const budgetCode = typeof b.budgetCode === 'string' && b.budgetCode.trim() ? b.budgetCode.trim() : 'AUTO';
 
   const justification = typeof b.justification === 'string' ? b.justification : null;
   const requiredByDate = b.requiredByDate != null && b.requiredByDate !== ''
@@ -91,8 +88,6 @@ export async function POST(request: NextRequest) {
     return financeError('requiredByDate must be a valid ISO date string if provided.', 400, requestId);
   }
   const projectId = typeof b.projectId === 'string' ? b.projectId.trim() || null : null;
-  const boqReference = typeof b.boqReference === 'string' ? b.boqReference.trim() || null : null;
-  const costCenter = typeof b.costCenter === 'string' ? b.costCenter.trim() || null : null;
 
   // Validate and normalize items
   const normalizedItems: Array<{
@@ -178,8 +173,7 @@ export async function POST(request: NextRequest) {
         justification,
         requiredByDate,
         projectId,
-        boqReference,
-        costCenter,
+        costCenter: null,
         createdBy: requesterId,
         items: {
           create: normalizedItems.map((item) => ({

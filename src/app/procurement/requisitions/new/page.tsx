@@ -19,6 +19,7 @@ import {
   Link2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { apiFetch } from '@/lib/apiFetch';
 
 const CREATE_PR_PREFILL_KEY = 'requisitionCreatePrPrefill';
 
@@ -38,7 +39,6 @@ interface PRFormData {
   itemType: 'STOCK' | 'NON_STOCK' | 'SERVICE';
   departmentId: string;
   projectId?: string;
-  boqReference?: string;
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   requiredByDate: string;
   justification: string;
@@ -49,9 +49,7 @@ interface PRFormData {
   // Step 2: Items
   items: PRItem[];
 
-  // Step 3: Budget
-  budgetCode: string;
-  costCenter?: string;
+  // Step 3: Review
 }
 
 interface Item {
@@ -63,6 +61,12 @@ interface Item {
   category: {
     nameEn: string;
   };
+}
+
+interface DepartmentOption {
+  id: string;
+  name: string;
+  code?: string | null;
 }
 
 export default function NewPurchaseRequisition() {
@@ -80,6 +84,9 @@ export default function NewPurchaseRequisition() {
   const [budgetInfo, setBudgetInfo] = useState<any>(null);
   const [warehouses, setWarehouses] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [projects, setProjects] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [requestBasis, setRequestBasis] = useState<'DEPARTMENT' | 'PROJECT'>('DEPARTMENT');
   const [createPrMode, setCreatePrMode] = useState(false);
   const [insufficientStock, setInsufficientStock] = useState(false);
   const [stockAnalysisLoading, setStockAnalysisLoading] = useState(false);
@@ -105,7 +112,6 @@ export default function NewPurchaseRequisition() {
     requiredByDate: '',
     justification: '',
     items: [],
-    budgetCode: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,19 +123,18 @@ export default function NewPurchaseRequisition() {
       if (raw) {
         const prefill = JSON.parse(raw) as Partial<PRFormData>;
         sessionStorage.removeItem(CREATE_PR_PREFILL_KEY);
-        if (prefill.departmentId != null || prefill.budgetCode != null) {
+        if (prefill.departmentId != null) {
           setFormData((prev) => ({
             ...prev,
             departmentId: prefill.departmentId ?? prev.departmentId,
-            budgetCode: prefill.budgetCode ?? prev.budgetCode,
             justification: prefill.justification ?? prev.justification,
             requiredByDate: prefill.requiredByDate ?? prev.requiredByDate,
             priority: prefill.priority ?? prev.priority,
-            costCenter: prefill.costCenter ?? prev.costCenter,
             projectId: prefill.projectId ?? prev.projectId,
           }));
           setCreatePrMode(true);
           setMaterialRequestMode('WITHOUT_REQUEST');
+          setRequestBasis(prefill.projectId ? 'PROJECT' : 'DEPARTMENT');
           setCurrentStep(1);
           showToast('info', 'Add items from the procurement catalog in Step 2, then submit to create the PR (approval → PO).');
         }
@@ -147,6 +152,14 @@ export default function NewPurchaseRequisition() {
 
   useEffect(() => {
     const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
+    if (currentStep === 1) {
+      setDepartmentsLoading(true);
+      apiFetch('/api/hr/departments')
+        .then((r) => r.json())
+        .then((d) => setDepartments(Array.isArray(d?.data) ? d.data : []))
+        .catch(() => setDepartments([]))
+        .finally(() => setDepartmentsLoading(false));
+    }
     if (currentStep === 1 && isMaterial) {
       fetch('/api/inventory-warehouses?limit=50')
         .then((r) => r.json())
@@ -164,21 +177,61 @@ export default function NewPurchaseRequisition() {
     const loadMaterialRequests = async () => {
       try {
         setMaterialRequestsLoading(true);
-        const response = await fetch('/api/hr/material-requests?status=approved&limit=100');
-        const data = (await response.json()) as { data?: Array<{ id: string; externalId: string; status: string; categoryName?: string | null; requesterName?: string | null }> };
-        if (response.ok) {
-          setAvailableMaterialRequests(Array.isArray(data.data) ? data.data : []);
-        } else {
-          setAvailableMaterialRequests([]);
+        // Ensure local DB is up-to-date from HR before loading approved requests.
+        await apiFetch('/api/hr/material-requests/sync', { method: 'POST' });
+
+        const approvedRows: Array<{
+          id: string;
+          externalId: string;
+          status: string;
+          categoryName?: string | null;
+          requesterName?: string | null;
+        }> = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const response = await apiFetch(`/api/hr/material-requests?status=approved&limit=100&page=${page}`, {
+            cache: 'no-store',
+          });
+          const data = (await response.json()) as {
+            data?: Array<{
+              id: string;
+              externalId: string;
+              status: string;
+              categoryName?: string | null;
+              requesterName?: string | null;
+            }>;
+            pagination?: { totalPages?: number };
+          };
+
+          if (!response.ok) break;
+          if (Array.isArray(data.data)) {
+            approvedRows.push(...data.data);
+          }
+          totalPages = Math.max(1, Number(data.pagination?.totalPages || 1));
+          page += 1;
+        } while (page <= totalPages);
+
+        setAvailableMaterialRequests(approvedRows);
+        if (approvedRows.length === 0) {
+          showToast('info', 'No approved material requests found in database.');
         }
       } catch {
         setAvailableMaterialRequests([]);
+        showToast('error', 'Failed to load approved material requests');
       } finally {
         setMaterialRequestsLoading(false);
       }
     };
     void loadMaterialRequests();
   }, [currentStep, materialRequestMode]);
+
+  useEffect(() => {
+    if (requestBasis === 'PROJECT' && formData.projectId && formData.inventoryProjectId !== formData.projectId) {
+      setFormData((prev) => ({ ...prev, inventoryProjectId: prev.projectId }));
+    }
+  }, [requestBasis, formData.projectId, formData.inventoryProjectId]);
 
   const fetchItems = async () => {
     try {
@@ -208,16 +261,14 @@ export default function NewPurchaseRequisition() {
     }
 
     if (step === 1) {
-      const department = formData.departmentId?.trim() || '';
-      const project = formData.projectId?.trim() || '';
-      if (!department && !project) {
-        newErrors.departmentId = 'Select either Department or Project ID';
-      }
-      if (formData.departmentId && !formData.departmentId.trim()) {
-        newErrors.departmentId = 'Department cannot be only whitespace';
-      }
-      if (formData.projectId && !formData.projectId.trim()) {
-        newErrors.projectId = 'Project ID cannot be only whitespace';
+      if (requestBasis === 'DEPARTMENT') {
+        if (!formData.departmentId?.trim()) {
+          newErrors.departmentId = 'Department is required';
+        }
+      } else {
+        if (!formData.projectId?.trim()) {
+          newErrors.projectId = 'Project is required';
+        }
       }
       
       // Validate Required By Date
@@ -256,7 +307,9 @@ export default function NewPurchaseRequisition() {
       const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
       if (isMaterial && !createPrMode) {
         if (!formData.deliveryWarehouseId?.trim()) newErrors.deliveryWarehouseId = 'Delivery warehouse is required for material requisition';
-        if (!formData.inventoryProjectId?.trim()) newErrors.inventoryProjectId = 'Project is required for material requisition';
+        if (requestBasis === 'PROJECT') {
+          if (!formData.inventoryProjectId?.trim()) newErrors.inventoryProjectId = 'Project is required for material requisition';
+        }
       }
     }
 
@@ -272,20 +325,6 @@ export default function NewPurchaseRequisition() {
       }
     }
 
-    if (step === 3) {
-      if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
-      // Cost Center is optional, but if provided, it cannot be only whitespace
-      // Check if costCenter exists and is not empty, but when trimmed becomes empty
-      if (formData.costCenter && typeof formData.costCenter === 'string' && formData.costCenter.length > 0) {
-        const trimmed = formData.costCenter.trim();
-        if (trimmed.length === 0) {
-          newErrors.costCenter = 'Cost Center cannot be only whitespace';
-          // Clear the whitespace-only value
-          setFormData(prev => ({ ...prev, costCenter: '' }));
-        }
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -297,8 +336,6 @@ export default function NewPurchaseRequisition() {
       } else {
         setCurrentStep(currentStep + 1);
       }
-    } else if (currentStep === 3) {
-      showToast('error', 'Please fix the errors above (e.g. Budget Code is required) before creating the requisition.');
     }
   };
 
@@ -415,11 +452,44 @@ export default function NewPurchaseRequisition() {
 
     const isMaterial = formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK';
     const warehouseId = formData.deliveryWarehouseId?.trim();
-    const projectId = formData.inventoryProjectId?.trim();
+    const projectId = formData.inventoryProjectId?.trim() || formData.projectId?.trim();
     const resolvedDepartmentId = formData.departmentId?.trim() || formData.projectId?.trim() || '';
 
     const log = (msg: string, data?: unknown) => {
       console.log('[Requisition]', msg, data ?? '');
+    };
+
+    const markSourceRequestAsFullfilled = async () => {
+      if (!selectedMaterialRequestId) return true;
+      try {
+        const userDataStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        const userData = userDataStr ? JSON.parse(userDataStr) : null;
+        const approverExternalId = userData?.employeeId || userData?.id || 'procurement-user';
+
+        const response = await apiFetch(`/api/hr/material-requests/${selectedMaterialRequestId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            status: 'fullfilled',
+            approved_by_external: approverExternalId,
+            updatedAt: new Date().toISOString(),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data?.success === false) {
+          log('Failed to mark source material request as fullfilled', {
+            requestId: selectedMaterialRequestId,
+            status: response.status,
+            data,
+          });
+          showToast('warning', `Requisition created, but source request was not marked fullfilled (${selectedMaterialRequestId}).`);
+          return false;
+        }
+        return true;
+      } catch (error) {
+        log('Error marking source material request as fullfilled', { requestId: selectedMaterialRequestId, error });
+        showToast('warning', `Requisition created, but source request was not marked fullfilled (${selectedMaterialRequestId}).`);
+        return false;
+      }
     };
 
     let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -435,7 +505,6 @@ export default function NewPurchaseRequisition() {
         const submitData = {
           ...formData,
           departmentId: resolvedDepartmentId,
-          costCenter: formData.costCenter?.trim() || undefined,
           requesterId,
           estimatedCost: calculateTotalCost(),
           autoSubmit: false,
@@ -448,6 +517,7 @@ export default function NewPurchaseRequisition() {
         });
         const data = await response.json();
         if (response.ok) {
+          await markSourceRequestAsFullfilled();
           showToast('success', 'Purchase requisition created successfully!');
           router.push(`/procurement/requisitions/${data.id}`);
         } else {
@@ -507,6 +577,7 @@ export default function NewPurchaseRequisition() {
           const mrData = await mrRes.json();
 
           if (mrRes.ok) {
+            await markSourceRequestAsFullfilled();
             showToast('success', 'Material requisition (MR) created in Inventory. Please follow up with the Inventory team for stock issuance.');
             setFormData({
               itemType: 'STOCK',
@@ -515,7 +586,6 @@ export default function NewPurchaseRequisition() {
               requiredByDate: '',
               justification: '',
               items: [],
-              budgetCode: '',
             });
             setMaterialRequestMode('');
             setSelectedMaterialRequestId('');
@@ -537,11 +607,9 @@ export default function NewPurchaseRequisition() {
           headers,
           body: JSON.stringify({
             departmentId: resolvedDepartmentId,
-            budgetCode: formData.budgetCode,
             justification: formData.justification?.trim(),
             requiredByDate: formData.requiredByDate,
             priority: formData.priority,
-            costCenter: formData.costCenter?.trim() || undefined,
             projectId: formData.projectId,
             deliveryWarehouseId: warehouseId,
             inventoryProjectId: projectId,
@@ -559,6 +627,7 @@ export default function NewPurchaseRequisition() {
         log('create-pr-and-mr response', { ok: prAndMrRes.ok, status: prAndMrRes.status, prId: prAndMrData?.data?.prId, mrId: prAndMrData?.data?.mrId, mrError: prAndMrData?.data?.mrError, error: prAndMrData?.error, full: prAndMrData });
 
         if (prAndMrRes.ok && prAndMrData?.data?.prId) {
+          await markSourceRequestAsFullfilled();
           if (prAndMrData.data.mrError) {
             showToast(
               'warning',
@@ -588,11 +657,9 @@ export default function NewPurchaseRequisition() {
       const userDataStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
       const userData = userDataStr ? JSON.parse(userDataStr) : null;
       const requesterId = userData?.employeeId || userData?.id || 'emp001';
-      const trimmedCostCenter = formData.costCenter?.trim() || undefined;
       const submitData = {
         ...formData,
         departmentId: resolvedDepartmentId,
-        costCenter: trimmedCostCenter,
         requesterId,
         estimatedCost: calculateTotalCost(),
         autoSubmit: false,
@@ -607,6 +674,7 @@ export default function NewPurchaseRequisition() {
       const data = await response.json();
 
       if (response.ok) {
+        await markSourceRequestAsFullfilled();
         showToast('success', 'Purchase requisition created successfully!');
         router.push(`/procurement/requisitions/${data.id}`);
       } else {
@@ -659,7 +727,7 @@ export default function NewPurchaseRequisition() {
                 { id: 0, name: 'Request Source', description: 'Choose creation source' },
                 { id: 1, name: 'Basic Information', description: 'Department and requirements' },
                 { id: 2, name: 'Add Items', description: 'Select items and quantities' },
-                { id: 3, name: 'Budget & Review', description: 'Budget validation and submit' }
+                { id: 3, name: 'Review & Submit', description: 'Review details and submit' }
               ].map((step, stepIdx) => (
                 <li key={step.id} className="relative flex-1">
                   {stepIdx !== 3 && (
@@ -810,7 +878,7 @@ export default function NewPurchaseRequisition() {
                     >
                       <option value="">{materialRequestsLoading ? 'Loading approved requests...' : 'Select approved material request'}</option>
                       {availableMaterialRequests.map((mr) => (
-                        <option key={mr.id} value={mr.id}>
+                        <option key={mr.id} value={mr.externalId}>
                           {mr.externalId} - {(mr.categoryName || 'Uncategorized')} - {(mr.requesterName || 'Unknown requester')}
                         </option>
                       ))}
@@ -853,92 +921,112 @@ export default function NewPurchaseRequisition() {
 
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-800">
-                      Department
+                      Request Basis <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.departmentId ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.departmentId}
+                    <select
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
+                      value={requestBasis}
                       onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, departmentId: inputValue }));
-                        if (errors.departmentId || errors.projectId) {
-                          setErrors(prev => {
-                            const next = { ...prev };
-                            if (inputValue.trim() || (formData.projectId || '').trim()) {
-                              delete next.departmentId;
-                              delete next.projectId;
-                            }
-                            return next;
-                          });
-                        }
+                        const basis = e.target.value as 'DEPARTMENT' | 'PROJECT';
+                        setRequestBasis(basis);
+                        setFormData((prev) => ({
+                          ...prev,
+                          departmentId: basis === 'DEPARTMENT' ? prev.departmentId : '',
+                          projectId: basis === 'PROJECT' ? prev.projectId : '',
+                          inventoryProjectId: basis === 'PROJECT' ? prev.inventoryProjectId : '',
+                        }));
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.departmentId;
+                          delete next.projectId;
+                          delete next.inventoryProjectId;
+                          return next;
+                        });
                       }}
-                      placeholder="Enter department ID (or leave blank and use Project ID)"
-                    />
-                    {errors.departmentId && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.departmentId}
-                      </p>
-                    )}
+                    >
+                      <option value="DEPARTMENT">Department</option>
+                      <option value="PROJECT">Project</option>
+                    </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Project ID
-                    </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.projectId ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.projectId || ''}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, projectId: inputValue }));
-                        
-                        // Validate in real-time: if value is only whitespace, show error
-                        if (inputValue && !inputValue.trim()) {
-                          setErrors(prev => ({ ...prev, projectId: 'Project ID cannot be only whitespace' }));
-                        } else {
-                          // Clear error when user types valid content
-                          if (errors.projectId || errors.departmentId) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev };
-                              if (inputValue.trim() || (formData.departmentId || '').trim()) {
-                                delete newErrors.projectId;
-                                delete newErrors.departmentId;
-                              }
-                              return newErrors;
+                  {requestBasis === 'DEPARTMENT' ? (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800">
+                        Department <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                          errors.departmentId ? 'border-red-300 ring-red-100' : ''
+                        }`}
+                        value={formData.departmentId}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData((prev) => ({ ...prev, departmentId: value, projectId: '' }));
+                          if (errors.departmentId) {
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.departmentId;
+                              return next;
                             });
                           }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const inputValue = e.target.value;
-                        const trimmedValue = inputValue.trim();
-                        
-                        // If value is only whitespace, clear it and show error
-                        if (inputValue && !trimmedValue) {
-                          setFormData(prev => ({ ...prev, projectId: '' }));
-                          setErrors(prev => ({ ...prev, projectId: 'Project ID cannot be only whitespace' }));
-                        } else if (trimmedValue !== inputValue) {
-                          // Trim leading/trailing whitespace but keep the value
-                          setFormData(prev => ({ ...prev, projectId: trimmedValue }));
-                        }
-                      }}
-                      placeholder="Enter project ID (optional if Department is filled)"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">Either Department or Project ID is required.</p>
-                    {errors.projectId && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.projectId}
-                      </p>
-                    )}
-                  </div>
+                        }}
+                      >
+                        <option value="">{departmentsLoading ? 'Loading departments...' : 'Select department'}</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name}{dept.code ? ` (${dept.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.departmentId && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {errors.departmentId}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-800">
+                        Project <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
+                          errors.projectId ? 'border-red-300 ring-red-100' : ''
+                        }`}
+                        value={formData.projectId || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            projectId: value,
+                            inventoryProjectId: value || prev.inventoryProjectId,
+                            departmentId: '',
+                          }));
+                          if (errors.projectId) {
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.projectId;
+                              return next;
+                            });
+                          }
+                        }}
+                      >
+                        <option value="">Select project</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.code} - {project.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.projectId && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {errors.projectId}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-800">
@@ -1020,19 +1108,6 @@ export default function NewPurchaseRequisition() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      BOQ Reference
-                    </label>
-                    <input
-                      type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
-                      value={formData.boqReference || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, boqReference: e.target.value }))}
-                      placeholder="Bill of quantities reference"
-                    />
-                  </div>
-
                   {(formData.itemType === 'STOCK' || formData.itemType === 'NON_STOCK') && (
                     <>
                       <div className="space-y-2">
@@ -1048,36 +1123,13 @@ export default function NewPurchaseRequisition() {
                         >
                           <option value="">Select warehouse</option>
                           {warehouses.map((w) => (
-                            <option key={w.id} value={w.id}>{w.code} – {w.name}</option>
+                            <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
                           ))}
                         </select>
                         {errors.deliveryWarehouseId && (
                           <p className="mt-2 text-sm text-red-600 flex items-center">
                             <AlertCircle className="h-4 w-4 mr-1" />
                             {errors.deliveryWarehouseId}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold text-gray-800">
-                          Project <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base ${
-                            errors.inventoryProjectId ? 'border-red-300' : ''
-                          }`}
-                          value={formData.inventoryProjectId || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, inventoryProjectId: e.target.value }))}
-                        >
-                          <option value="">Select project</option>
-                          {projects.map((p) => (
-                            <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
-                          ))}
-                        </select>
-                        {errors.inventoryProjectId && (
-                          <p className="mt-2 text-sm text-red-600 flex items-center">
-                            <AlertCircle className="h-4 w-4 mr-1" />
-                            {errors.inventoryProjectId}
                           </p>
                         )}
                       </div>
@@ -1344,116 +1396,12 @@ export default function NewPurchaseRequisition() {
               </div>
             )}
 
-            {/* Step 3: Budget & Review */}
+            {/* Step 3: Review */}
             {currentStep === 3 && (
               <div className="space-y-8">
                 <div className="text-center pb-6 border-b border-gray-100">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Budget Validation & Review</h3>
-                  <p className="text-gray-600">Review your requisition details and provide budget information</p>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Budget Code <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.budgetCode ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.budgetCode}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, budgetCode: inputValue }));
-                        
-                        // Validate in real-time: if value is only whitespace, show error
-                        if (inputValue && !inputValue.trim()) {
-                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code cannot be only whitespace' }));
-                        } else {
-                          // Clear error when user types valid content
-                          if (errors.budgetCode) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev };
-                              delete newErrors.budgetCode;
-                              return newErrors;
-                            });
-                          }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const inputValue = e.target.value;
-                        const trimmedValue = inputValue.trim();
-                        
-                        // If value is only whitespace, clear it and show error
-                        if (inputValue && !trimmedValue) {
-                          setFormData(prev => ({ ...prev, budgetCode: '' }));
-                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code is required' }));
-                        } else if (trimmedValue !== inputValue) {
-                          // Trim leading/trailing whitespace but keep the value
-                          setFormData(prev => ({ ...prev, budgetCode: trimmedValue }));
-                        }
-                      }}
-                      placeholder="Enter budget code"
-                    />
-                    {errors.budgetCode && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.budgetCode}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Cost Center
-                    </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.costCenter ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.costCenter || ''}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, costCenter: inputValue }));
-                        
-                        // Validate in real-time: if value is only whitespace, show error
-                        if (inputValue && !inputValue.trim()) {
-                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                        } else {
-                          // Clear error when user types valid content
-                          if (errors.costCenter) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev };
-                              delete newErrors.costCenter;
-                              return newErrors;
-                            });
-                          }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const inputValue = e.target.value;
-                        const trimmedValue = inputValue.trim();
-                        
-                        // If value is only whitespace, clear it and show error
-                        if (inputValue && !trimmedValue) {
-                          setFormData(prev => ({ ...prev, costCenter: '' }));
-                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                        } else if (trimmedValue !== inputValue) {
-                          // Trim leading/trailing whitespace but keep the value
-                          setFormData(prev => ({ ...prev, costCenter: trimmedValue }));
-                        }
-                      }}
-                      placeholder="Optional cost center"
-                    />
-                    {errors.costCenter && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.costCenter}
-                      </p>
-                    )}
-                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Review & Submit</h3>
+                  <p className="text-gray-600">Review your requisition details before submission</p>
                 </div>
 
                 {/* PR Summary */}
@@ -1478,7 +1426,7 @@ export default function NewPurchaseRequisition() {
                       <dt className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Source Request</dt>
                       <dd className="mt-2 text-lg font-bold text-gray-900">
                         {selectedMaterialRequestId
-                          ? (availableMaterialRequests.find((r) => r.id === selectedMaterialRequestId)?.externalId || 'Linked')
+                          ? (availableMaterialRequests.find((r) => r.externalId === selectedMaterialRequestId)?.externalId || selectedMaterialRequestId)
                           : 'None'}
                       </dd>
                     </div>
@@ -1612,11 +1560,9 @@ export default function NewPurchaseRequisition() {
                               try {
                                 sessionStorage.setItem(CREATE_PR_PREFILL_KEY, JSON.stringify({
                                   departmentId: formData.departmentId,
-                                  budgetCode: formData.budgetCode,
                                   justification: formData.justification,
                                   requiredByDate: formData.requiredByDate,
                                   priority: formData.priority,
-                                  costCenter: formData.costCenter,
                                   projectId: formData.projectId,
                                 }));
                                 router.push('/procurement/requisitions/new');
@@ -1691,4 +1637,3 @@ export default function NewPurchaseRequisition() {
     </div>
   );
 }
-

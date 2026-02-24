@@ -53,7 +53,6 @@ async function findOrCreateZiadVendor() {
       businessType: 'Sole Proprietorship',
       yearEstablished: 2016,
       numberOfEmployees: 25,
-      omanizationPercentage: 65,
       status: VendorStatus.ACTIVE,
     },
   })

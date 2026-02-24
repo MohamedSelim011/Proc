@@ -29,7 +29,13 @@ async function fetchInventory<T>(
     return { success: false, error: 'INVENTORY_SYSTEM_BASE_URL and INVENTORY_SYSTEM_API_KEY must be set' };
   }
 
-  const url = `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedBase = baseUrl.replace(/\/$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const resolvedPath =
+    normalizedBase.endsWith('/api') && normalizedPath.startsWith('/api/')
+      ? normalizedPath.replace(/^\/api/, '')
+      : normalizedPath;
+  const url = `${normalizedBase}${resolvedPath}`;
   const { method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
 
   const controller = new AbortController();
@@ -141,7 +147,6 @@ export interface CreateMRItem {
   quantity: number;
   requiredDate?: string;
   specification?: string;
-  boqReference?: string;
   uomId?: string;
 }
 
@@ -312,7 +317,6 @@ export async function createMR(
       quantity: i.quantity,
       ...(i.requiredDate && { requiredDate: i.requiredDate }),
       ...(i.specification && { specification: i.specification }),
-      ...(i.boqReference && { boqReference: i.boqReference }),
       ...(i.uomId && { uomId: i.uomId }),
     })),
     userId: payload.userId,

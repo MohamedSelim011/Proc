@@ -32,17 +32,12 @@ interface PRFormData {
   itemType: 'STOCK' | 'NON_STOCK' | 'SERVICE';
   departmentId: string;
   projectId?: string;
-  boqReference?: string;
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   requiredByDate: string;
   justification: string;
 
   // Step 2: Items
   items: PRItem[];
-
-  // Step 3: Budget
-  budgetCode: string;
-  costCenter?: string;
 }
 
 interface Item {
@@ -62,12 +57,9 @@ interface PurchaseRequisition {
   itemType: string;
   departmentId: string;
   projectId?: string;
-  boqReference?: string;
   priority: string;
   requiredByDate: string;
   justification: string;
-  budgetCode: string;
-  costCenter?: string;
   status: string;
   items: Array<{
     id: string;
@@ -102,7 +94,6 @@ export default function EditPurchaseRequisition() {
     requiredByDate: '',
     justification: '',
     items: [],
-    budgetCode: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -130,12 +121,9 @@ export default function EditPurchaseRequisition() {
           itemType: data.itemType as 'STOCK' | 'NON_STOCK' | 'SERVICE',
           departmentId: data.departmentId,
           projectId: data.projectId,
-          boqReference: data.boqReference,
           priority: data.priority as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
           requiredByDate: data.requiredByDate ? new Date(data.requiredByDate).toISOString().split('T')[0] : '',
           justification: data.justification,
-          budgetCode: data.budgetCode,
-          costCenter: data.costCenter,
           items: data.items.map((item: any) => ({
             id: item.id,
             itemId: item.itemId,
@@ -224,19 +212,6 @@ export default function EditPurchaseRequisition() {
       }
     }
 
-    if (step === 3) {
-      if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
-      // Cost Center is optional, but if provided, it cannot be only whitespace
-      if (formData.costCenter && typeof formData.costCenter === 'string' && formData.costCenter.length > 0) {
-        const trimmed = formData.costCenter.trim();
-        if (trimmed.length === 0) {
-          newErrors.costCenter = 'Cost Center cannot be only whitespace';
-          // Clear the whitespace-only value
-          setFormData(prev => ({ ...prev, costCenter: '' }));
-        }
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -317,12 +292,8 @@ export default function EditPurchaseRequisition() {
     try {
       setLoading(true);
 
-      // Trim whitespace from costCenter before submitting
-      const trimmedCostCenter = formData.costCenter?.trim() || undefined;
-
       const submitData = {
         ...formData,
-        costCenter: trimmedCostCenter,
         estimatedCost: calculateTotalCost(),
         items: formData.items.map(item => ({
           id: item.id, // Include ID for existing items
@@ -463,7 +434,7 @@ export default function EditPurchaseRequisition() {
               {[
                 { id: 1, name: 'Basic Information', description: 'Department and requirements' },
                 { id: 2, name: 'Edit Items', description: 'Update items and quantities' },
-                { id: 3, name: 'Budget & Review', description: 'Budget validation and save' }
+                { id: 3, name: 'Review & Save', description: 'Review details and save' }
               ].map((step, stepIdx) => (
                 <li key={step.id} className="relative flex-1">
                   {stepIdx !== 2 && (
@@ -690,18 +661,6 @@ export default function EditPurchaseRequisition() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      BOQ Reference
-                    </label>
-                    <input
-                      type="text"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
-                      value={formData.boqReference || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, boqReference: e.target.value }))}
-                      placeholder="Bill of quantities reference"
-                    />
-                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -967,116 +926,12 @@ export default function EditPurchaseRequisition() {
               </div>
             )}
 
-            {/* Step 3: Budget & Review */}
+            {/* Step 3: Review */}
             {currentStep === 3 && (
               <div className="space-y-8">
                 <div className="text-center pb-6 border-b border-gray-100">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Budget Validation & Review</h3>
-                  <p className="text-gray-600">Review your changes and update budget information</p>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Budget Code <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.budgetCode ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.budgetCode}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, budgetCode: inputValue }));
-                        
-                        // Validate in real-time: if value is only whitespace, show error
-                        if (inputValue && !inputValue.trim()) {
-                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code cannot be only whitespace' }));
-                        } else {
-                          // Clear error when user types valid content
-                          if (errors.budgetCode) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev };
-                              delete newErrors.budgetCode;
-                              return newErrors;
-                            });
-                          }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const inputValue = e.target.value;
-                        const trimmedValue = inputValue.trim();
-                        
-                        // If value is only whitespace, clear it and show error
-                        if (inputValue && !trimmedValue) {
-                          setFormData(prev => ({ ...prev, budgetCode: '' }));
-                          setErrors(prev => ({ ...prev, budgetCode: 'Budget code is required' }));
-                        } else if (trimmedValue !== inputValue) {
-                          // Trim leading/trailing whitespace but keep the value
-                          setFormData(prev => ({ ...prev, budgetCode: trimmedValue }));
-                        }
-                      }}
-                      placeholder="Enter budget code"
-                    />
-                    {errors.budgetCode && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.budgetCode}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Cost Center
-                    </label>
-                    <input
-                      type="text"
-                      className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
-                        errors.costCenter ? 'border-red-300 ring-red-100' : ''
-                      }`}
-                      value={formData.costCenter || ''}
-                      onChange={(e) => {
-                        const inputValue = e.target.value;
-                        setFormData(prev => ({ ...prev, costCenter: inputValue }));
-                        
-                        // Validate in real-time: if value is only whitespace, show error
-                        if (inputValue && !inputValue.trim()) {
-                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                        } else {
-                          // Clear error when user types valid content
-                          if (errors.costCenter) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev };
-                              delete newErrors.costCenter;
-                              return newErrors;
-                            });
-                          }
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const inputValue = e.target.value;
-                        const trimmedValue = inputValue.trim();
-                        
-                        // If value is only whitespace, clear it and show error
-                        if (inputValue && !trimmedValue) {
-                          setFormData(prev => ({ ...prev, costCenter: '' }));
-                          setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                        } else if (trimmedValue !== inputValue) {
-                          // Trim leading/trailing whitespace but keep the value
-                          setFormData(prev => ({ ...prev, costCenter: trimmedValue }));
-                        }
-                      }}
-                      placeholder="Optional cost center"
-                    />
-                    {errors.costCenter && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.costCenter}
-                      </p>
-                    )}
-                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Review & Save</h3>
+                  <p className="text-gray-600">Review your changes before saving</p>
                 </div>
 
                 {/* PR Summary */}

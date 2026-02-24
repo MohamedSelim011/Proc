@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Search
 } from 'lucide-react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface ServiceItem {
   id: string;
@@ -96,6 +97,12 @@ interface Vendor {
   email: string;
 }
 
+interface DepartmentOption {
+  id: string;
+  name: string;
+  code?: string | null;
+}
+
 function NewServiceRequisitionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,6 +115,8 @@ function NewServiceRequisitionContent() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
 
@@ -510,6 +519,7 @@ function NewServiceRequisitionContent() {
   // Fetch vendors on component mount
   useEffect(() => {
     fetchVendors();
+    fetchDepartments();
     if (isMixedMode) {
       fetchInventoryItems();
     }
@@ -533,6 +543,24 @@ function NewServiceRequisitionContent() {
       console.error('Error fetching vendors:', error);
     } finally {
       setLoadingVendors(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const response = await apiFetch('/api/hr/departments');
+      const data = await response.json();
+      if (response.ok) {
+        setDepartments(Array.isArray(data?.data) ? data.data : []);
+      } else {
+        setDepartments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      setDepartments([]);
+    } finally {
+      setLoadingDepartments(false);
     }
   };
 
@@ -665,13 +693,18 @@ function NewServiceRequisitionContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Department *
                 </label>
-                <input
-                  type="text"
+                <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.departmentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
-                  placeholder="Enter department ID"
-                />
+                >
+                  <option value="">{loadingDepartments ? 'Loading departments...' : 'Select department'}</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}{dept.code ? ` (${dept.code})` : ''}
+                    </option>
+                  ))}
+                </select>
                 {errors.departmentId && (
                   <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
                 )}
@@ -1595,3 +1628,4 @@ export default function NewServiceRequisition() {
     </Suspense>
   );
 }
+

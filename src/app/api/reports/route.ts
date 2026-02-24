@@ -98,8 +98,7 @@ async function getVendorPerformanceReport(dateFilter: any) {
       totalOrders,
       totalSpend: vendor.purchaseOrders.reduce((sum, po) => sum + Number(po.totalAmount), 0),
       onTimeDeliveryRate: deliveryRate,
-      averageScores: avgScores,
-      omanizationPercentage: vendor.omanizationPercentage
+      averageScores: avgScores
     };
   });
 }

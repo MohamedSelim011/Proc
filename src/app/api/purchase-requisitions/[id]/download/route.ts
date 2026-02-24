@@ -282,12 +282,6 @@ export async function GET(
                 <span class="info-value">${escapeHtml(pr.projectId)}</span>
               </div>
               ` : ''}
-              ${pr.boqReference ? `
-              <div class="info-row">
-                <span class="info-label">BOQ Reference</span>
-                <span class="info-value">${escapeHtml(pr.boqReference)}</span>
-              </div>
-              ` : ''}
             </div>
 
             <div class="info-card">

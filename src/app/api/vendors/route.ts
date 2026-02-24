@@ -92,11 +92,18 @@ export async function GET(request: NextRequest) {
               category: true
             }
           },
+          serviceContracts: {
+            select: {
+              status: true,
+              totalValue: true
+            }
+          },
           _count: {
             select: {
               purchaseOrders: true,
               invoices: true,
-              evaluations: true
+              evaluations: true,
+              serviceContracts: true
             }
           }
         },
@@ -168,7 +175,6 @@ export async function POST(request: NextRequest) {
         businessType: body.businessType,
         yearEstablished: body.yearEstablished,
         numberOfEmployees: body.numberOfEmployees,
-        omanizationPercentage: body.omanizationPercentage,
         status: body.status || 'PENDING',
         performanceScore: body.performanceScore ?? 0,
         categories: {

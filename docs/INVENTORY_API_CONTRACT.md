@@ -185,7 +185,6 @@ All of these accept **either** a valid API key **or** a valid user session (Bear
 | `quantity` | number | **Yes** | Quantity to request |
 | `requiredDate` | string | No | ISO date for line |
 | `specification` | string | No | Line-level spec |
-| `boqReference` | string | No | BOQ reference |
 | `uomId` | string | No | UOM ID (defaults to item base UOM) |
 
 **Example body:**

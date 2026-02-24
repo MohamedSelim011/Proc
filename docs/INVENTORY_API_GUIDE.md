@@ -69,7 +69,6 @@ Creates a **material** Purchase Requisition (STOCK or NON_STOCK) in Procurement.
 | `justification` | string | No | Reason for the requisition. |
 | `requiredByDate` | string | No | ISO 8601 date (e.g. `2025-03-01`). |
 | `projectId` | string | No | Project ID. |
-| `boqReference` | string | No | BOQ reference. |
 | `costCenter` | string | No | Cost center. |
 | `autoSubmit` | boolean | No | If `true`, PR is submitted for approval in the same call. Default: `false`. |
 | `firstApproverId` | string | No | Used only when `autoSubmit` is `true`. Default: `manager001`. |

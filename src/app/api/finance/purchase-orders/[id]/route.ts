@@ -39,6 +39,7 @@ const poInclude = {
       items: { include: { item: true } },
     },
   },
+  sourceMaterialRequisition: true,
   items: {
     include: {
       item: { include: { category: true } },
@@ -63,8 +64,23 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getFinanceAuth(request);
+  const lookupKey = decodeURIComponent(params.id || '').trim();
+
+  console.log('[finance/purchase-orders/[id]][GET] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    lookupKey,
+  });
+
   if (!auth.ok) {
+    console.warn('[finance/purchase-orders/[id]][GET] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      lookupKey,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -73,7 +89,11 @@ export async function GET(
   }
 
   try {
-    const lookupKey = decodeURIComponent(params.id || '').trim();
+    console.log('[finance/purchase-orders/[id]][GET] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+      lookupKey,
+    });
     const order = await prisma.purchaseOrder.findFirst({
       where: {
         OR: [
@@ -85,6 +105,12 @@ export async function GET(
     });
 
     if (!order) {
+      console.warn('[finance/purchase-orders/[id]][GET] PO not found', {
+        requestId,
+        authMethod: auth.authMethod,
+        lookupKey,
+        durationMs: Date.now() - startedAt,
+      });
       return financeError('Purchase order not found.', 404, requestId);
     }
 
@@ -155,9 +181,25 @@ export async function GET(
       },
     };
 
+    console.log('[finance/purchase-orders/[id]][GET] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      lookupKey,
+      poId: order.id,
+      poNumber: order.poNumber,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(data, undefined, requestId);
   } catch (error) {
-    console.error('[finance/purchase-orders/[id]]', error);
+    console.error('[finance/purchase-orders/[id]][GET] Failed', {
+      requestId,
+      lookupKey,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError(
       'Failed to fetch purchase order.',
       500,
@@ -177,8 +219,23 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getFinanceAuth(request);
+  const lookupKey = decodeURIComponent(params.id || '').trim();
+
+  console.log('[finance/purchase-orders/[id]][PUT] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    lookupKey,
+  });
+
   if (!auth.ok) {
+    console.warn('[finance/purchase-orders/[id]][PUT] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      lookupKey,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -187,7 +244,11 @@ export async function PUT(
   }
 
   try {
-    const lookupKey = decodeURIComponent(params.id || '').trim();
+    console.log('[finance/purchase-orders/[id]][PUT] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+      lookupKey,
+    });
 
     let body: unknown;
     try {
@@ -200,6 +261,15 @@ export async function PUT(
       return financeError('Body must be a JSON object.', 400, requestId);
     }
     const payload = body as FinancePOUpdateBody;
+    console.log('[finance/purchase-orders/[id]][PUT] Payload summary', {
+      requestId,
+      lookupKey,
+      fields: Object.keys(payload),
+      hasItems: Array.isArray(payload.items),
+      itemsCount: Array.isArray(payload.items) ? payload.items.length : null,
+      status: payload.status ?? null,
+      invoicedAmount: payload.invoicedAmount ?? null,
+    });
 
     const existingPO = await prisma.purchaseOrder.findFirst({
       where: {
@@ -219,6 +289,11 @@ export async function PUT(
     });
 
     if (!existingPO) {
+      console.warn('[finance/purchase-orders/[id]][PUT] PO not found', {
+        requestId,
+        lookupKey,
+        durationMs: Date.now() - startedAt,
+      });
       return financeError('Purchase order not found.', 404, requestId);
     }
 
@@ -307,9 +382,25 @@ export async function PUT(
       });
     });
 
+    console.log('[finance/purchase-orders/[id]][PUT] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      lookupKey,
+      poId: updated.id,
+      poNumber: updated.poNumber,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(updated, undefined, requestId);
   } catch (error) {
-    console.error('[finance/purchase-orders/[id] PUT]', error);
+    console.error('[finance/purchase-orders/[id]][PUT] Failed', {
+      requestId,
+      lookupKey,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError('Failed to update purchase order.', 500, requestId);
   }
 }

@@ -14,8 +14,36 @@ import {
  */
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
+  const startedAt = Date.now();
   const auth = getFinanceAuth(request);
+  const searchParams = request.nextUrl.searchParams;
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(
+    parseInt(searchParams.get('limit') || '50'),
+    100
+  );
+  const status = searchParams.get('status') || '';
+  const contractType = searchParams.get('contractType') || '';
+  const vendor = searchParams.get('vendor') || '';
+  const search = searchParams.get('search') || '';
+
+  console.log('[finance/contracts][GET] Incoming request', {
+    requestId,
+    path: request.nextUrl.pathname,
+    page,
+    limit,
+    status: status || null,
+    contractType: contractType || null,
+    vendor: vendor || null,
+    search: search || null,
+  });
+
   if (!auth.ok) {
+    console.warn('[finance/contracts][GET] Unauthorized request', {
+      requestId,
+      path: request.nextUrl.pathname,
+      durationMs: Date.now() - startedAt,
+    });
     return financeError(
       'Unauthorized. Use Authorization: Bearer <token> or X-API-Key: <key>.',
       401,
@@ -24,16 +52,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(
-      parseInt(searchParams.get('limit') || '50'),
-      100
-    );
-    const status = searchParams.get('status') || '';
-    const contractType = searchParams.get('contractType') || '';
-    const vendor = searchParams.get('vendor') || '';
-    const search = searchParams.get('search') || '';
+    console.log('[finance/contracts][GET] Authenticated request', {
+      requestId,
+      authMethod: auth.authMethod,
+    });
 
     const skip = (page - 1) * limit;
     const andConditions: Record<string, unknown>[] = [];
@@ -112,13 +134,28 @@ export async function GET(request: NextRequest) {
     ]);
 
     const totalPages = Math.ceil(total / limit);
+    console.log('[finance/contracts][GET] Success', {
+      requestId,
+      authMethod: auth.authMethod,
+      count: contracts.length,
+      total,
+      totalPages,
+      durationMs: Date.now() - startedAt,
+    });
     return financeSuccess(
       { contracts },
       { page, limit, total, totalPages },
       requestId
     );
   } catch (error) {
-    console.error('[finance/contracts]', error);
+    console.error('[finance/contracts][GET] Failed', {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     return financeError(
       'Failed to fetch contracts.',
       500,
