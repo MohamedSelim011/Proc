@@ -1,0 +1,416 @@
+{
+  "info": {
+    "name": "Bright Finance API",
+    "_postman_id": "a8ee5c16-927b-4f55-87f8-bcbf22689337",
+    "description": "Auto-generated from src/app/api/finance route handlers. Single-import variant with embedded variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://bright-financial-production.up.railway.app"
+    },
+    {
+      "key": "token",
+      "value": "paste-jwt-token-here"
+    }
+  ],
+  "item": [
+    {
+      "name": "contracts",
+      "item": [
+        {
+          "name": "GET /api/finance/contracts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/contracts?page=1&limit=10&status=DRAFT&contractType=GENERAL&vendor=sample&search=sample",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "contracts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "DRAFT"
+                },
+                {
+                  "key": "contractType",
+                  "value": "GENERAL"
+                },
+                {
+                  "key": "vendor",
+                  "value": "sample"
+                },
+                {
+                  "key": "search",
+                  "value": "sample"
+                }
+              ],
+              "variable": []
+            },
+            "description": "Source: src/app/api/finance/contracts/route.ts\nPath Params: none\nQuery Params: page, limit, status, contractType, vendor, search\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/finance/contracts/{{id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/contracts/{{id}}",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "contracts",
+                "{{id}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "sample-id"
+                }
+              ]
+            },
+            "description": "Source: src/app/api/finance/contracts/[id]/route.ts\nPath Params: id\nQuery Params: none\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "purchase-orders",
+      "item": [
+        {
+          "name": "GET /api/finance/purchase-orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/purchase-orders?page=1&limit=10&status=DRAFT&vendorId=sample-id",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "purchase-orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "DRAFT"
+                },
+                {
+                  "key": "vendorId",
+                  "value": "sample-id"
+                }
+              ],
+              "variable": []
+            },
+            "description": "Source: src/app/api/finance/purchase-orders/route.ts\nPath Params: none\nQuery Params: page, limit, status, vendorId\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/finance/purchase-orders/{{id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/purchase-orders/{{id}}",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "purchase-orders",
+                "{{id}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "sample-id"
+                }
+              ]
+            },
+            "description": "Source: src/app/api/finance/purchase-orders/[id]/route.ts\nPath Params: id\nQuery Params: none\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/finance/purchase-orders/{{id}}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/purchase-orders/{{id}}",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "purchase-orders",
+                "{{id}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "sample-id"
+                }
+              ]
+            },
+            "description": "Source: src/app/api/finance/purchase-orders/[id]/route.ts\nPath Params: id\nQuery Params: none\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "vendors",
+      "item": [
+        {
+          "name": "GET /api/finance/vendors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/vendors?page=1&limit=10&search=sample&status=DRAFT&categoryId=sample-id",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "vendors"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "sample"
+                },
+                {
+                  "key": "status",
+                  "value": "DRAFT"
+                },
+                {
+                  "key": "categoryId",
+                  "value": "sample-id"
+                }
+              ],
+              "variable": []
+            },
+            "description": "Source: src/app/api/finance/vendors/route.ts\nPath Params: none\nQuery Params: page, limit, search, status, categoryId\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/finance/vendors/{{id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://bright-financial-production.up.railway.app/api/finance/vendors/{{id}}",
+              "protocol": "https",
+              "host": [
+                "bright-financial-production",
+                "up",
+                "railway",
+                "app"
+              ],
+              "path": [
+                "api",
+                "finance",
+                "vendors",
+                "{{id}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "sample-id"
+                }
+              ]
+            },
+            "description": "Source: src/app/api/finance/vendors/[id]/route.ts\nPath Params: id\nQuery Params: none\nRequired Body Keys (heuristic): none",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

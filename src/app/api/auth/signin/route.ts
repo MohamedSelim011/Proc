@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create JWT token
-    const jwtSecret = process.env.NEXTAUTH_SECRET
+    // Create JWT token (JWT_SECRET is primary, NEXTAUTH_SECRET kept as fallback for compatibility)
+    const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
     if (!jwtSecret) {
       return NextResponse.json(
-        { error: { message: 'Server auth secret is not configured' } },
+        { error: { message: 'Server auth secret is not configured (JWT_SECRET)' } },
         { status: 500 }
       )
     }

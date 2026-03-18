@@ -138,9 +138,9 @@ export function verifyJWT(token: string): {
   try {
     if (!token) return null;
     
-    const jwtSecret = process.env.NEXTAUTH_SECRET;
+    const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
     if (!jwtSecret) {
-      throw new Error('NEXTAUTH_SECRET is not configured');
+      throw new Error('JWT_SECRET is not configured');
     }
     const decoded = jwt.verify(token, jwtSecret) as any;
     

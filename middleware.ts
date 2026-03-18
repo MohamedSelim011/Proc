@@ -30,7 +30,7 @@ function extractBearerToken(request: NextRequest): string | null {
 }
 
 async function verifyBearerToken(token: string): Promise<boolean> {
-  const secret = process.env.NEXTAUTH_SECRET;
+  const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
     return false;
   }
