@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
-    let where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (prId) {
       where.prId = prId;
@@ -133,6 +133,27 @@ export async function POST(request: NextRequest) {
       invitedVendors,
       createdBy
     } = body;
+
+    if (!prId) {
+      return NextResponse.json(
+        { error: 'Service requisition is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!title || !String(title).trim()) {
+      return NextResponse.json(
+        { error: 'RFP title is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(invitedVendors) || invitedVendors.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one vendor must be invited' },
+        { status: 400 }
+      );
+    }
 
     // Check if RFP already exists for this PR
     const existingRFP = await prisma.serviceRFP.findFirst({

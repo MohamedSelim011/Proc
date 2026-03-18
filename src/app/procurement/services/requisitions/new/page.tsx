@@ -26,6 +26,7 @@ interface ServiceItem {
   serviceType: string;
   quantity: number;
   unit: string;
+  pricingModel: 'ONE_TIME' | 'RECURRING';
   estimatedRate: number;
   duration: number;
   durationUnit: string;
@@ -177,21 +178,21 @@ function NewServiceRequisitionContent() {
   const billingUnitOptions = [
     { value: 'Job', label: 'Job (fixed scope)' },
     { value: 'Visit', label: 'Visit / Callout' },
-    { value: 'Hour', label: 'Hour' },
-    { value: 'Day', label: 'Day' },
-    { value: 'Week', label: 'Week' },
-    { value: 'Month', label: 'Month' },
     { value: 'Unit', label: 'Unit' },
     { value: 'Lot', label: 'Lot (lump sum)' },
   ];
 
-  const durationBasedUnits = new Set(['hour', 'hours', 'day', 'days', 'week', 'weeks', 'month', 'months']);
-
-  const isDurationBasedUnit = (unit: string) => durationBasedUnits.has((unit || '').trim().toLowerCase());
+  const getPeriodUnitLabel = (durationUnit: string) => {
+    const normalized = (durationUnit || 'Days').trim().toLowerCase();
+    if (normalized === 'days') return 'day';
+    if (normalized === 'weeks') return 'week';
+    if (normalized === 'months') return 'month';
+    return normalized;
+  };
 
   const getItemTotal = (item: ServiceItem) => {
-    const durationMultiplier = isDurationBasedUnit(item.unit) ? item.duration : 1;
-    return item.quantity * item.estimatedRate * durationMultiplier;
+    const periodMultiplier = item.pricingModel === 'RECURRING' ? Math.max(item.duration, 1) : 1;
+    return item.quantity * item.estimatedRate * periodMultiplier;
   };
 
   const formatCurrency = (amount: number) => {
@@ -209,6 +210,7 @@ function NewServiceRequisitionContent() {
       serviceType: formData.serviceType,
       quantity: 1,
       unit: 'Job',
+      pricingModel: 'ONE_TIME',
       estimatedRate: 0,
       duration: 1,
       durationUnit: 'Days',
@@ -879,14 +881,7 @@ function NewServiceRequisitionContent() {
                         <select
                           className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
-                          onChange={(e) => {
-                            const selectedUnit = e.target.value;
-                            updateServiceItem(index, 'unit', selectedUnit);
-                            if (!isDurationBasedUnit(selectedUnit)) {
-                              updateServiceItem(index, 'duration', 1);
-                              updateServiceItem(index, 'durationUnit', 'Days');
-                            }
-                          }}
+                          onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
                         >
                           {billingUnitOptions.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -896,14 +891,35 @@ function NewServiceRequisitionContent() {
                         </select>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
-                        Select how this service item is priced (job, visit, hour, day, etc.).
+                        Select the billable scope unit.
                       </p>
                     </div>
 
-                    {isDurationBasedUnit(item.unit) ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Pricing Model *
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                        value={item.pricingModel}
+                        onChange={(e) => {
+                          const pricingModel = e.target.value as 'ONE_TIME' | 'RECURRING';
+                          updateServiceItem(index, 'pricingModel', pricingModel);
+                          if (pricingModel === 'ONE_TIME') {
+                            updateServiceItem(index, 'duration', 1);
+                            updateServiceItem(index, 'durationUnit', 'Days');
+                          }
+                        }}
+                      >
+                        <option value="ONE_TIME">One-time</option>
+                        <option value="RECURRING">Recurring</option>
+                      </select>
+                    </div>
+
+                    {item.pricingModel === 'RECURRING' ? (
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
-                          Service Period *
+                          Billing Period *
                         </label>
                         <div className="flex rounded-lg shadow-sm">
                           <input
@@ -937,7 +953,9 @@ function NewServiceRequisitionContent() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Rate (OMR per {item.unit || 'unit'}) *
+                        {item.pricingModel === 'RECURRING'
+                          ? `Rate (OMR per ${item.unit || 'unit'} per ${getPeriodUnitLabel(item.durationUnit)}) *`
+                          : `Rate (OMR per ${item.unit || 'unit'}) *`}
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">OMR</span>
@@ -1045,8 +1063,8 @@ function NewServiceRequisitionContent() {
                       Item Total: {formatCurrency(getItemTotal(item))}
                     </span>
                     <span className="text-xs text-gray-400">
-                      {isDurationBasedUnit(item.unit)
-                        ? 'Formula: Quantity x Service Period x Rate'
+                      {item.pricingModel === 'RECURRING'
+                        ? 'Formula: Quantity x Billing Period x Rate'
                         : 'Formula: Quantity x Rate'}
                     </span>
                   </div>

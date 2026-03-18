@@ -46,7 +46,7 @@ async function checkTokenExpiration(response: Response): Promise<boolean> {
       )) {
         return true;
       }
-    } catch (error) {
+    } catch {
       // If we can't parse the response, assume it's an auth error
       return true;
     }
@@ -83,6 +83,19 @@ function shouldSkipTokenCheck(url: string | URL): boolean {
   return false;
 }
 
+function isInternalApiRequest(url: string): boolean {
+  if (url.startsWith('/api/')) return true;
+
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Initialize global fetch interceptor
  * This should be called once in the app root
@@ -101,6 +114,7 @@ export function initFetchInterceptor() {
     init?: RequestInit
   ): Promise<Response> {
     const url = typeof input === 'string' ? input : input instanceof URL ? input : input.url;
+    const isInternalApi = isInternalApiRequest(url);
     
     // Skip token check for login/signin routes
     if (shouldSkipTokenCheck(url)) {
@@ -108,7 +122,7 @@ export function initFetchInterceptor() {
     }
     
     // Check token expiration before making request
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && isInternalApi) {
       const token = localStorage.getItem('token');
       if (token && isTokenExpired(token)) {
         redirectToSignin();
@@ -116,11 +130,23 @@ export function initFetchInterceptor() {
       }
     }
 
+    let requestInit = init;
+    if (isInternalApi && typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const headers = new Headers(init?.headers);
+        if (!headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        requestInit = { ...init, headers };
+      }
+    }
+
     // Make the fetch request using original fetch
-    const response = await originalFetch!(input, init);
+    const response = await originalFetch!(input, requestInit);
 
     // Check for 401 response after the request (but skip for login routes)
-    if (!shouldSkipTokenCheck(url) && await checkTokenExpiration(response)) {
+    if (isInternalApi && !shouldSkipTokenCheck(url) && await checkTokenExpiration(response)) {
       redirectToSignin();
       return Promise.reject(new Error('Token expired'));
     }

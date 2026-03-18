@@ -18,7 +18,6 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
-import { usePermissions } from '@/hooks/usePermissions'
 import { COMPANY_NAME } from '@/lib/branding'
 
 interface NavItem {
@@ -87,7 +86,6 @@ const navigationItems: NavItem[] = [
 export function AppHeader() {
   const router = useRouter()
   const pathname = usePathname()
-  const { hasPermission, hasAnyPermission, isLoading } = usePermissions()
   const [user, setUser] = useState<{ name?: string; role?: string } | null>(null)
 
   useEffect(() => {
@@ -95,25 +93,7 @@ export function AppHeader() {
     setUser(userData)
   }, [])
 
-  // Filter navigation items based on permissions
-  const visibleNavItems = navigationItems.filter((item) => {
-    // No permission required - show to everyone
-    if (!item.permission && !item.permissions) {
-      return true
-    }
-
-    // Single permission required
-    if (item.permission) {
-      return hasPermission(item.permission)
-    }
-
-    // Multiple permissions (any of them)
-    if (item.permissions) {
-      return hasAnyPermission(item.permissions)
-    }
-
-    return false
-  })
+  const visibleNavItems = navigationItems
 
   const handleSignOut = () => {
     // Clear localStorage
@@ -144,26 +124,25 @@ export function AppHeader() {
 
           {/* Navigation */}
           <nav className="hidden md:flex space-x-1">
-            {!isLoading &&
-              visibleNavItems.slice(0, 6).map((item) => {
-                const isActive = pathname?.startsWith(item.href)
-                const Icon = item.icon
+            {visibleNavItems.slice(0, 6).map((item) => {
+              const isActive = pathname?.startsWith(item.href)
+              const Icon = item.icon
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-wujha-primary/10 text-wujha-primary'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {item.name}
-                  </Link>
-                )
-              })}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-wujha-primary/10 text-wujha-primary'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {item.name}
+                </Link>
+              )
+            })}
           </nav>
 
           {/* Right side - Notifications & User */}
@@ -193,26 +172,25 @@ export function AppHeader() {
       {/* Mobile navigation (optional - below header) */}
       <div className="md:hidden border-t border-gray-200 bg-gray-50 px-4 py-3 overflow-x-auto">
         <div className="flex space-x-2">
-          {!isLoading &&
-            visibleNavItems.map((item) => {
-              const isActive = pathname?.startsWith(item.href)
-              const Icon = item.icon
+          {visibleNavItems.map((item) => {
+            const isActive = pathname?.startsWith(item.href)
+            const Icon = item.icon
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
-                    isActive
-                      ? 'bg-wujha-primary/10 text-wujha-primary'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {item.name}
-                </Link>
-              )
-            })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
+                  isActive
+                    ? 'bg-wujha-primary/10 text-wujha-primary'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                {item.name}
+              </Link>
+            )
+          })}
         </div>
       </div>
     </header>

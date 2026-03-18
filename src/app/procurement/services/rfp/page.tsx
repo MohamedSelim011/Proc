@@ -14,7 +14,8 @@ import {
   Loader2,
   AlertTriangle,
   Send,
-  XCircle
+  XCircle,
+  Plus
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
@@ -254,6 +255,13 @@ export default function ServiceRFPListPage() {
             Manage service Requests for Proposals
           </p>
         </div>
+        <button
+          onClick={() => router.push('/procurement/services/rfp/new')}
+          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          New Service RFP
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -420,6 +428,15 @@ export default function ServiceRFPListPage() {
             <p className="mt-1 text-sm text-gray-500">
               No records are available for the selected filters.
             </p>
+            <div className="mt-6">
+              <button
+                onClick={() => router.push('/procurement/services/rfp/new')}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Service RFP
+              </button>
+            </div>
           </div>
         ) : (
           <>
