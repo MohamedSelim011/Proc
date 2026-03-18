@@ -109,10 +109,18 @@ export async function GET(request: NextRequest) {
           },
           ...(includeRFQ && {
             rfqs: {
+              where: {
+                status: {
+                  not: 'REJECTED'
+                }
+              },
               select: {
                 id: true,
                 rfqNumber: true,
                 status: true
+              },
+              orderBy: {
+                createdAt: 'desc'
               },
               take: 1
             }

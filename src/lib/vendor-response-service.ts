@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { VendorResponseStatus } from '@prisma/client'
 import crypto from 'crypto'
 import { sendContractReviewToVendor } from '@/lib/email-service'
+import { getAppBaseUrl } from '@/lib/app-base-url'
 
 /**
  * Vendor Contract Response Service
@@ -22,6 +23,10 @@ export interface VendorResponseInput {
   comments?: string
   respondedBy?: string
 }
+
+type VendorResponseRecord = NonNullable<
+  Awaited<ReturnType<typeof getVendorResponseByToken>>
+>
 
 /**
  * Generate a secure token for vendor response
@@ -66,7 +71,7 @@ export async function createVendorResponseRequest(input: CreateVendorResponseInp
   })
 
   // Generate response links - point to frontend page, not API
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  const baseUrl = getAppBaseUrl()
   const responsePageUrl = `${baseUrl}/contracts/vendor-response/${responseToken}`
   const acceptLink = responsePageUrl
   const rejectLink = responsePageUrl
@@ -144,7 +149,7 @@ export async function getVendorResponseByToken(token: string) {
 export async function validateResponseToken(token: string): Promise<{
   valid: boolean
   reason?: string
-  response?: any
+  response?: VendorResponseRecord
 }> {
   const response = await getVendorResponseByToken(token)
 
@@ -344,9 +349,10 @@ export async function sendResponseReminder(responseId: string) {
     throw new Error('Response has expired')
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-  const acceptLink = `${baseUrl}/api/contracts/vendor-response/${response.responseToken}?action=accept`
-  const rejectLink = `${baseUrl}/api/contracts/vendor-response/${response.responseToken}?action=reject`
+  const baseUrl = getAppBaseUrl()
+  const responsePageUrl = `${baseUrl}/contracts/vendor-response/${response.responseToken}`
+  const acceptLink = responsePageUrl
+  const rejectLink = responsePageUrl
 
   // Send reminder email
   const emailResult = await sendContractReviewToVendor({

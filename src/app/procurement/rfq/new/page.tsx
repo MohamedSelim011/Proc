@@ -268,7 +268,7 @@ export default function NewRFQPage() {
                 Purchase Requisition *
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.prId}
                 onChange={(e) => handlePRSelect(e.target.value)}
                 required
@@ -331,7 +331,7 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="text"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                   errors.title ? 'border-red-300 ring-red-100' : 'border-gray-300'
                 }`}
                 value={formData.title}
@@ -382,7 +382,7 @@ export default function NewRFQPage() {
               </label>
               <input
                 type="datetime-local"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                   errors.closingDate ? 'border-red-300 ring-red-100' : 'border-gray-300'
                 }`}
                 value={formData.closingDate}
@@ -435,7 +435,7 @@ export default function NewRFQPage() {
               </label>
               <textarea
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
@@ -466,7 +466,7 @@ export default function NewRFQPage() {
                     type="checkbox"
                     checked={formData.selectedVendors.find(v => v.id === vendor.id) !== undefined}
                     onChange={() => {}}
-                    className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
+                    className="h-4 w-4 text-wujha-primary focus:outline-none focus:ring-wujha-primary border-gray-300 rounded"
                   />
                   <div>
                     <h3 className="font-medium text-gray-900">{vendor.nameEn}</h3>
@@ -501,7 +501,7 @@ export default function NewRFQPage() {
                   type="number"
                   min="0"
                   max="100"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={value}
                   onChange={(e) => {
                     const newValue = parseInt(e.target.value) || 0;
@@ -534,7 +534,7 @@ export default function NewRFQPage() {
           
           <textarea
             rows={6}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
             placeholder="Enter terms and conditions for the RFQ..."
             value={formData.termsAndConditions}
             onChange={(e) => setFormData(prev => ({ ...prev, termsAndConditions: e.target.value }))}

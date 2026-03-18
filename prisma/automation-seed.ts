@@ -6,146 +6,7 @@ async function seedAutomationData() {
   console.log('🤖 Seeding automation data...');
 
   try {
-    // Create Workflow Definitions
-    const workflows = await Promise.all([
-      // PR Approval Workflow
-      prisma.workflowDefinition.create({
-        data: {
-          name: 'Purchase Requisition Approval',
-          description: 'Multi-level approval workflow for purchase requisitions based on amount thresholds',
-          workflowType: 'APPROVAL',
-          documentType: 'PR',
-          triggerConditions: {
-            documentType: 'PR',
-            status: 'SUBMITTED'
-          },
-          approvalSteps: [
-            {
-              step: 1,
-              name: 'Department Manager Approval',
-              role: 'DEPARTMENT_MANAGER',
-              approverId: 'dept-manager-001',
-              email: 'dept.manager@company.com',
-              conditions: { amountMax: 5000 },
-              dueDays: 2
-            },
-            {
-              step: 2,
-              name: 'Finance Approval',
-              role: 'FINANCE_MANAGER',
-              approverId: 'finance-manager-001',
-              email: 'finance.manager@company.com',
-              conditions: { amountMin: 1000 },
-              dueDays: 3
-            },
-            {
-              step: 3,
-              name: 'General Manager Approval',
-              role: 'GENERAL_MANAGER',
-              approverId: 'general-manager-001',
-              email: 'gm@company.com',
-              conditions: { amountMin: 10000 },
-              dueDays: 5
-            }
-          ],
-          notifications: {
-            onStart: true,
-            onApproval: true,
-            onRejection: true,
-            onCompletion: true,
-            reminderDays: [1, 3]
-          }
-        }
-      }),
-
-      // PO Approval Workflow
-      prisma.workflowDefinition.create({
-        data: {
-          name: 'Purchase Order Approval',
-          description: 'Automated approval workflow for purchase orders',
-          workflowType: 'APPROVAL',
-          documentType: 'PO',
-          triggerConditions: {
-            documentType: 'PO',
-            status: 'DRAFT'
-          },
-          approvalSteps: [
-            {
-              step: 1,
-              name: 'Procurement Manager Approval',
-              role: 'PROCUREMENT_MANAGER',
-              approverId: 'procurement-manager-001',
-              email: 'procurement.manager@company.com',
-              dueDays: 1
-            },
-            {
-              step: 2,
-              name: 'Finance Approval',
-              role: 'FINANCE_MANAGER',
-              approverId: 'finance-manager-001',
-              email: 'finance.manager@company.com',
-              conditions: { amountMin: 5000 },
-              dueDays: 2
-            }
-          ],
-          notifications: {
-            onStart: true,
-            onApproval: true,
-            onRejection: true,
-            onCompletion: true
-          }
-        }
-      }),
-
-      // Invoice Approval Workflow
-      prisma.workflowDefinition.create({
-        data: {
-          name: 'Invoice Approval',
-          description: 'Three-way matching and approval workflow for invoices',
-          workflowType: 'VALIDATION',
-          documentType: 'Invoice',
-          triggerConditions: {
-            documentType: 'Invoice',
-            status: 'PENDING'
-          },
-          approvalSteps: [
-            {
-              step: 1,
-              name: 'Three-Way Match Validation',
-              role: 'SYSTEM',
-              approverId: 'system',
-              automated: true,
-              dueDays: 0
-            },
-            {
-              step: 2,
-              name: 'Accounts Payable Approval',
-              role: 'ACCOUNTS_PAYABLE',
-              approverId: 'ap-manager-001',
-              email: 'ap.manager@company.com',
-              dueDays: 2
-            },
-            {
-              step: 3,
-              name: 'Finance Manager Approval',
-              role: 'FINANCE_MANAGER',
-              approverId: 'finance-manager-001',
-              email: 'finance.manager@company.com',
-              conditions: { amountMin: 2000 },
-              dueDays: 3
-            }
-          ],
-          notifications: {
-            onStart: true,
-            onValidationFailure: true,
-            onApproval: true,
-            onCompletion: true
-          }
-        }
-      })
-    ]);
-
-    console.log('✅ Workflow definitions created');
+    console.log('Workflow definitions skipped (workflow models removed)');
 
     // Create Automation Triggers
     const triggers = await Promise.all([
@@ -227,7 +88,7 @@ async function seedAutomationData() {
             {
               type: 'START_WORKFLOW',
               data: {
-                workflowId: workflows[0].id // PR Approval Workflow
+                workflowType: 'PR_APPROVAL'
               }
             }
           ]
@@ -343,3 +204,4 @@ seedAutomationData()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

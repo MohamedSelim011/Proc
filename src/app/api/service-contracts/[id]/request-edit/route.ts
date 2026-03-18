@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { canUserApproveAtLevel, getApprovalStatus } from '@/lib/approval-routing'
 import { requireAuth } from '@/lib/jwt'
 import { sendEmail } from '@/lib/email-service'
+import { getAppBaseUrl } from '@/lib/app-base-url'
 
 /**
  * Request Edit on Service Contract
@@ -17,7 +18,7 @@ export async function POST(
     let user;
     try {
       user = requireAuth(request);
-    } catch (authError: any) {
+    } catch {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -130,6 +131,8 @@ export async function POST(
     // Send notification to contract creator
     if (contract.createdBy) {
       try {
+        const baseUrl = getAppBaseUrl()
+
         // Fetch the creator user
         const creator = await prisma.user.findUnique({
           where: { id: contract.createdBy },
@@ -164,7 +167,7 @@ export async function POST(
               </ol>
 
               <p style="margin-top: 20px;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/procurement/services/contracts/${id}/edit" 
+                <a href="${baseUrl}/procurement/services/contracts/${id}/edit" 
                    style="background: #FF5722; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                   Edit Contract
                 </a>

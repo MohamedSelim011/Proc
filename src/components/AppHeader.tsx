@@ -11,10 +11,8 @@ import {
   ShoppingCart,
   Package,
   DollarSign,
-  Users,
   Settings,
   LogOut,
-  Shield,
   Clock,
   MessageSquare,
   BarChart3,
@@ -77,18 +75,6 @@ const navigationItems: NavItem[] = [
     href: '/reports',
     icon: BarChart3,
     permission: 'reports.view',
-  },
-  {
-    name: 'Users',
-    href: '/admin/users',
-    icon: Users,
-    permission: 'users.read',
-  },
-  {
-    name: 'Permissions',
-    href: '/admin/permissions',
-    icon: Shield,
-    permission: 'users.read', // Only admins can see this
   },
   {
     name: 'Settings',

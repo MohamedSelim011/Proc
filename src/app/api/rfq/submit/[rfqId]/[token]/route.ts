@@ -251,7 +251,6 @@ export async function GET(
         items: rfqResponse.rfq.pr?.items.map(item => ({
           name: item.item.nameEn,
           quantity: item.quantity,
-          estimatedPrice: item.estimatedPrice,
           specifications: item.specifications
         })) || []
       },

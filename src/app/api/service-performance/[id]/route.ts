@@ -23,6 +23,11 @@ export async function GET(
               }
             }
           }
+        },
+        documents: {
+          orderBy: {
+            uploadedAt: 'desc'
+          }
         }
       }
     });

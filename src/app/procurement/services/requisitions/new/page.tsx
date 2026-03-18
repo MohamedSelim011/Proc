@@ -174,6 +174,26 @@ function NewServiceRequisitionContent() {
     'Other': ['Custom Service']
   };
 
+  const billingUnitOptions = [
+    { value: 'Job', label: 'Job (fixed scope)' },
+    { value: 'Visit', label: 'Visit / Callout' },
+    { value: 'Hour', label: 'Hour' },
+    { value: 'Day', label: 'Day' },
+    { value: 'Week', label: 'Week' },
+    { value: 'Month', label: 'Month' },
+    { value: 'Unit', label: 'Unit' },
+    { value: 'Lot', label: 'Lot (lump sum)' },
+  ];
+
+  const durationBasedUnits = new Set(['hour', 'hours', 'day', 'days', 'week', 'weeks', 'month', 'months']);
+
+  const isDurationBasedUnit = (unit: string) => durationBasedUnits.has((unit || '').trim().toLowerCase());
+
+  const getItemTotal = (item: ServiceItem) => {
+    const durationMultiplier = isDurationBasedUnit(item.unit) ? item.duration : 1;
+    return item.quantity * item.estimatedRate * durationMultiplier;
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
       style: 'currency',
@@ -188,7 +208,7 @@ function NewServiceRequisitionContent() {
       description: '',
       serviceType: formData.serviceType,
       quantity: 1,
-      unit: 'Hours',
+      unit: 'Job',
       estimatedRate: 0,
       duration: 1,
       durationUnit: 'Days',
@@ -318,9 +338,7 @@ function NewServiceRequisitionContent() {
   };
 
   const calculateTotalCost = () => {
-    return formData.items.reduce((sum, item) => 
-      sum + (item.quantity * item.estimatedRate * item.duration), 0
-    );
+    return formData.items.reduce((sum, item) => sum + getItemTotal(item), 0);
   };
 
   const calculateMaterialCost = () => {
@@ -651,7 +669,7 @@ function NewServiceRequisitionContent() {
                   Service Category *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -674,7 +692,7 @@ function NewServiceRequisitionContent() {
                   Service Type *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value }))}
                   disabled={!formData.serviceCategory}
@@ -694,7 +712,7 @@ function NewServiceRequisitionContent() {
                   Department *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.departmentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
                 >
@@ -716,7 +734,7 @@ function NewServiceRequisitionContent() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.projectId || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                   placeholder="Optional project reference"
@@ -728,7 +746,7 @@ function NewServiceRequisitionContent() {
                   Priority *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
                 >
@@ -745,7 +763,7 @@ function NewServiceRequisitionContent() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.requestor}
                   onChange={(e) => setFormData(prev => ({ ...prev, requestor: e.target.value }))}
                   placeholder="Enter requestor name"
@@ -769,7 +787,7 @@ function NewServiceRequisitionContent() {
               </label>
               <textarea
                 rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.detailedScope}
                 onChange={(e) => setFormData(prev => ({ ...prev, detailedScope: e.target.value }))}
                 placeholder="Describe the overall scope of work, objectives, requirements, and expectations for this service..."
@@ -785,7 +803,7 @@ function NewServiceRequisitionContent() {
               </label>
               <textarea
                 rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.technicalSpecifications || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, technicalSpecifications: e.target.value }))}
                 placeholder="Technical requirements, standards, compliance requirements..."
@@ -824,7 +842,7 @@ function NewServiceRequisitionContent() {
                       </label>
                       <textarea
                         rows={2}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white ${
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white ${
                           itemErrors[index]?.description 
                             ? 'border-red-300 focus:border-red-500' 
                             : 'border-gray-300 focus:border-wujha-primary'
@@ -848,57 +866,78 @@ function NewServiceRequisitionContent() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Quantity *
+                        Quantity / Scope *
                       </label>
                       <div className="flex rounded-lg shadow-sm">
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
                         <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
-                          onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
+                          onChange={(e) => {
+                            const selectedUnit = e.target.value;
+                            updateServiceItem(index, 'unit', selectedUnit);
+                            if (!isDurationBasedUnit(selectedUnit)) {
+                              updateServiceItem(index, 'duration', 1);
+                              updateServiceItem(index, 'durationUnit', 'Days');
+                            }
+                          }}
                         >
-                          <option value="Hours">Hours</option>
-                          <option value="Days">Days</option>
-                          <option value="Months">Months</option>
-                          <option value="Units">Units</option>
-                          <option value="Lots">Lots</option>
+                          {billingUnitOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Select how this service item is priced (job, visit, hour, day, etc.).
+                      </p>
                     </div>
+
+                    {isDurationBasedUnit(item.unit) ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Service Period *
+                        </label>
+                        <div className="flex rounded-lg shadow-sm">
+                          <input
+                            type="number"
+                            min="1"
+                            className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            value={item.duration}
+                            onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
+                          />
+                          <select
+                            className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            value={item.durationUnit}
+                            onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
+                          >
+                            <option value="Days">Days</option>
+                            <option value="Weeks">Weeks</option>
+                            <option value="Months">Months</option>
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Service Period
+                        </label>
+                        <div className="h-[42px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 flex items-center">
+                          Not required for this pricing basis
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Duration *
-                      </label>
-                      <div className="flex rounded-lg shadow-sm">
-                        <input
-                          type="number"
-                          min="1"
-                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                          value={item.duration}
-                          onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
-                        />
-                        <select
-                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-                          value={item.durationUnit}
-                          onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
-                        >
-                          <option value="Days">Days</option>
-                          <option value="Weeks">Weeks</option>
-                          <option value="Months">Months</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Estimated Rate *
+                        Rate (OMR per {item.unit || 'unit'}) *
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">OMR</span>
@@ -906,7 +945,7 @@ function NewServiceRequisitionContent() {
                           type="number"
                           step="0.001"
                           min="0"
-                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.estimatedRate}
                           onChange={(e) => updateServiceItem(index, 'estimatedRate', parseFloat(e.target.value) || 0)}
                           placeholder="0.000"
@@ -924,7 +963,7 @@ function NewServiceRequisitionContent() {
                         <div key={delIndex} className="flex items-center gap-2">
                           <input
                             type="text"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                             value={deliverable}
                             onChange={(e) => {
                               const newDeliverables = [...item.deliverables];
@@ -967,7 +1006,7 @@ function NewServiceRequisitionContent() {
                         <div key={metIndex} className="flex items-center gap-2">
                           <input
                             type="text"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                             value={metric}
                             onChange={(e) => {
                               const newMetrics = [...item.performanceMetrics];
@@ -1003,7 +1042,12 @@ function NewServiceRequisitionContent() {
 
                   <div className="lg:col-span-3 mt-4 flex items-center justify-between pt-2 border-t border-gray-200">
                     <span className="text-sm text-gray-500">
-                      Item Total: {formatCurrency(item.quantity * item.estimatedRate * item.duration)}
+                      Item Total: {formatCurrency(getItemTotal(item))}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {isDurationBasedUnit(item.unit)
+                        ? 'Formula: Quantity x Service Period x Rate'
+                        : 'Formula: Quantity x Rate'}
                     </span>
                   </div>
                 </div>
@@ -1067,7 +1111,7 @@ function NewServiceRequisitionContent() {
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">Item *</label>
                         <select
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.itemId}
                           onChange={(e) => updateMaterialItem(index, 'itemId', e.target.value)}
                           disabled={loadingItems}
@@ -1086,7 +1130,7 @@ function NewServiceRequisitionContent() {
                         <input
                           type="number"
                           min="1"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.quantity}
                           onChange={(e) => updateMaterialItem(index, 'quantity', Number(e.target.value) || 0)}
                         />
@@ -1098,7 +1142,7 @@ function NewServiceRequisitionContent() {
                           type="number"
                           step="0.001"
                           min="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.estimatedPrice}
                           onChange={(e) => updateMaterialItem(index, 'estimatedPrice', Number(e.target.value) || 0)}
                         />
@@ -1108,7 +1152,7 @@ function NewServiceRequisitionContent() {
                         <label className="block text-sm font-medium text-gray-700">Specifications</label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.specifications || ''}
                           onChange={(e) => updateMaterialItem(index, 'specifications', e.target.value)}
                           placeholder="Material specifications"
@@ -1120,7 +1164,7 @@ function NewServiceRequisitionContent() {
                         <input
                           type="date"
                           min={new Date().toISOString().split('T')[0]}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.requiredDate || ''}
                           onChange={(e) => updateMaterialItem(index, 'requiredDate', e.target.value)}
                         />
@@ -1169,7 +1213,7 @@ function NewServiceRequisitionContent() {
                     type="number"
                     step="0.001"
                     min="0"
-                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                    className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                     value={formData.estimatedCost}
                     onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.000"
@@ -1185,7 +1229,7 @@ function NewServiceRequisitionContent() {
                   Payment Terms *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
@@ -1206,7 +1250,7 @@ function NewServiceRequisitionContent() {
                   Payment Schedule *
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentSchedule: e.target.value as any }))}
                 >
@@ -1257,7 +1301,7 @@ function NewServiceRequisitionContent() {
                     type="button"
                     onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
                     disabled={loadingVendors}
-                    className="w-full px-3 py-2 text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary bg-white disabled:bg-gray-100 disabled:cursor-not-allowed flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary bg-white disabled:bg-gray-100 disabled:cursor-not-allowed flex items-center justify-between"
                   >
                     <span className="text-gray-500">
                       {loadingVendors ? 'Loading vendors...' : 'Select vendors...'}
@@ -1276,7 +1320,7 @@ function NewServiceRequisitionContent() {
                             placeholder="Search vendors..."
                             value={vendorSearchTerm}
                             onChange={(e) => setVendorSearchTerm(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
+                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-sm text-gray-900 bg-white"
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -1353,7 +1397,7 @@ function NewServiceRequisitionContent() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.budgetCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
                   placeholder="Enter budget code"
@@ -1369,7 +1413,7 @@ function NewServiceRequisitionContent() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.costCenter || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
                   placeholder="Optional cost center"
@@ -1383,7 +1427,7 @@ function NewServiceRequisitionContent() {
                 <input
                   type="date"
                   min={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                     errors.requiredByDate ? 'border-red-300' : 'border-gray-300'
                   }`}
                   value={formData.requiredByDate}
@@ -1458,7 +1502,7 @@ function NewServiceRequisitionContent() {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                      className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
+                      className="h-4 w-4 text-wujha-primary focus:outline-none focus:ring-wujha-primary border-gray-300 rounded"
                   checked={formData.insuranceRequired}
                   onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequired: e.target.checked }))}
                 />
@@ -1474,7 +1518,7 @@ function NewServiceRequisitionContent() {
               </label>
               <textarea
                 rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.safetyRequirements || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
                 placeholder="Specify any safety requirements, certifications, or compliance needs..."
@@ -1487,7 +1531,7 @@ function NewServiceRequisitionContent() {
               </label>
               <textarea
                 rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.qualityStandards || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, qualityStandards: e.target.value }))}
                 placeholder="Quality standards, certifications, or performance requirements..."
@@ -1500,7 +1544,7 @@ function NewServiceRequisitionContent() {
               </label>
               <textarea
                 rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.justification}
                 onChange={(e) => setFormData(prev => ({ ...prev, justification: e.target.value }))}
                 placeholder="Provide business justification for this service requirement..."
@@ -1628,4 +1672,5 @@ export default function NewServiceRequisition() {
     </Suspense>
   );
 }
+
 

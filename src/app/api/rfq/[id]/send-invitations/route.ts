@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendRFQInvitationToVendors } from '@/lib/email-service';
+import { getAppBaseUrl } from '@/lib/app-base-url';
 import { v4 as uuidv4 } from 'uuid';
 
 // POST /api/rfq/[id]/send-invitations - Send RFQ invitations to selected vendors
@@ -50,7 +51,7 @@ export async function POST(
     }
 
     // Get vendors to invite
-    let vendorsToInvite: any[] = [];
+    let vendorsToInvite: Array<{ id: string; email: string | null; nameEn: string }> = [];
     
     if (vendorIds && vendorIds.length > 0) {
       // Use provided vendor IDs
@@ -140,13 +141,7 @@ export async function POST(
     })) || [];
 
     // Send emails
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_URL;
-    if (!baseUrl) {
-      return NextResponse.json(
-        { error: 'Base URL not configured' },
-        { status: 500 }
-      );
-    }
+    const baseUrl = getAppBaseUrl();
 
     const result = await sendRFQInvitationToVendors({
       rfqId: rfq.id,

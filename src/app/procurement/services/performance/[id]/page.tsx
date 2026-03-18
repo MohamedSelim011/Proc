@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -10,12 +10,13 @@ import {
   TrendingUp,
   CheckCircle,
   AlertTriangle,
-  Clock,
-  Target,
   DollarSign,
   FileText,
-  User
+  User,
+  FolderOpen
 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
+import DocumentManager from '@/components/documents/document-manager';
 
 interface PerformanceReport {
   id: string;
@@ -27,13 +28,23 @@ interface PerformanceReport {
   timelinessScore: number | string | { toString(): string };
   complianceScore: number | string | { toString(): string };
   overallScore: number | string | { toString(): string };
-  kpiMetrics: any;
-  slaCompliance: any;
+  kpiMetrics: Record<string, number>;
+  slaCompliance: Record<string, number>;
   penalties?: number | string | { toString(): string } | null;
   bonuses?: number | string | { toString(): string } | null;
   evaluatedBy: string;
   evaluatedAt: string;
   comments?: string;
+  documents?: Array<{
+    id: string;
+    documentType?: string | null;
+    documentName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    uploadedBy?: string | null;
+    uploadedAt: string;
+  }>;
   contract: {
     contractNumber: string;
     vendor: {
@@ -50,18 +61,15 @@ interface PerformanceReport {
 
 export default function PerformanceReportDetail() {
   const params = useParams();
-  const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<PerformanceReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
-  useEffect(() => {
-    if (params.id) {
-      fetchReport();
-    }
-  }, [params.id]);
-
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
+    if (!params.id) return;
     try {
       setLoading(true);
       const response = await fetch(`/api/service-performance/${params.id}`);
@@ -77,6 +85,57 @@ export default function PerformanceReportDetail() {
       console.error('Error fetching report:', err);
     } finally {
       setLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    void fetchReport();
+  }, [fetchReport]);
+
+  const handleDocumentUpload = async (file: File | null) => {
+    if (!report || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadedBy', 'SYSTEM');
+
+      const response = await fetch(`/api/service-performance/${report.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const uploadError = await response.json();
+        throw new Error(uploadError.error || 'Failed to upload document');
+      }
+
+      showToast('success', 'Document uploaded successfully');
+      await fetchReport();
+    } catch (uploadError) {
+      console.error('Error uploading document:', uploadError);
+      showToast('error', uploadError instanceof Error ? uploadError.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!report) return;
+    try {
+      const response = await fetch(`/api/service-performance/${report.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const deleteError = await response.json();
+        throw new Error(deleteError.error || 'Failed to delete document');
+      }
+      showToast('success', 'Document deleted successfully');
+      await fetchReport();
+    } catch (deleteError) {
+      console.error('Error deleting document:', deleteError);
+      showToast('error', deleteError instanceof Error ? deleteError.message : 'Failed to delete document');
     }
   };
 
@@ -140,6 +199,35 @@ export default function PerformanceReportDetail() {
         </p>
       </div>
 
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
+        <nav className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-wujha-primary text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'documents'
+                ? 'bg-wujha-primary text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <FolderOpen className="h-4 w-4" />
+            Documents
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
       {/* Contract Information */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -360,6 +448,21 @@ export default function PerformanceReportDetail() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <DocumentManager
+            documents={report.documents || []}
+            uploading={uploadingDocument}
+            onUpload={handleDocumentUpload}
+            onDelete={handleDeleteDocument}
+            getViewUrl={(documentId) => `/api/service-performance/${report.id}/documents/${documentId}/file`}
+            getDownloadUrl={(documentId) => `/api/service-performance/${report.id}/documents/${documentId}/file?download=1`}
+          />
+        </div>
+      )}
     </div>
   );
 }

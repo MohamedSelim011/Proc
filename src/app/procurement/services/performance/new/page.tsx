@@ -149,22 +149,31 @@ function NewPerformanceReportContent() {
     }
   };
 
+  const parseAndClamp = (rawValue: string, min: number, max?: number) => {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) return min;
+    if (max !== undefined) return Math.min(max, Math.max(min, parsed));
+    return Math.max(min, parsed);
+  };
+
   const handleKPIChange = (field: string, value: number) => {
+    const clampedValue = Math.min(100, Math.max(0, value));
     setFormData(prev => ({
       ...prev,
       kpiMetrics: {
         ...prev.kpiMetrics,
-        [field]: value
+        [field]: clampedValue
       }
     }));
   };
 
   const handleSLAChange = (field: string, value: number) => {
+    const clampedValue = Math.min(100, Math.max(0, value));
     setFormData(prev => ({
       ...prev,
       slaCompliance: {
         ...prev.slaCompliance,
-        [field]: value
+        [field]: clampedValue
       }
     }));
   };
@@ -208,6 +217,12 @@ function NewPerformanceReportContent() {
     }
     if (formData.complianceScore < 0 || formData.complianceScore > 100) {
       newErrors.complianceScore = 'Compliance score must be between 0 and 100';
+    }
+    if (Object.values(formData.kpiMetrics).some((value) => value !== undefined && (value < 0 || value > 100))) {
+      newErrors.kpiMetrics = 'KPI metrics must be between 0 and 100';
+    }
+    if (Object.values(formData.slaCompliance).some((value) => value !== undefined && (value < 0 || value > 100))) {
+      newErrors.slaCompliance = 'SLA compliance values must be between 0 and 100';
     }
 
     setErrors(newErrors);
@@ -401,7 +416,7 @@ function NewPerformanceReportContent() {
                 max="100"
                 step="0.1"
                 value={formData.qualityScore}
-                onChange={(e) => handleInputChange('qualityScore', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('qualityScore', parseAndClamp(e.target.value, 0, 100))}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.qualityScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
@@ -423,7 +438,7 @@ function NewPerformanceReportContent() {
                 max="100"
                 step="0.1"
                 value={formData.timelinessScore}
-                onChange={(e) => handleInputChange('timelinessScore', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('timelinessScore', parseAndClamp(e.target.value, 0, 100))}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.timelinessScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
@@ -445,7 +460,7 @@ function NewPerformanceReportContent() {
                 max="100"
                 step="0.1"
                 value={formData.complianceScore}
-                onChange={(e) => handleInputChange('complianceScore', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('complianceScore', parseAndClamp(e.target.value, 0, 100))}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
                   errors.complianceScore ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors'
                 } text-gray-900 bg-white`}
@@ -544,6 +559,9 @@ function NewPerformanceReportContent() {
               />
             </div>
           </div>
+          {errors.kpiMetrics && (
+            <p className="mt-3 text-sm text-red-600">{errors.kpiMetrics}</p>
+          )}
         </div>
 
         {/* SLA Compliance */}
@@ -602,6 +620,9 @@ function NewPerformanceReportContent() {
               />
             </div>
           </div>
+          {errors.slaCompliance && (
+            <p className="mt-3 text-sm text-red-600">{errors.slaCompliance}</p>
+          )}
         </div>
 
         {/* Financial Adjustments */}
@@ -621,7 +642,7 @@ function NewPerformanceReportContent() {
                 min="0"
                 step="0.001"
                 value={formData.penalties}
-                onChange={(e) => handleInputChange('penalties', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('penalties', parseAndClamp(e.target.value, 0))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0.000"
               />
@@ -637,7 +658,7 @@ function NewPerformanceReportContent() {
                 min="0"
                 step="0.001"
                 value={formData.bonuses}
-                onChange={(e) => handleInputChange('bonuses', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('bonuses', parseAndClamp(e.target.value, 0))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
                 placeholder="0.000"
               />

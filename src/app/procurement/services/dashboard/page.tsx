@@ -4,13 +4,9 @@ import { useState, useEffect } from 'react';
 import { 
   Users, 
   FileText, 
-  Calendar, 
   DollarSign, 
   TrendingUp, 
-  AlertCircle,
-  CheckCircle,
   Clock,
-  Building2,
   Plus,
   Eye
 } from 'lucide-react';
@@ -20,9 +16,6 @@ interface ServiceMetrics {
   totalActiveContracts: number;
   totalServiceValue: number;
   pendingServiceRequests: number;
-  expiringContracts: number;
-  servicePerformanceScore: number;
-  monthlyServiceSpend: number;
 }
 
 interface ServiceRequest {
@@ -40,32 +33,16 @@ interface ServiceRequest {
   };
 }
 
-interface Contract {
-  id: string;
-  poNumber: string;
-  vendor: {
-    nameEn: string;
-  };
-  serviceType: string;
-  totalAmount: number;
-  startDate: string;
-  expectedDeliveryDate: string;
-  status: string;
-  createdAt: string;
-}
-
 export default function ServiceDashboard() {
   const [metrics, setMetrics] = useState<ServiceMetrics>({
     totalActiveContracts: 0,
     totalServiceValue: 0,
-    pendingServiceRequests: 0,
-    expiringContracts: 0,
-    servicePerformanceScore: 0,
-    monthlyServiceSpend: 0
+    pendingServiceRequests: 0
   });
   const [recentRequests, setRecentRequests] = useState<ServiceRequest[]>([]);
-  const [expiringContracts, setExpiringContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewReqMenu, setShowNewReqMenu] = useState(false);
+  const [showQuickActionNewReqMenu, setShowQuickActionNewReqMenu] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -92,7 +69,7 @@ export default function ServiceDashboard() {
       setLoading(true);
       
       // Fetch service requisitions using the dedicated service API
-      const serviceRequestsResponse = await fetch('/api/services/requisitions?limit=5');
+      const serviceRequestsResponse = await fetch('/api/services/requisitions?limit=5&itemType=SERVICE');
       const serviceRequestsData = await serviceRequestsResponse.json();
       
       // Fetch contracts (using POs as contracts for now)
@@ -100,8 +77,11 @@ export default function ServiceDashboard() {
       const contractsData = await contractsResponse.json();
       
       // Calculate metrics from real data
-      const totalServiceRequests = serviceRequestsData.pagination?.total || 0;
-      const pendingRequests = serviceRequestsData.serviceRequisitions?.filter((pr: any) => 
+      const serviceRequests = (serviceRequestsData.serviceRequisitions || []).filter((pr: any) =>
+        pr.itemType === 'SERVICE'
+      );
+
+      const pendingRequests = serviceRequests.filter((pr: any) =>
         pr.status === 'SUBMITTED' || pr.status === 'DRAFT'
       ).length || 0;
       
@@ -112,28 +92,14 @@ export default function ServiceDashboard() {
       const totalContractValue = contractsData.purchaseOrders?.reduce((sum: number, po: any) => 
         sum + Number(po.totalAmount || 0), 0
       ) || 0;
-      
-      // Check for expiring contracts (POs ending within 30 days)
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      
-      const expiring = contractsData.purchaseOrders?.filter((po: any) => {
-        if (!po.expectedDeliveryDate) return false;
-        const deliveryDate = new Date(po.expectedDeliveryDate);
-        return deliveryDate <= thirtyDaysFromNow && po.status === 'APPROVED';
-      }) || [];
 
       setMetrics({
         totalActiveContracts: activeContracts,
         totalServiceValue: totalContractValue,
-        pendingServiceRequests: pendingRequests,
-        expiringContracts: expiring.length,
-        servicePerformanceScore: 4.2, // This would come from performance evaluations
-        monthlyServiceSpend: totalContractValue * 0.1 // Estimated monthly spend
+        pendingServiceRequests: pendingRequests
       });
 
-      setRecentRequests(serviceRequestsData.serviceRequisitions?.slice(0, 5) || []);
-      setExpiringContracts(expiring.slice(0, 5));
+      setRecentRequests(serviceRequests.slice(0, 5));
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -151,16 +117,6 @@ export default function ServiceDashboard() {
       'DELIVERED': 'bg-purple-100 text-purple-800'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getPriorityColor = (priority: string) => {
-    const colors = {
-      'LOW': 'bg-green-100 text-green-800',
-      'NORMAL': 'bg-wujha-primary/10 text-wujha-primary',
-      'HIGH': 'bg-yellow-100 text-yellow-800',
-      'URGENT': 'bg-red-100 text-red-800'
-    };
-    return colors[priority as keyof typeof colors] || 'bg-wujha-primary/10 text-wujha-primary';
   };
 
   if (loading) {
@@ -182,13 +138,36 @@ export default function ServiceDashboard() {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Link
-            href="/procurement/services/requisitions/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Service Request
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowNewReqMenu((prev) => !prev);
+                setShowQuickActionNewReqMenu(false);
+              }}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Service Request
+            </button>
+            {showNewReqMenu && (
+              <div className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                <Link
+                  href="/procurement/services/requisitions/new"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service Requisition
+                </Link>
+                <Link
+                  href="/procurement/services/requisitions/new?mode=mixed"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service + Materials
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -254,65 +233,6 @@ export default function ServiceDashboard() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-6 w-6 text-red-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Expiring Contracts
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {metrics.expiringContracts}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrendingUp className="h-6 w-6 text-purple-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Performance Score
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {metrics.servicePerformanceScore}/5.0
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Building2 className="h-6 w-6 text-indigo-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Monthly Spend
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {formatCurrency(metrics.monthlyServiceSpend)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Recent Service Requests */}
@@ -400,84 +320,40 @@ export default function ServiceDashboard() {
         </div>
       </div>
 
-      {/* Expiring Contracts */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Contracts Expiring Soon</h3>
-            <Link
-              href="/procurement/services/contracts"
-              className="text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
-            >
-              View all contracts
-            </Link>
-          </div>
-        </div>
-        <div className="overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contract
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vendor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Value
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Expiry Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {expiringContracts.length > 0 ? expiringContracts.map((contract) => (
-                <tr key={contract.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {contract.poNumber || contract.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {contract.vendor?.nameEn || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(contract.totalAmount || 0)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(contract.expectedDeliveryDate || contract.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
-                      {contract.status}
-                    </span>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No expiring contracts found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link
-            href="/procurement/services/requisitions/new"
-            className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Service Request
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowQuickActionNewReqMenu((prev) => !prev);
+                setShowNewReqMenu(false);
+              }}
+              className="inline-flex w-full items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Service Request
+            </button>
+            {showQuickActionNewReqMenu && (
+              <div className="absolute left-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                <Link
+                  href="/procurement/services/requisitions/new"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowQuickActionNewReqMenu(false)}
+                >
+                  Service Requisition
+                </Link>
+                <Link
+                  href="/procurement/services/requisitions/new?mode=mixed"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowQuickActionNewReqMenu(false)}
+                >
+                  Service + Materials
+                </Link>
+              </div>
+            )}
+          </div>
           <Link
             href="/procurement/services/vendors"
             className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"

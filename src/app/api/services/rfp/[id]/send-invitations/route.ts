@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendServiceRFPInvitationToVendors } from '@/lib/email-service';
+import { getAppBaseUrl } from '@/lib/app-base-url';
 import crypto from 'crypto';
 
 export async function POST(
@@ -165,13 +166,7 @@ export async function POST(
     }
 
     console.log(`Sending invitations to ${validVendorData.length} vendors for RFP ${rfp.rfpNumber}`);
-    const baseUrl: string = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_URL;
-    if (!baseUrl) {
-      return NextResponse.json(
-        { error: 'Base URL not configured' },
-        { status: 500 }
-      );
-    }
+    const baseUrl = getAppBaseUrl();
     // Send emails to all vendors
     const emailResults = await sendServiceRFPInvitationToVendors({
       rfpId: rfp.id,

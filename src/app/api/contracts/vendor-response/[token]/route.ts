@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  getVendorResponseByToken,
   validateResponseToken,
   recordVendorResponse,
 } from '@/lib/vendor-response-service'
@@ -9,6 +8,7 @@ import {
   generateVendorRejectedEmail,
   sendEmail,
 } from '@/lib/email-service'
+import { getAppBaseUrl } from '@/lib/app-base-url'
 
 /**
  * Public API Route for Vendor Contract Response
@@ -155,7 +155,7 @@ export async function POST(
     })
 
     // Send notification email to internal team
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getAppBaseUrl()
     const contractUrl = `${baseUrl}/procurement/services/contracts/${vendorResponse.contractId}`
 
     if (action === 'accept') {
@@ -169,7 +169,7 @@ export async function POST(
 
       await sendEmail({
         to: process.env.SMTP_FROM_EMAIL || '',
-        subject: `✓ Contract Accepted: ${vendorResponse.contract.contractNumber}`,
+        subject: `Contract Accepted: ${vendorResponse.contract.contractNumber}`,
         html,
         text,
       })
@@ -185,7 +185,7 @@ export async function POST(
 
       await sendEmail({
         to: process.env.SMTP_FROM_EMAIL || '',
-        subject: `⚠️ Contract Changes Requested: ${vendorResponse.contract.contractNumber}`,
+        subject: `Contract Changes Requested: ${vendorResponse.contract.contractNumber}`,
         html,
         text,
       })
@@ -215,3 +215,4 @@ export async function POST(
     )
   }
 }
+

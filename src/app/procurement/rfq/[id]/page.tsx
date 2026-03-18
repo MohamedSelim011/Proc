@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { 
   ArrowLeft, 
   FileText, 
@@ -19,12 +19,14 @@ import {
   DollarSign,
   Loader2,
   X,
-  Info
+  Info,
+  XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { getUserRole, getUserData } from '@/lib/jwt';
 import DocumentManager from '@/components/documents/document-manager';
+import ConfirmActionModal from '@/components/ui/confirm-action-modal';
 
 interface RFQ {
   id: string;
@@ -98,6 +100,7 @@ interface RFQ {
     technicalDetails?: string;
     deliveryTerms?: string;
     notes?: string;
+    awardJustification?: string;
   }[];
   documents?: {
     id: string;
@@ -115,7 +118,6 @@ interface RFQ {
 
 export default function RFQDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { showToast } = useToast();
   const [rfq, setRfq] = useState<RFQ | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +133,15 @@ export default function RFQDetailPage() {
   const [scoringData, setScoringData] = useState<{ [responseId: string]: { [criterion: string]: number | null } }>({});
   const [activeTab, setActiveTab] = useState<'general' | 'material-requisition-details' | 'vendor-responses' | 'documents'>('general');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [showApprovalConfirmation, setShowApprovalConfirmation] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const [approvalProcessing, setApprovalProcessing] = useState(false);
+  const [showWinnerSelectionModal, setShowWinnerSelectionModal] = useState(false);
+  const [winnerResponseId, setWinnerResponseId] = useState<string | null>(null);
+  const [winnerJustification, setWinnerJustification] = useState('');
+  const [selectingWinner, setSelectingWinner] = useState(false);
+  const isSubmittedResponse = (response: RFQ['responses'][number]) =>
+    !!(response.tokenUsed && response.proposalFileUrl);
 
   useEffect(() => {
     // Get user data from JWT token or localStorage
@@ -166,6 +177,11 @@ export default function RFQDetailPage() {
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'AWARDED' && rfq && !rfq.responses.some((response) => response.status === 'SELECTED')) {
+      showToast('error', 'Select a winning response before awarding the RFQ');
+      return;
+    }
+
     try {
       setEvaluating(true);
       const response = await fetch(`/api/rfq/${params.id}/status`, {
@@ -192,13 +208,30 @@ export default function RFQDetailPage() {
     }
   };
 
-  const handleSelectWinner = async (responseId: string) => {
-    if (!confirm('Are you sure you want to select this vendor as the winner?')) {
+  const openWinnerSelectionModal = (responseId: string) => {
+    setWinnerResponseId(responseId);
+    setWinnerJustification('');
+    setShowWinnerSelectionModal(true);
+  };
+
+  const closeWinnerSelectionModal = () => {
+    if (selectingWinner) return;
+    setShowWinnerSelectionModal(false);
+    setWinnerResponseId(null);
+    setWinnerJustification('');
+  };
+
+  const handleSelectWinner = async () => {
+    if (!winnerResponseId) return;
+    const justification = winnerJustification.trim();
+
+    if (!justification) {
+      showToast('error', 'Please provide a justification before selecting a winner');
       return;
     }
 
     try {
-      setEvaluating(true);
+      setSelectingWinner(true);
       const userData = getUserData();
       
       const response = await fetch(`/api/rfq/${params.id}/award`, {
@@ -207,24 +240,18 @@ export default function RFQDetailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          selectedResponseId: responseId,
+          selectedResponseId: winnerResponseId,
           awardedBy: userData?.employeeId || userData?.id || 'SYSTEM',
-          comments: 'Selected through evaluation process',
-          createPO: false // We'll ask user if they want to create PO
+          justification,
+          comments: justification,
+          createPO: false
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        showToast('success', 'Winner selected successfully!');
-        
-        // Ask if user wants to create a PO
-        if (confirm('Would you like to create a Purchase Order for this vendor?')) {
-          // Redirect to PO creation with vendor and RFQ data
-          window.location.href = `/procurement/purchase-orders/new?rfqId=${params.id}&vendorId=${data.awardSummary.awardedTo.vendor.id}`;
-        } else {
-          fetchRFQ(params.id as string); // Refresh RFQ data
-        }
+        showToast('success', 'Winner selected successfully');
+        closeWinnerSelectionModal();
+        fetchRFQ(params.id as string);
       } else {
         const errorData = await response.json();
         showToast('error', errorData.error || 'Failed to select winner');
@@ -233,7 +260,7 @@ export default function RFQDetailPage() {
       console.error('Error selecting winner:', error);
       showToast('error', 'An error occurred while selecting winner');
     } finally {
-      setEvaluating(false);
+      setSelectingWinner(false);
     }
   };
 
@@ -245,7 +272,7 @@ export default function RFQDetailPage() {
     const criteriaKeys = Object.keys(criteria);
     
     // Filter to only submitted responses (tokenUsed && proposalFileUrl)
-    const submittedResponses = rfq.responses.filter(r => r.tokenUsed && r.proposalFileUrl);
+    const submittedResponses = rfq.responses.filter(isSubmittedResponse);
     
     // Initialize scoring data with existing scores or null
     const initialScores: { [key: string]: { [criterion: string]: number | null } } = {};
@@ -281,7 +308,7 @@ export default function RFQDetailPage() {
       const criteriaKeys = Object.keys(criteria);
       
       // Filter to only submitted responses
-      const submittedResponses = rfq.responses.filter(r => r.tokenUsed && r.proposalFileUrl);
+      const submittedResponses = rfq.responses.filter(isSubmittedResponse);
       
       // Validate all submitted responses have scores for all criteria
       const unscored = submittedResponses.filter(r => {
@@ -373,6 +400,62 @@ export default function RFQDetailPage() {
       showToast('error', 'Failed to submit for approval');
     } finally {
       setSubmittingForApproval(false);
+    }
+  };
+
+  const openApprovalConfirmation = (action: 'APPROVE' | 'REJECT') => {
+    setApprovalAction(action);
+    setShowApprovalConfirmation(true);
+  };
+
+  const closeApprovalConfirmation = () => {
+    if (approvalProcessing) return;
+    setShowApprovalConfirmation(false);
+    setApprovalAction(null);
+  };
+
+  const handleApprovalDecision = async () => {
+    if (!rfq || !approvalAction) return;
+
+    try {
+      setApprovalProcessing(true);
+      const userData = getUserData() || {};
+      const approverId = userData.employeeId || userData.id || 'SYSTEM';
+
+      const response = await fetch(`/api/rfq/${rfq.id}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: approvalAction,
+          approverId,
+          comments:
+            approvalAction === 'APPROVE'
+              ? 'Approved from RFQ details screen'
+              : 'Rejected from RFQ details screen',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast(
+          'success',
+          approvalAction === 'APPROVE'
+            ? 'RFQ approved successfully'
+            : 'RFQ rejected successfully'
+        );
+        closeApprovalConfirmation();
+        await fetchRFQ(rfq.id);
+      } else {
+        showToast('error', data.error || 'Failed to process RFQ approval action');
+      }
+    } catch (error) {
+      console.error('Error processing RFQ approval action:', error);
+      showToast('error', 'Failed to process RFQ approval action');
+    } finally {
+      setApprovalProcessing(false);
     }
   };
 
@@ -549,10 +632,16 @@ export default function RFQDetailPage() {
   }
 
   const evaluationCriteria = rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : null;
-  const totalResponses = rfq.responses.length;
+  const submittedResponses = rfq.responses.filter(isSubmittedResponse);
+  const totalResponses = submittedResponses.length;
   const averageBid = totalResponses > 0 
-    ? rfq.responses.reduce((sum, r) => sum + Number(r.totalAmount), 0) / totalResponses 
+    ? submittedResponses.reduce((sum, r) => sum + Number(r.totalAmount || 0), 0) / totalResponses 
     : 0;
+  const hasSelectedWinner = rfq.responses.some((response) => response.status === 'SELECTED');
+  const canCloseForEvaluation = rfq.status === 'PUBLISHED' && totalResponses > 0;
+  const canEvaluateResponses = rfq.status === 'CLOSED' && totalResponses > 0;
+  const canAwardContract = rfq.status === 'EVALUATED' && hasSelectedWinner;
+  const hasVendorResponseActions = canCloseForEvaluation || canEvaluateResponses || canAwardContract;
 
   return (
     <div className="space-y-6">
@@ -604,15 +693,26 @@ export default function RFQDetailPage() {
             </button>
           )}
 
-          {/* Review & Approve button - for PENDING_APPROVAL status */}
+          {/* Approve / Reject actions - for PENDING_APPROVAL status */}
           {(rfq.status === 'PENDING_APPROVAL' || rfq.status === 'SUBMITTED') && canApprove && (
-            <button
-              onClick={() => router.push(`/procurement/rfq/${rfq.id}/approve`)}
-              className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              <span>Review & Approve</span>
-            </button>
+            <>
+              <button
+                onClick={() => openApprovalConfirmation('APPROVE')}
+                disabled={approvalProcessing}
+                className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                <span>Approve</span>
+              </button>
+              <button
+                onClick={() => openApprovalConfirmation('REJECT')}
+                disabled={approvalProcessing}
+                className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                <span>Reject</span>
+              </button>
+            </>
           )}
           
           {/* Publish button - only when APPROVED */}
@@ -647,7 +747,7 @@ export default function RFQDetailPage() {
             </button>
           )}
 
-          {rfq.status === 'CLOSED' && rfq.responses.length > 0 && (
+          {rfq.status === 'CLOSED' && totalResponses > 0 && (
             <button
               onClick={handleOpenScoring}
               disabled={evaluating}
@@ -898,18 +998,20 @@ export default function RFQDetailPage() {
                       Invited Vendors
                     </span>
                     <span className="text-sm font-normal text-gray-500">
-                      {rfq.invitedVendors.filter((iv) => {
-                        const resp = rfq.responses.find((r) => r.vendor.id === iv.vendor.id);
-                        return !!(resp && resp.tokenUsed && resp.proposalFileUrl);
-                      }).length}{' '}
+                      {rfq.invitedVendors.filter((iv) =>
+                        rfq.responses.some((response) =>
+                          response.vendor.id === iv.vendor.id && isSubmittedResponse(response)
+                        )
+                      ).length}{' '}
                       of {rfq.invitedVendors.length} submitted
                     </span>
                   </h2>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {rfq.invitedVendors.map((invitedVendor) => {
-                      const response = rfq.responses.find((r) => r.vendor.id === invitedVendor.vendor.id);
-                      const hasSubmitted = !!(response && response.tokenUsed && response.proposalFileUrl);
+                      const hasSubmitted = rfq.responses.some((response) =>
+                        response.vendor.id === invitedVendor.vendor.id && isSubmittedResponse(response)
+                      );
 
                       return (
                         <div key={invitedVendor.id} className="rounded-lg border border-gray-200 p-4">
@@ -947,7 +1049,7 @@ export default function RFQDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {rfq.responses.map((response) => (
+                    {submittedResponses.map((response) => (
                       <div key={response.id} className="rounded-lg border border-gray-200 p-4">
                         <div className="flex items-center justify-between">
                           <div>
@@ -987,7 +1089,7 @@ export default function RFQDetailPage() {
                               userRole === 'DEPARTMENT_MANAGER' ||
                               userRole === 'FINANCE_MANAGER') && (
                               <button
-                                onClick={() => handleSelectWinner(response.id)}
+                                onClick={() => openWinnerSelectionModal(response.id)}
                                 disabled={evaluating}
                                 className="inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -996,37 +1098,57 @@ export default function RFQDetailPage() {
                               </button>
                             )}
                         </div>
+                        {response.awardJustification && (
+                          <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                              Award Justification
+                            </p>
+                            <p className="mt-1 text-sm text-green-900">{response.awardJustification}</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">Actions</h3>
-                <div className="space-y-3">
-                  {rfq.status === 'CLOSED' && rfq.responses.length > 0 && (
-                    <button
-                      onClick={handleOpenScoring}
-                      disabled={evaluating}
-                      className="w-full inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Star className="mr-2 h-4 w-4" />
-                      <span>Evaluate Responses</span>
-                    </button>
-                  )}
-                  {rfq.status === 'EVALUATED' && (
-                    <button
-                      onClick={() => handleStatusChange('AWARDED')}
-                      disabled={evaluating}
-                      className="w-full inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Award className="mr-2 h-4 w-4" />
-                      <span>Award Contract</span>
-                    </button>
-                  )}
+              {hasVendorResponseActions && (
+                <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900">Actions</h3>
+                  <div className="space-y-3">
+                    {canCloseForEvaluation && (
+                      <button
+                        onClick={() => handleStatusChange('CLOSED')}
+                        disabled={evaluating}
+                        className="w-full inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>Close RFQ for Evaluation</span>
+                      </button>
+                    )}
+                    {canEvaluateResponses && (
+                      <button
+                        onClick={handleOpenScoring}
+                        disabled={evaluating}
+                        className="w-full inline-flex items-center justify-center rounded-md bg-wujha-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Star className="mr-2 h-4 w-4" />
+                        <span>Evaluate Responses</span>
+                      </button>
+                    )}
+                    {canAwardContract && (
+                      <button
+                        onClick={() => handleStatusChange('AWARDED')}
+                        disabled={evaluating}
+                        className="w-full inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Award className="mr-2 h-4 w-4" />
+                        <span>Award Contract</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1138,6 +1260,14 @@ export default function RFQDetailPage() {
                   </div>
                 </div>
               )}
+              {selectedResponse.awardJustification && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 mb-2 block">Award Justification</label>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedResponse.awardJustification}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Proposal File */}
               {selectedResponse.proposalFileUrl && (
@@ -1228,6 +1358,72 @@ export default function RFQDetailPage() {
         </div>
       )}
 
+      {showWinnerSelectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 p-4 backdrop-blur-md">
+          <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Winner Selection</h3>
+              <p className="mt-1 text-sm text-gray-600">
+                Provide a clear justification for selecting this vendor as the RFQ winner.
+              </p>
+            </div>
+            <div className="space-y-3 px-6 py-4">
+              <label htmlFor="winnerJustification" className="block text-sm font-medium text-gray-700">
+                Justification <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="winnerJustification"
+                value={winnerJustification}
+                onChange={(e) => setWinnerJustification(e.target.value)}
+                rows={4}
+                placeholder="Explain why this vendor was selected (technical, commercial, delivery, compliance, etc.)"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-wujha-primary focus:outline-none focus:ring-2 focus:ring-wujha-primary/30"
+              />
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeWinnerSelectionModal}
+                disabled={selectingWinner}
+                className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectWinner}
+                disabled={selectingWinner || !winnerJustification.trim()}
+                className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {selectingWinner ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Selecting...
+                  </>
+                ) : (
+                  'Confirm Selection'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmActionModal
+        open={showApprovalConfirmation}
+        title={approvalAction === 'APPROVE' ? 'Confirm RFQ Approval' : 'Confirm RFQ Rejection'}
+        message={
+          approvalAction === 'APPROVE'
+            ? 'Are you sure you want to approve this RFQ? This action will mark it as approved immediately.'
+            : 'Are you sure you want to reject this RFQ? This action will mark it as rejected.'
+        }
+        confirmLabel={approvalAction === 'APPROVE' ? 'Approve RFQ' : 'Reject RFQ'}
+        confirmVariant={approvalAction === 'APPROVE' ? 'success' : 'danger'}
+        loading={approvalProcessing}
+        onConfirm={handleApprovalDecision}
+        onCancel={closeApprovalConfirmation}
+      />
+
       {/* Scoring Modal */}
       {showScoringModal && rfq && (
         <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -1274,7 +1470,6 @@ export default function RFQDetailPage() {
             <div className="p-6 space-y-4">
               {(() => {
                 // Filter to only submitted responses
-                const submittedResponses = rfq.responses.filter(r => r.tokenUsed && r.proposalFileUrl);
                 const criteria = rfq.evaluationCriteria ? JSON.parse(rfq.evaluationCriteria) : { technical: 40, commercial: 30, delivery: 20, experience: 10 };
                 const criteriaKeys = Object.keys(criteria);
                 

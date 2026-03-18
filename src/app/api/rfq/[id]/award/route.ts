@@ -9,7 +9,15 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { selectedResponseId, awardedBy, comments, createPO = false } = body;
+    const { selectedResponseId, awardedBy, comments, justification, createPO = false } = body;
+    const awardJustification = (justification || comments || '').trim();
+
+    if (!awardJustification) {
+      return NextResponse.json(
+        { error: 'Award justification is required when selecting a winner' },
+        { status: 400 }
+      );
+    }
 
     const rfq = await prisma.rFQ.findUnique({
       where: { id: params.id },
@@ -68,7 +76,7 @@ export async function POST(
       // Update selected response status
       const awardedResponse = await tx.rFQResponse.update({
         where: { id: selectedResponseId },
-        data: { status: 'SELECTED' },
+        data: { status: 'SELECTED', awardJustification },
         include: { vendor: true }
       });
 
@@ -180,7 +188,8 @@ export async function POST(
       },
       awardedBy,
       awardedAt: new Date(),
-      comments,
+      comments: awardJustification,
+      justification: awardJustification,
       purchaseOrderCreated: !!result.purchaseOrder,
       purchaseOrderNumber: result.purchaseOrder?.poNumber
     };

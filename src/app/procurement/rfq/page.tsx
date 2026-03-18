@@ -7,10 +7,6 @@ import {
   Clock, 
   Users, 
   CheckCircle, 
-  AlertTriangle,
-  Building,
-  Search,
-  Filter,
   Plus,
   Eye,
   Edit,
@@ -53,6 +49,39 @@ interface RFQ {
     technicalScore?: number;
     commercialScore?: number;
   }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiRFQResponse {
+  id: string;
+  vendor?: {
+    id?: string;
+    nameEn?: string;
+  };
+  status: string;
+  submittedAt?: string;
+  totalAmount?: number;
+  technicalScore?: number;
+  commercialScore?: number;
+}
+
+interface ApiRFQ {
+  id: string;
+  rfqNumber: string;
+  title: string;
+  description: string;
+  pr?: {
+    id?: string;
+    prNumber?: string;
+    itemType?: string;
+    estimatedCost?: string | number;
+  };
+  issueDate: string;
+  closingDate: string;
+  status: string;
+  evaluationCriteria?: string | null;
+  responses?: ApiRFQResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -104,7 +133,7 @@ export default function RFQPage() {
       
       if (response.ok) {
           // Transform RFQ data to match the expected interface
-          const transformedRFQs: RFQ[] = data.rfqs?.map((rfq: any) => ({
+          const transformedRFQs: RFQ[] = data.rfqs?.map((rfq: ApiRFQ) => ({
             id: rfq.id,
             rfqNumber: rfq.rfqNumber,
             title: rfq.title,
@@ -130,7 +159,7 @@ export default function RFQPage() {
               delivery: 20,
               experience: 10
             },
-            responses: rfq.responses?.map((response: any) => ({
+            responses: rfq.responses?.map((response: ApiRFQResponse) => ({
               id: response.id,
               vendor: {
                 id: response.vendor?.id || 'vendor-1',
@@ -166,17 +195,6 @@ export default function RFQPage() {
       case 'UNDER_EVALUATION': return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getResponseStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'bg-gray-100 text-gray-800';
-      case 'SUBMITTED': return 'bg-blue-100 text-blue-800';
-      case 'EVALUATED': return 'bg-yellow-100 text-yellow-800';
-      case 'SELECTED': return 'bg-green-100 text-green-800';
-      case 'REJECTED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -225,6 +243,10 @@ export default function RFQPage() {
     avgResponseRate: rfqs.length > 0 ? 
       rfqs.reduce((sum, rfq) => sum + (rfq.responseCount || 0), 0) / rfqs.length : 0
   };
+  const formattedTotalValue = stats.totalValue.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 
   if (loading) {
     return (
@@ -252,77 +274,76 @@ export default function RFQPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total RFQs</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900 tabular-nums">{stats.total}</p>
+            </div>
+            <div className="ml-4 rounded-xl bg-wujha-primary/10 p-3">
               <FileText className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total RFQs</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Issued</p>
+              <p className="mt-2 text-3xl font-bold text-wujha-primary tabular-nums">{stats.issued}</p>
+            </div>
+            <div className="ml-4 rounded-xl bg-wujha-primary/10 p-3">
               <Send className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Issued</p>
-              <p className="text-2xl font-bold text-wujha-primary">{stats.issued}</p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Under Evaluation</p>
+              <p className="mt-2 text-3xl font-bold text-wujha-primary tabular-nums">{stats.underEvaluation}</p>
+            </div>
+            <div className="ml-4 rounded-xl bg-wujha-primary/10 p-3">
               <Clock className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Under Evaluation</p>
-              <p className="text-2xl font-bold text-wujha-primary">{stats.underEvaluation}</p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Completed</p>
+              <p className="mt-2 text-3xl font-bold text-green-600 tabular-nums">{stats.completed}</p>
+            </div>
+            <div className="ml-4 rounded-xl bg-green-100 p-3">
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Value</p>
+              <p className="mt-2 text-3xl font-bold text-wujha-primary tabular-nums">{formattedTotalValue}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-500">OMR</p>
+            </div>
+            <div className="ml-4 rounded-xl bg-wujha-primary/10 p-3">
               <Calendar className="h-6 w-6 text-wujha-primary" />
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Total Value</p>
-              <p className="text-sm font-bold text-wujha-primary leading-tight break-words" title={stats.totalValue > 0 ? `${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} OMR` : '0.00 OMR'}>
-                {stats.totalValue > 0 ? `${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} OMR` : '0.00 OMR'}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-start">
-            <div className="p-2 bg-wujha-primary/10 rounded-lg flex-shrink-0">
-              <Users className="h-6 w-6 text-wujha-primary" />
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg Responses</p>
+              <p className="mt-2 text-3xl font-bold text-wujha-primary tabular-nums">{stats.avgResponseRate.toFixed(1)}</p>
             </div>
-            <div className="ml-4 min-w-0 flex-1 flex flex-col">
-              <p className="text-sm font-medium text-gray-600 leading-tight h-10 flex items-start">Avg Responses</p>
-              <p className="text-2xl font-bold text-wujha-primary">{stats.avgResponseRate.toFixed(1)}</p>
+            <div className="ml-4 rounded-xl bg-wujha-primary/10 p-3">
+              <Users className="h-6 w-6 text-wujha-primary" />
             </div>
           </div>
         </div>

@@ -16,7 +16,6 @@ import {
   BarChart3,
   Settings,
   X,
-  ShieldCheck,
   ChevronDown,
   Briefcase,
   ClipboardList,
@@ -59,12 +58,6 @@ const navigation: NavigationItem[] = [
     icon: Users,
     description: 'Vendor/Suppliers Management'
   },
-  {
-    name: 'Requests',
-    href: '/procurement/requests',
-    icon: ClipboardList,
-    description: 'Requests from HR'
-  },
 //   {
 //     name: 'Approvals',
 //     href: '/approvals',
@@ -84,28 +77,18 @@ const navigation: NavigationItem[] = [
     description: 'All requisitions'
   },
   {
-    name: 'Material Requisitions',
-    href: '/procurement/services/material-requests',
+    name: 'Materials',
+    href: '#',
     icon: FileText,
-    description: 'Material requisitions only'
-  },
-  {
-    name: 'RFQ',
-    href: '/procurement/rfq',
-    icon: FileText,
-    description: 'Request for quotation'
-  },
-  {
-    name: 'Purchase Orders',
-    href: '/procurement/purchase-orders',
-    icon: ShoppingCart,
-    description: 'Purchase order management'
-  },
-  {
-    name: 'Goods Receipt',
-    href: '/procurement/receipts',
-    icon: Truck,
-    description: 'Delivery and inspection'
+    description: 'Materials procurement workflows',
+    subItems: [
+      { name: 'HR Requests', href: '/procurement/requests', icon: ClipboardList },
+      { name: 'Material Requisitions', href: '/procurement/services/material-requests', icon: FileText },
+      { name: 'RFQ', href: '/procurement/rfq', icon: Send },
+      { name: 'Purchase Orders', href: '/procurement/purchase-orders', icon: ShoppingCart },
+      { name: 'Goods Receipts', href: '/procurement/receipts', icon: Truck },
+    ],
+    expandable: true
   },
   // {
   //   name: 'Invoices',
@@ -144,19 +127,6 @@ const navigation: NavigationItem[] = [
     href: '/procurement/kpis',
     icon: BarChart3,
     description: 'Key Performance Indicators'
-  },
-  {
-    name: 'Admin',
-    href: '#', // Make it non-navigable - only expandable
-    icon: ShieldCheck,
-    description: 'User & System Management',
-    subItems: [
-      { name: 'Users', href: '/admin/users', icon: Users },
-      { name: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
-      { name: 'Approval Rules', href: '/admin/approval-rules', icon: Settings },
-    ],
-    requiredRoles: ['ADMIN', 'SUPER_ADMIN'],
-    expandable: true // Mark as expandable
   }
 ];
 
@@ -175,6 +145,19 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     setUser(userData);
   }, []);
 
+  useEffect(() => {
+    // Auto-expand the active expandable section on initial load,
+    // but allow manual collapse/expand afterwards.
+    setExpandedItems((prev) => {
+      if (prev.size > 0) return prev;
+      const activeExpandableItems = navigation
+        .filter((item) => item.subItems?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href + '/')))
+        .map((item) => item.name);
+
+      return activeExpandableItems.length > 0 ? new Set(activeExpandableItems) : prev;
+    });
+  }, [pathname]);
+
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter((item) => {
     if (item.requiredRoles) {
@@ -182,14 +165,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     }
     return true;
   });
-
-  // Initialize expanded state - expand Services if any subItem is active
-  const shouldBeExpanded = (item: NavigationItem) => {
-    if (!item.subItems) return false;
-    return item.subItems.some(subItem => 
-      pathname === subItem.href || pathname.startsWith(subItem.href + '/')
-    );
-  };
 
   // Toggle expansion for an item
   const toggleExpansion = (itemName: string) => {
@@ -206,10 +181,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
   // Check if an item is expanded
   const isExpanded = (item: NavigationItem) => {
-    if (shouldBeExpanded(item)) {
-      // Auto-expand if a subItem is active
-      return true;
-    }
     return expandedItems.has(item.name);
   };
 
@@ -259,7 +230,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                       <button
                         onClick={() => {
                           toggleExpansion(item.name);
-                          setSidebarOpen(false);
                         }}
                         className={`group w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors mb-1 ${
                           isSubItemActive

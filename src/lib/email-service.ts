@@ -15,10 +15,10 @@ const transporter = nodemailer.createTransport({
 export async function verifyEmailConfig(): Promise<boolean> {
   try {
     await transporter.verify();
-    console.log('✅ Email server is ready to send messages');
+    console.log('[OK] Email server is ready to send messages');
     return true;
   } catch (error) {
-    console.error('❌ Email server verification failed:', error);
+    console.error('[ERROR] Email server verification failed:', error);
     return false;
   }
 }
@@ -36,20 +36,20 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     // Validate email configuration
     if (!process.env.SMTP_FROM_EMAIL) {
       const errorMsg = 'SMTP_FROM_EMAIL is not configured';
-      console.error('❌', errorMsg);
+      console.error('[ERROR]', errorMsg);
       return { success: false, error: errorMsg };
     }
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
       const errorMsg = 'SMTP credentials are not configured';
-      console.error('❌', errorMsg);
+      console.error('[ERROR]', errorMsg);
       return { success: false, error: errorMsg };
     }
 
     // Validate recipient email
     if (!options.to || !options.to.includes('@')) {
       const errorMsg = `Invalid recipient email address: ${options.to}`;
-      console.error('❌', errorMsg);
+      console.error('[ERROR]', errorMsg);
       return { success: false, error: errorMsg };
     }
 
@@ -61,11 +61,11 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       text: options.text || '',
     });
 
-    console.log('📧 Email sent successfully:', info.messageId, 'to:', options.to);
+    console.log('[MAIL] Email sent successfully:', info.messageId, 'to:', options.to);
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error('❌ Failed to send email to', options.to, ':', errorMsg);
+    console.error('[ERROR] Failed to send email to', options.to, ':', errorMsg);
     return { success: false, error: errorMsg };
   }
 }
@@ -81,6 +81,26 @@ export function generateRFQInvitationEmail(data: {
   termsAndConditions?: string;
   submissionLink: string;
 }): { html: string; text: string } {
+  const resolveColor = (value: string | undefined, fallback: string): string => {
+    const raw = (value || '').trim();
+    if (!raw) return fallback;
+
+    if (/^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(raw)) {
+      return raw;
+    }
+
+    const rgbMatch = raw.match(/^(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})$/);
+    if (!rgbMatch) return fallback;
+
+    const toChannel = (v: string) => Math.max(0, Math.min(255, Number(v)));
+    return `rgb(${toChannel(rgbMatch[1])}, ${toChannel(rgbMatch[2])}, ${toChannel(rgbMatch[3])})`;
+  };
+
+  const primaryColor = resolveColor(process.env.THEME_PRIMARY_COLOR, '#FF5722');
+  const secondaryColor = resolveColor(process.env.THEME_SECONDARY_COLOR, '#FA6335');
+  const companyName = process.env.SMTP_FROM_NAME || 'Wujha Procurement System';
+  const supportEmail = process.env.SMTP_FROM_EMAIL || 'procurement@wujha.local';
+
   const closingDateFormatted = new Date(data.closingDate).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -93,10 +113,14 @@ export function generateRFQInvitationEmail(data: {
   const itemsList = data.items
     .map(
       (item, index) =>
-        `<li style="margin-bottom: 8px;">
-          <strong>${item.name}</strong> - Quantity: ${item.quantity}
-          ${item.specifications ? `<br/><span style="color: #666; font-size: 14px;">Specifications: ${item.specifications}</span>` : ''}
-        </li>`
+        `<tr>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600; width: 36px;">${index + 1}</td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">
+            ${item.name}
+            ${item.specifications ? `<div style="margin-top: 4px; color: #475569; font-size: 13px; font-weight: 400;">${item.specifications}</div>` : ''}
+          </td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; color: #334155; text-align: right; font-weight: 600; white-space: nowrap;">Qty ${item.quantity}</td>
+        </tr>`
     )
     .join('');
 
@@ -106,76 +130,91 @@ export function generateRFQInvitationEmail(data: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFQ Invitation</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #C7253E 0%, #821131 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">Request for Quotation</h1>
-    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
-  </div>
-  
-  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-    <p style="font-size: 16px; margin-top: 0;">Dear <strong>${data.vendorName}</strong>,</p>
-    
-    <p style="font-size: 16px;">You have been invited to submit a proposal for the following Request for Quotation:</p>
-    
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C7253E;">
-      <p style="margin: 5px 0;"><strong>RFQ Number:</strong> ${data.rfqNumber}</p>
-      <p style="margin: 5px 0;"><strong>Title:</strong> ${data.title}</p>
-      <p style="margin: 5px 0;"><strong>Closing Date:</strong> <span style="color: #C7253E; font-weight: bold;">${closingDateFormatted}</span></p>
-    </div>
-    
-    ${data.description ? `
-    <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 10px;">Description</h3>
-      <p style="margin: 0;">${data.description}</p>
-    </div>
-    ` : ''}
-    
-    <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 10px;">Items Required</h3>
-      <ul style="list-style-type: none; padding: 0; margin: 0;">
-        ${itemsList}
-      </ul>
-    </div>
-    
-    ${data.termsAndConditions ? `
-    <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 10px;">Terms and Conditions</h3>
-      <p style="margin: 0; font-size: 14px; color: #666;">${data.termsAndConditions}</p>
-    </div>
-    ` : ''}
-    
-    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
-      <p style="margin: 0; font-size: 14px; color: #856404;">
-        <strong>⚠️ Important:</strong> This submission link is unique to your company and will expire on the closing date. Please do not share this link with others.
-      </p>
-    </div>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${data.submissionLink}" 
-         style="display: inline-block; background: #C7253E; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(199, 37, 62, 0.3);">
-        Submit Your Proposal
-      </a>
-    </div>
-    
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-      <p style="font-size: 14px; color: #666; margin: 5px 0;">
-        If you have any questions, please contact us at <a href="mailto:${process.env.SMTP_FROM_EMAIL}" style="color: #C7253E;">${process.env.SMTP_FROM_EMAIL}</a>
-      </p>
-      <p style="font-size: 14px; color: #666; margin: 5px 0;">
-        If the button above doesn't work, copy and paste this link into your browser:
-      </p>
-      <p style="font-size: 12px; color: #999; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-        ${data.submissionLink}
-      </p>
-    </div>
-  </div>
-  
-  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
-    <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
-    </p>
-  </div>
+<body style="margin: 0; padding: 0; background: #f1f5f9; font-family: Segoe UI, Tahoma, Arial, sans-serif; color: #0f172a;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding: 24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="680" style="max-width: 680px; width: 100%; border-collapse: separate; border-spacing: 0;">
+          <tr>
+            <td style="background: linear-gradient(120deg, ${primaryColor} 0%, ${secondaryColor} 100%); border-radius: 16px 16px 0 0; padding: 28px 28px 24px 28px; color: #ffffff;">
+              <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9;">Vendor Invitation</div>
+              <h1 style="margin: 12px 0 8px 0; font-size: 30px; line-height: 1.15; font-weight: 700;">Request for Quotation</h1>
+              <p style="margin: 0; font-size: 14px; opacity: 0.9;">${companyName}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: #ffffff; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 28px;">
+              <p style="margin: 0 0 14px 0; color: #334155; font-size: 15px;">Dear <strong>${data.vendorName}</strong>,</p>
+              <p style="margin: 0 0 18px 0; color: #334155; font-size: 15px;">You are invited to submit your quotation for the RFQ below.</p>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 18px;">
+                <tr>
+                  <td style="padding: 16px 18px;">
+                    <div style="margin-bottom: 8px; font-size: 14px; color: #334155;"><strong>RFQ Number:</strong> ${data.rfqNumber}</div>
+                    <div style="margin-bottom: 8px; font-size: 14px; color: #334155;"><strong>Title:</strong> ${data.title}</div>
+                    <div style="font-size: 14px; color: #334155;"><strong>Closing Date:</strong> <span style="font-weight: 700; color: ${primaryColor};">${closingDateFormatted}</span></div>
+                  </td>
+                </tr>
+              </table>
+
+              ${data.description ? `
+              <div style="margin-bottom: 18px;">
+                <h3 style="margin: 0 0 8px 0; font-size: 15px; color: #0f172a;">Description</h3>
+                <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">${data.description}</p>
+              </div>
+              ` : ''}
+
+              <div style="margin-bottom: 18px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">Requested Items</h3>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #e2e8f0; border-radius: 10px; border-collapse: separate; border-spacing: 0; overflow: hidden;">
+                  ${itemsList}
+                </table>
+              </div>
+
+              ${data.termsAndConditions ? `
+              <div style="margin-bottom: 18px;">
+                <h3 style="margin: 0 0 8px 0; font-size: 15px; color: #0f172a;">Terms and Conditions</h3>
+                <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">${data.termsAndConditions}</p>
+              </div>
+              ` : ''}
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 14px 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="display: inline-flex; width: 22px; height: 22px; border-radius: 999px; align-items: center; justify-content: center; background: ${primaryColor}; vertical-align: middle;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="display: block;">
+                          <path d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 0 0 1.73-3l-7.07-12a2 2 0 0 0-3.46 0l-7.07 12a2 2 0 0 0 1.73 3Z" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                      <span style="font-size: 14px; color: #7c2d12; line-height: 1.55;"><strong>Important:</strong> This submission link is unique to your company and expires on the RFQ closing date.</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${data.submissionLink}" style="display: inline-block; padding: 14px 34px; border-radius: 9px; text-decoration: none; font-size: 16px; font-weight: 700; color: #ffffff; background: ${primaryColor};">Open Vendor Submission Portal</a>
+              </div>
+
+              <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;">Need assistance? Contact procurement support at <a href="mailto:${supportEmail}" style="color: ${primaryColor}; text-decoration: none;">${supportEmail}</a>.</p>
+                <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748b;">If the button does not open, use this URL:</p>
+                <p style="margin: 0; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; color: #475569; word-break: break-all;">${data.submissionLink}</p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 16px 16px; padding: 16px 24px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #64748b;">(c) ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
   `;
@@ -185,7 +224,7 @@ Request for Quotation
 
 Dear ${data.vendorName},
 
-You have been invited to submit a proposal for the following Request for Quotation:
+You are invited to submit a proposal for the following RFQ:
 
 RFQ Number: ${data.rfqNumber}
 Title: ${data.title}
@@ -198,15 +237,17 @@ ${data.items.map((item, index) => `${index + 1}. ${item.name} - Quantity: ${item
 
 ${data.termsAndConditions ? `\nTerms and Conditions:\n${data.termsAndConditions}\n\n` : ''}
 
-To submit your proposal, please click the link below:
+Submission Link:
 ${data.submissionLink}
 
-This link is unique to your company and will expire on ${closingDateFormatted}.
+Important:
+- This link is unique to your company.
+- The link expires on the RFQ closing date.
 
-If you have any questions, please contact us at ${process.env.SMTP_FROM_EMAIL}
+For support, contact ${supportEmail}.
 
 Best regards,
-Wujha Procurement Team
+${companyName}
   `;
 
   return { html, text };
@@ -350,7 +391,7 @@ export function generateServiceRFPInvitationEmail(data: {
             ` : ''}
 
             <div class="deadline">
-              <strong>⏰ Submission Deadline:</strong><br/>
+              <strong>Submission Deadline:</strong><br/>
               ${closingDateFormatted}
             </div>
 
@@ -408,7 +449,7 @@ ${data.evaluationCriteria.map(criteria => `- ${criteria.name}: ${criteria.weight
 
 ${data.termsAndConditions ? `Terms & Conditions:\n${data.termsAndConditions}\n\n` : ''}
 
-⏰ SUBMISSION DEADLINE: ${closingDateFormatted}
+SUBMISSION DEADLINE: ${closingDateFormatted}
 
 To submit your proposal, please visit:
 ${data.submissionLink}
@@ -481,13 +522,13 @@ export async function sendServiceRFPInvitationToVendors(data: {
         failed++;
         const errorMsg = `Failed to send email to ${vendor.email} (${vendor.name})${emailResult.error ? ': ' + emailResult.error : ''}`;
         errors.push(errorMsg);
-        console.error(`❌ ${errorMsg}`);
+        console.error(`[ERROR] ${errorMsg}`);
       }
     } catch (error) {
       failed++;
       const errorMsg = `Error sending to ${vendor.email} (${vendor.name}): ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
-      console.error(`❌ ${errorMsg}`, error);
+      console.error(`[ERROR] ${errorMsg}`, error);
     }
   }
 
@@ -612,7 +653,7 @@ export function generatePOEmail(data: {
     
     <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
       <p style="margin: 0; font-size: 14px; color: #856404;">
-        <strong>⚠️ Important:</strong> Please review this Purchase Order and confirm acceptance. If you have any questions or concerns, please contact us immediately.
+        <strong>Important:</strong> Please review this Purchase Order and confirm acceptance. If you have any questions or concerns, please contact us immediately.
       </p>
     </div>
     
@@ -620,12 +661,12 @@ export function generatePOEmail(data: {
     <div style="text-align: center; margin: 30px 0;">
       <a href="${data.acknowledgmentLink}" 
          style="display: inline-block; background: #28a745; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);">
-        ✓ Acknowledge Purchase Order
+        Acknowledge Purchase Order
       </a>
     </div>
     <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #28a745;">
       <p style="margin: 0; font-size: 14px; color: #155724;">
-        <strong>✓ Action Required:</strong> Please click the button above to acknowledge receipt and acceptance of this Purchase Order. This confirms that you have received and reviewed the order details.
+        <strong>Action Required:</strong> Please click the button above to acknowledge receipt and acceptance of this Purchase Order. This confirms that you have received and reviewed the order details.
       </p>
     </div>
     ` : ''}
@@ -642,7 +683,7 @@ export function generatePOEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
     </p>
   </div>
 </body>
@@ -812,7 +853,7 @@ export function generateContractReviewEmail(data: {
     
     <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
       <p style="margin: 0; font-size: 14px; color: #856404;">
-        <strong>⏰ Response Required:</strong> Please review and respond by <strong>${expiryDateFormatted}</strong>
+        <strong>Response Required:</strong> Please review and respond by <strong>${expiryDateFormatted}</strong>
       </p>
     </div>
     
@@ -823,7 +864,7 @@ export function generateContractReviewEmail(data: {
       <div style="text-align: center; margin: 30px 0;">
         <a href="${data.acceptLink}" 
            style="display: inline-block; background: #1e3a8a; color: white; padding: 18px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);">
-          📄 Review Contract & Respond
+          Review Contract & Respond
         </a>
       </div>
       
@@ -855,7 +896,7 @@ export function generateContractReviewEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
     </p>
   </div>
 </body>
@@ -875,12 +916,12 @@ Total Value: ${data.currency} ${data.totalValue.toLocaleString()}
 Contract Period: ${startDateFormatted} to ${endDateFormatted}
 Payment Terms: ${data.paymentTerms}
 
-⏰ RESPONSE REQUIRED BY: ${expiryDateFormatted}
+RESPONSE REQUIRED BY: ${expiryDateFormatted}
 
 ACTION REQUIRED:
 Click the link below to review the contract and submit your response:
 
-📄 Review Contract & Respond:
+Review Contract & Respond:
 ${data.acceptLink}
 
 (Copy and paste the link above into your browser if it doesn't open automatically)
@@ -955,7 +996,7 @@ export function generateContractApprovedEmail(data: {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">✓ Contract Approved</h1>
+    <h1 style="margin: 0; font-size: 28px;">Contract Approved</h1>
     <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
   </div>
   
@@ -978,7 +1019,7 @@ export function generateContractApprovedEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
     </p>
   </div>
 </body>
@@ -1028,7 +1069,7 @@ export function generateVendorAcceptedEmail(data: {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">🎉 Contract Accepted by Vendor</h1>
+    <h1 style="margin: 0; font-size: 28px;">Contract Accepted by Vendor</h1>
     <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
   </div>
   
@@ -1061,7 +1102,7 @@ export function generateVendorAcceptedEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
     </p>
   </div>
 </body>
@@ -1118,7 +1159,7 @@ export function generateVendorRejectedEmail(data: {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">⚠️ Contract Changes Requested</h1>
+    <h1 style="margin: 0; font-size: 28px;">Contract Changes Requested</h1>
     <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
   </div>
   
@@ -1158,7 +1199,7 @@ export function generateVendorRejectedEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      © ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
     </p>
   </div>
 </body>

@@ -61,6 +61,7 @@ interface Filters {
 
 export default function ServiceRequisitions() {
   const { showToast } = useToast();
+  const [showNewReqMenu, setShowNewReqMenu] = useState(false);
   const [requisitions, setRequisitions] = useState<ServiceRequisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -259,13 +260,33 @@ export default function ServiceRequisitions() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </button>
-          <Link
-            href="/procurement/services/requisitions/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Service Request
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => setShowNewReqMenu((prev) => !prev)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Service Request
+            </button>
+            {showNewReqMenu && (
+              <div className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                <Link
+                  href="/procurement/services/requisitions/new"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service Requisition
+                </Link>
+                <Link
+                  href="/procurement/services/requisitions/new?mode=mixed"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowNewReqMenu(false)}
+                >
+                  Service + Materials
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

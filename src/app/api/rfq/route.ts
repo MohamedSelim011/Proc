@@ -150,15 +150,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Check if PR already has an RFQ
+    // Check if PR already has an active RFQ.
+    // Rejected RFQs should not block creating a new RFQ for the same PR.
     if (body.prId) {
       const existingRFQ = await prisma.rFQ.findFirst({
-        where: { prId: body.prId }
+        where: {
+          prId: body.prId,
+          status: { not: 'REJECTED' }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
       });
 
       if (existingRFQ) {
         return NextResponse.json(
-          { error: `An RFQ (${existingRFQ.rfqNumber}) already exists for this Purchase Requisition` },
+          { error: `An active RFQ (${existingRFQ.rfqNumber}) already exists for this Purchase Requisition` },
           { status: 400 }
         );
       }

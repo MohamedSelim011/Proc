@@ -535,24 +535,6 @@ export default function PurchaseOrdersPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Truck className="h-6 w-6 text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">In Transit</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    0
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
                 <CheckCircle className="h-6 w-6 text-green-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -697,9 +679,6 @@ export default function PurchaseOrdersPage() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Delivery
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Progress
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -709,7 +688,6 @@ export default function PurchaseOrdersPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {orders.map((po) => {
-                  const deliveryStatus = getDeliveryStatus(po);
                   return (
                     <tr key={po.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -751,14 +729,6 @@ export default function PurchaseOrdersPage() {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(po.status)}`}>
                           {po.status}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(po.deliveryDate)}
-                        </div>
-                        <div className={`text-xs ${deliveryStatus.color}`}>
-                          {deliveryStatus.text}
-                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex space-x-2">

@@ -44,36 +44,36 @@ model Company {
 }
 
 model HrMaterialRequest {
-  id                String   @id @default(cuid())
-  externalId        String   @unique
-  budgetExternalId  String?
-  departmentExternalId String?
-  categoryExternalId String?
-  status            String
-  quantity          Int?
-  description       String?
-  notes             String?
-  rejectionReason   String?
-  approvedByExternal String?
-  departmentName    String?
-  categoryName      String?
-  categoryPriceLimit Decimal?
+  id                    String    @id @default(cuid())
+  externalId            String    @unique
+  budgetExternalId      String?
+  departmentExternalId  String?
+  categoryExternalId    String?
+  status                String
+  quantity              Int?
+  description           String?
+  notes                 String?
+  rejectionReason       String?
+  approvedByExternal    String?
+  departmentName        String?
+  categoryName          String?
+  categoryPriceLimit    Decimal?
   budgetCategoryBudgets Json?
-  requesterName     String?
-  requesterFirstName String?
-  requesterLastName String?
-  requesterExternalId String?
-  requesterEmail    String?
-  fiscalYear        Int?
-  quarter           Int?
-  externalVersion   Int?
-  budgetTotalAmount Decimal?
-  externalCreatedAt DateTime?
-  externalUpdatedAt DateTime?
-  lastSyncedAt      DateTime @default(now())
-  rawPayload        Json
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  requesterName         String?
+  requesterFirstName    String?
+  requesterLastName     String?
+  requesterExternalId   String?
+  requesterEmail        String?
+  fiscalYear            Int?
+  quarter               Int?
+  externalVersion       Int?
+  budgetTotalAmount     Decimal?
+  externalCreatedAt     DateTime?
+  externalUpdatedAt     DateTime?
+  lastSyncedAt          DateTime  @default(now())
+  rawPayload            Json
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   purchaseRequisitions PurchaseRequisition[]
 
@@ -83,8 +83,8 @@ model HrMaterialRequest {
 }
 
 model PaymentEscalation {
-  id                String   @id @default(cuid())
-  externalId        String   @unique
+  id                String    @id @default(cuid())
+  externalId        String    @unique
   title             String?
   status            String
   priority          String?
@@ -97,10 +97,10 @@ model PaymentEscalation {
   resolvedAt        DateTime?
   externalCreatedAt DateTime?
   externalUpdatedAt DateTime?
-  lastSyncedAt      DateTime @default(now())
+  lastSyncedAt      DateTime  @default(now())
   rawPayload        Json
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([status])
   @@index([priority])
@@ -108,8 +108,8 @@ model PaymentEscalation {
 }
 
 model InventoryMaterialRequisition {
-  id                   String   @id @default(cuid())
-  externalId           String   @unique
+  id                   String    @id @default(cuid())
+  externalId           String    @unique
   requisitionNumber    String?
   status               String
   priority             String?
@@ -126,12 +126,12 @@ model InventoryMaterialRequisition {
   justification        String?
   externalCreatedAt    DateTime?
   externalUpdatedAt    DateTime?
-  lastSyncedAt         DateTime @default(now())
+  lastSyncedAt         DateTime  @default(now())
   rawPayload           Json
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  purchaseOrders       PurchaseOrder[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([status])
   @@index([projectName])
@@ -162,7 +162,7 @@ model User {
   createdBy           String?
 
   // Relations
-  company         Company   @relation(fields: [companyId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id])
   sessions        Session[]
   auditLogs       AuditLog[]
   passwordHistory PasswordHistory[]
@@ -289,9 +289,9 @@ model Vendor {
   iban        String?
 
   // Business Details
-  businessType          String
-  yearEstablished       Int
-  numberOfEmployees     Int
+  businessType      String
+  yearEstablished   Int
+  numberOfEmployees Int
 
   // Status
   status           VendorStatus @default(PENDING)
@@ -403,12 +403,12 @@ model PurchaseRequisition {
   justification String?
 
   // Additional fields
-  requiredByDate DateTime?
-  projectId      String?
-  costCenter     String?
+  requiredByDate          DateTime?
+  projectId               String?
+  costCenter              String?
   sourceMaterialRequestId String?
   sourceMaterialRequest   HrMaterialRequest? @relation(fields: [sourceMaterialRequestId], references: [id], onDelete: SetNull)
-  createdBy      String?
+  createdBy               String?
 
   // Items
   items PRItem[]
@@ -442,7 +442,7 @@ model PurchaseRequisitionDocument {
   fileSize     Int
   fileType     String
   uploadedBy   String?
-  uploadedAt   DateTime @default(now())
+  uploadedAt   DateTime            @default(now())
 
   @@index([prId])
   @@index([uploadedAt])
@@ -526,10 +526,11 @@ model RFQResponse {
   attachments     Json? // Array of additional file paths
 
   // Additional proposal data
-  priceBreakdown   String? // Price breakdown details
-  technicalDetails String? // Technical specifications
-  deliveryTerms    String? // Delivery terms and conditions
-  notes            String? // Additional notes
+  priceBreakdown     String? // Price breakdown details
+  technicalDetails   String? // Technical specifications
+  deliveryTerms      String? // Delivery terms and conditions
+  notes              String? // Additional notes
+  awardJustification String? // Justification entered when selecting this response as winner
 
   // Submission tracking
   submittedVia    String?   @default("EMAIL_LINK") // 'PORTAL', 'EMAIL_LINK', 'MANUAL'
@@ -658,30 +659,30 @@ model ServiceRFPResponse {
 
 // Purchase Order
 model PurchaseOrder {
-  id                  String               @id @default(cuid())
-  poNumber            String               @unique
-  prId                String?
-  pr                  PurchaseRequisition? @relation(fields: [prId], references: [id])
+  id                          String                        @id @default(cuid())
+  poNumber                    String                        @unique
+  prId                        String?
+  pr                          PurchaseRequisition?          @relation(fields: [prId], references: [id])
   sourceMaterialRequisitionId String?
   sourceMaterialRequisition   InventoryMaterialRequisition? @relation(fields: [sourceMaterialRequisitionId], references: [id], onDelete: SetNull)
-  sourceDepartmentId   String?
-  sourceDepartmentName String?
-  sourceProjectId      String?
-  sourceProjectName    String?
-  vendorId            String
-  vendor              Vendor               @relation(fields: [vendorId], references: [id])
-  orderDate           DateTime             @default(now())
-  deliveryDate        DateTime
-  deliveryAddress     Json
-  paymentTerms        String
-  status              POStatus             @default(DRAFT)
-  totalAmount         Decimal
-  invoicedAmount      Decimal              @default(0)
-  currency            String               @default("OMR")
-  createdBy           String? // User who created the PO
-  acknowledgmentToken String?              @unique // Token for vendor acknowledgment via email
-  acknowledgedAt      DateTime? // When vendor acknowledged the PO
-  acknowledgedBy      String? // Vendor email or identifier
+  sourceDepartmentId          String?
+  sourceDepartmentName        String?
+  sourceProjectId             String?
+  sourceProjectName           String?
+  vendorId                    String
+  vendor                      Vendor                        @relation(fields: [vendorId], references: [id])
+  orderDate                   DateTime                      @default(now())
+  deliveryDate                DateTime
+  deliveryAddress             Json
+  paymentTerms                String
+  status                      POStatus                      @default(DRAFT)
+  totalAmount                 Decimal
+  invoicedAmount              Decimal                       @default(0)
+  currency                    String                        @default("OMR")
+  createdBy                   String? // User who created the PO
+  acknowledgmentToken         String?                       @unique // Token for vendor acknowledgment via email
+  acknowledgedAt              DateTime? // When vendor acknowledged the PO
+  acknowledgedBy              String? // Vendor email or identifier
 
   // Items
   items POItem[]
@@ -1340,9 +1341,9 @@ model ServiceReceipt {
 }
 
 model ServicePerformance {
-  id               String          @id @default(cuid())
+  id               String                       @id @default(cuid())
   contractId       String
-  contract         ServiceContract @relation(fields: [contractId], references: [id])
+  contract         ServiceContract              @relation(fields: [contractId], references: [id])
   evaluationPeriod String
   startDate        DateTime
   endDate          DateTime
@@ -1352,11 +1353,29 @@ model ServicePerformance {
   overallScore     Decimal
   kpiMetrics       Json?
   slaCompliance    Json?
-  penalties        Decimal?        @default(0)
-  bonuses          Decimal?        @default(0)
+  penalties        Decimal?                     @default(0)
+  bonuses          Decimal?                     @default(0)
   evaluatedBy      String
-  evaluatedAt      DateTime        @default(now())
+  evaluatedAt      DateTime                     @default(now())
   comments         String?
+  documents        ServicePerformanceDocument[]
+}
+
+model ServicePerformanceDocument {
+  id            String             @id @default(cuid())
+  performanceId String
+  performance   ServicePerformance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  documentType  String?
+  documentName  String
+  fileUrl       String
+  storageKey    String
+  fileSize      Int
+  fileType      String
+  uploadedBy    String?
+  uploadedAt    DateTime           @default(now())
+
+  @@index([performanceId])
+  @@index([uploadedAt])
 }
 
 // Additional enums for services
@@ -1386,63 +1405,7 @@ enum AcceptanceStatus {
   CONDITIONAL
 }
 
-// Automation and Workflow Models for 100% BRD Compliance
-
-model WorkflowDefinition {
-  id                String       @id @default(cuid())
-  name              String
-  description       String?
-  workflowType      WorkflowType
-  documentType      String // PR, PO, Invoice, etc.
-  triggerConditions Json // Conditions that start this workflow
-  approvalSteps     Json // Sequential approval steps
-  notifications     Json // Email notification settings
-  isActive          Boolean      @default(true)
-
-  // Relationships
-  instances WorkflowInstance[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model WorkflowInstance {
-  id            String             @id @default(cuid())
-  workflowDefId String
-  workflowDef   WorkflowDefinition @relation(fields: [workflowDefId], references: [id])
-  documentId    String // ID of PR, PO, Invoice being processed
-  documentType  String // Type of document
-  currentStep   Int                @default(1)
-  totalSteps    Int
-  status        WorkflowStatus     @default(IN_PROGRESS)
-  assignedTo    String? // Current approver
-  assignedAt    DateTime?
-  completedAt   DateTime?
-
-  // Relationships
-  steps WorkflowStep[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model WorkflowStep {
-  id           String           @id @default(cuid())
-  instanceId   String
-  instance     WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  stepNumber   Int
-  stepName     String
-  approverId   String
-  approverRole String?
-  status       StepStatus       @default(PENDING)
-  comments     String?
-  actionTaken  String? // APPROVED, REJECTED, ESCALATED
-  processedAt  DateTime?
-  dueDate      DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// Automation models
 
 model AutomationTrigger {
   id             String      @id @default(cuid())
@@ -1505,30 +1468,6 @@ model ProcessAudit {
 }
 
 // Automation Enums
-enum WorkflowType {
-  APPROVAL
-  NOTIFICATION
-  VALIDATION
-  GENERATION
-}
-
-enum WorkflowStatus {
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  ESCALATED
-  ERROR
-}
-
-enum StepStatus {
-  PENDING
-  IN_PROGRESS
-  APPROVED
-  REJECTED
-  ESCALATED
-  SKIPPED
-}
-
 enum TriggerType {
   INVENTORY_LEVEL
   BUDGET_THRESHOLD

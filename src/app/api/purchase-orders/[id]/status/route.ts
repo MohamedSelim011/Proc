@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendPOToVendor } from '@/lib/email-service';
+import { getAppBaseUrl } from '@/lib/app-base-url';
 import { randomBytes } from 'crypto';
 
 
@@ -112,13 +113,7 @@ export async function PUT(
         });
         
         // Create acknowledgment link
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin');
-        if (!baseUrl) {
-          return NextResponse.json(
-            { error: 'Base URL not found' },
-            { status: 500 }
-          );
-        }
+        const baseUrl = getAppBaseUrl();
         const acknowledgmentLink = `${baseUrl}/po/acknowledge/${id}/${acknowledgmentToken}`;
         
         emailSent = await sendPOToVendor({

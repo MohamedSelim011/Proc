@@ -12,15 +12,17 @@ export async function GET(request: NextRequest) {
     const departmentId = searchParams.get('departmentId') || searchParams.get('department') || '';
     const serviceType = searchParams.get('serviceType') || '';
     const search = searchParams.get('search') || '';
+    const itemType = searchParams.get('itemType') || '';
 
     const skip = (page - 1) * limit;
 
-    // Build where clause - show both SERVICE and NON_STOCK itemTypes
-    // (Service Requisitions page manages both service and non-stock item requisitions)
+    // Default behavior keeps both item types for the Service Requisitions screen.
+    // Optional filter allows callers (e.g., services dashboard) to request SERVICE only.
     const where: any = {
-      itemType: {
-        in: ['SERVICE', 'NON_STOCK']
-      }
+      itemType:
+        itemType === 'SERVICE' || itemType === 'NON_STOCK'
+          ? itemType
+          : { in: ['SERVICE', 'NON_STOCK'] }
     };
     
     if (status) {
