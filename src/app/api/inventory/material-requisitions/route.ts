@@ -1,99 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PRStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
+
+const parseStatusFilter = (value: string): PRStatus | null => {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'PENDING' || normalized === 'PENDING_APPROVAL') return PRStatus.PENDING_APPROVAL;
+  if (normalized === 'SUBMITTED' || normalized === 'IN_PROCUREMENT') return PRStatus.SUBMITTED;
+  if (normalized === 'APPROVED') return PRStatus.APPROVED;
+  if (normalized === 'REJECTED') return PRStatus.REJECTED;
+  if (normalized === 'CANCELLED' || normalized === 'CANCELED') return PRStatus.CANCELLED;
+  if (normalized === 'DRAFT') return PRStatus.DRAFT;
+  if (normalized === 'CONVERTED') return PRStatus.CONVERTED;
+  return null;
+};
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const allRows = searchParams.get('all') === 'true';
     const page = Math.max(1, Number(searchParams.get('page') || 1));
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 20)));
     const search = (searchParams.get('search') || '').trim();
     const status = (searchParams.get('status') || '').trim();
     const project = (searchParams.get('project') || '').trim();
 
-    const where: Prisma.InventoryMaterialRequisitionWhereInput = {};
+    const where: Prisma.PurchaseRequisitionWhereInput = {};
+    const andClauses: Prisma.PurchaseRequisitionWhereInput[] = [];
 
     if (status) {
-      where.status = { equals: status, mode: 'insensitive' };
+      const parsedStatus = parseStatusFilter(status);
+      andClauses.push({
+        OR: [
+          ...(parsedStatus ? [{ status: parsedStatus }] : []),
+          { externalStatus: { contains: status, mode: 'insensitive' } },
+        ],
+      });
     }
 
     if (project) {
-      where.projectName = { contains: project, mode: 'insensitive' };
+      andClauses.push({
+        OR: [
+          { projectName: { contains: project, mode: 'insensitive' } },
+          { requestedProjectName: { contains: project, mode: 'insensitive' } },
+          { projectExternalId: { contains: project, mode: 'insensitive' } },
+          { projectId: { contains: project, mode: 'insensitive' } },
+        ],
+      });
     }
 
     if (search) {
-      where.OR = [
-        { externalId: { contains: search, mode: 'insensitive' } },
-        { requisitionNumber: { contains: search, mode: 'insensitive' } },
-        { requesterName: { contains: search, mode: 'insensitive' } },
-        { requesterEmail: { contains: search, mode: 'insensitive' } },
-        { projectName: { contains: search, mode: 'insensitive' } },
-        { purpose: { contains: search, mode: 'insensitive' } },
-      ];
+      andClauses.push({
+        OR: [
+          { externalId: { contains: search, mode: 'insensitive' } },
+          { mrNumber: { contains: search, mode: 'insensitive' } },
+          { prNumber: { contains: search, mode: 'insensitive' } },
+          { requesterName: { contains: search, mode: 'insensitive' } },
+          { requesterEmail: { contains: search, mode: 'insensitive' } },
+          { requesterId: { contains: search, mode: 'insensitive' } },
+          { projectName: { contains: search, mode: 'insensitive' } },
+          { requestedProjectName: { contains: search, mode: 'insensitive' } },
+          { purpose: { contains: search, mode: 'insensitive' } },
+          { justification: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (andClauses.length > 0) {
+      where.AND = andClauses;
     }
 
     const [rows, total] = await Promise.all([
-      prisma.inventoryMaterialRequisition.findMany({
+      prisma.purchaseRequisition.findMany({
         where,
         orderBy: [{ externalUpdatedAt: 'desc' }, { updatedAt: 'desc' }],
-        skip: (page - 1) * limit,
-        take: limit,
+        ...(allRows ? {} : { skip: (page - 1) * limit, take: limit }),
       }),
-      prisma.inventoryMaterialRequisition.count({ where }),
+      prisma.purchaseRequisition.count({ where }),
     ]);
 
-    const normalizedRows = rows.map((row) => {
-      const raw = (row.rawPayload && typeof row.rawPayload === 'object'
-        ? (row.rawPayload as Record<string, unknown>)
-        : {}) as Record<string, unknown>;
-
-      const project =
-        raw.project && typeof raw.project === 'object'
-          ? (raw.project as Record<string, unknown>)
-          : {};
-      const department =
-        raw.department && typeof raw.department === 'object'
-          ? (raw.department as Record<string, unknown>)
-          : {};
-
-      return {
-        ...row,
-        projectExternalId:
-          row.projectExternalId ||
-          (typeof raw.requestedProjectId === 'string' ? raw.requestedProjectId : null) ||
-          (typeof raw.projectId === 'string' ? raw.projectId : null) ||
-          (typeof project.id === 'string' ? project.id : null),
-        projectCode:
-          row.projectCode ||
-          (typeof project.code === 'string' ? project.code : null),
-        projectName:
-          row.projectName ||
-          (typeof raw.requestedProjectName === 'string' ? raw.requestedProjectName : null) ||
-          (typeof project.name === 'string' ? project.name : null),
-        departmentExternalId:
-          row.departmentExternalId ||
-          (typeof raw.requestedDepartmentId === 'string' ? raw.requestedDepartmentId : null) ||
-          (typeof raw.departmentId === 'string' ? raw.departmentId : null) ||
-          (typeof department.id === 'string' ? department.id : null),
-        departmentName:
-          row.departmentName ||
-          (typeof raw.requestedDepartmentName === 'string' ? raw.requestedDepartmentName : null) ||
-          (typeof department.name === 'string' ? department.name : null),
-      };
-    });
+    const normalizedRows = rows.map((row) => ({
+      id: row.id,
+      externalId: row.externalId || row.id,
+      requisitionNumber: row.mrNumber || row.prNumber,
+      status: row.externalStatus || row.status,
+      priority: row.externalPriority || row.priority,
+      projectExternalId:
+        row.projectExternalId ||
+        row.requestedProjectId ||
+        row.projectId,
+      projectName: row.projectName || row.requestedProjectName,
+      requesterName: row.requesterName || row.requesterId,
+      requesterEmail: row.requesterEmail,
+      requiredDate: row.requiredDate || row.requiredByDate,
+      externalUpdatedAt: row.externalUpdatedAt || row.updatedAt,
+      source: row.integrationSource || 'INTERNAL',
+    }));
 
     return NextResponse.json({
       success: true,
       data: normalizedRows,
       pagination: {
-        page,
-        limit,
+        page: allRows ? 1 : page,
+        limit: allRows ? total : limit,
         total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
+        totalPages: allRows ? 1 : Math.max(1, Math.ceil(total / limit)),
       },
     });
   } catch (error) {
-    console.error('[Inventory Material Requisitions][GET] Failed:', error);
+    console.error('[Material Requisitions][GET] Failed:', error);
     return NextResponse.json({ error: 'Failed to fetch material requisitions' }, { status: 500 });
   }
 }

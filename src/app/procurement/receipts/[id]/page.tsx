@@ -82,7 +82,7 @@ interface GoodsReceipt {
   status: string;
   createdAt: Date;
   updatedAt: Date;
-  po: PurchaseOrder;
+  po: PurchaseOrder | null;
   items: GoodsReceiptItem[];
 }
 
@@ -470,6 +470,7 @@ export default function GoodsReceiptView() {
     switch (status) {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
+      case 'PARTIALLY_ACCEPTED':
       case 'PARTIAL':
         return 'bg-yellow-100 text-yellow-800';
       case 'PENDING':
@@ -483,6 +484,7 @@ export default function GoodsReceiptView() {
     switch (status) {
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
+      case 'PARTIALLY_ACCEPTED':
       case 'PARTIAL':
         return <AlertTriangle className="h-4 w-4" />;
       case 'PENDING':
@@ -757,22 +759,22 @@ export default function GoodsReceiptView() {
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-500">PO Number</p>
-                  <p className="font-medium text-gray-900">{receipt.po.poNumber}</p>
+                  <p className="font-medium text-gray-900">{receipt.po?.poNumber || 'WITHOUT PO'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Vendor</p>
-                  <p className="font-medium text-gray-900">{receipt.po.vendor.nameEn}</p>
-                  <p className="text-sm text-gray-500">{receipt.po.vendor.email}</p>
+                  <p className="font-medium text-gray-900">{receipt.po?.vendor?.nameEn || 'N/A'}</p>
+                  <p className="text-sm text-gray-500">{receipt.po?.vendor?.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Delivery Date</p>
                   <p className="font-medium text-gray-900">
-                    {receipt.po.deliveryDate ? formatDate(receipt.po.deliveryDate) : 'Not specified'}
+                    {receipt.po?.deliveryDate ? formatDate(receipt.po.deliveryDate) : 'Not specified'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Currency</p>
-                  <p className="font-medium text-gray-900">{receipt.po.currency}</p>
+                  <p className="font-medium text-gray-900">{receipt.po?.currency || 'OMR'}</p>
                 </div>
               </div>
             </div>

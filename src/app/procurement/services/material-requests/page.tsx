@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, FileText, Loader2, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Eye, FileText, Loader2, Plus, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 import { apiFetch } from '@/lib/apiFetch';
@@ -36,29 +36,49 @@ export default function MaterialRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [inventoryBaseUrlConfigured, setInventoryBaseUrlConfigured] = useState<boolean | null>(null);
+  const [integrationMiddlewareConfigured, setIntegrationMiddlewareConfigured] =
+    useState<boolean | null>(null);
+  const [materialRequisitionsIntegrationEnabled, setMaterialRequisitionsIntegrationEnabled] =
+    useState<boolean | null>(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
     project: '',
   });
+  const initialSyncTriggeredRef = useRef(false);
 
   const loadFlags = useCallback(async () => {
     try {
       const response = await apiFetch('/api/system/integration-flags', { cache: 'no-store' });
       const payload = (await response.json()) as {
         success?: boolean;
-        data?: { inventoryBaseUrlConfigured?: boolean };
+        data?: {
+          inventoryBaseUrlConfigured?: boolean;
+          integrationMiddlewareConfigured?: boolean;
+          materialRequisitionsIntegrationEnabled?: boolean;
+        };
       };
-      setInventoryBaseUrlConfigured(Boolean(payload?.data?.inventoryBaseUrlConfigured));
+      setIntegrationMiddlewareConfigured(Boolean(payload?.data?.integrationMiddlewareConfigured));
+      setMaterialRequisitionsIntegrationEnabled(
+        Boolean(payload?.data?.materialRequisitionsIntegrationEnabled),
+      );
     } catch {
-      setInventoryBaseUrlConfigured(false);
+      setIntegrationMiddlewareConfigured(false);
+      setMaterialRequisitionsIntegrationEnabled(false);
     }
   }, []);
 
-  const fetchRows = useCallback(async () => {
+  const fetchRows = useCallback(async (options?: { showLoader?: boolean }) => {
+    if (materialRequisitionsIntegrationEnabled === null) {
+      return;
+    }
+
+    const showLoader = options?.showLoader ?? true;
+
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams();
@@ -79,46 +99,82 @@ export default function MaterialRequestsPage() {
 
       const typed = data as ApiResponse;
       setRows(Array.isArray(typed.data) ? typed.data : []);
-
-      setSyncing(true);
-      void apiFetch('/api/inventory/material-requisitions/sync', { method: 'POST' })
-        .then(async (syncResponse) => {
-          const syncPayload = (await syncResponse.json().catch(() => ({}))) as {
-            success?: boolean;
-            warning?: string;
-            upstreamErrors?: string[];
-          };
-          if (!syncResponse.ok || syncPayload.success === false) {
-            console.warn('[Material Requisitions][UI] Sync warning', {
-              status: syncResponse.status,
-              warning: syncPayload.warning,
-              upstreamErrors: syncPayload.upstreamErrors,
-            });
-            return;
-          }
-          const refetch = await apiFetch(`/api/inventory/material-requisitions?${params.toString()}`, {
-            cache: 'no-store',
-          });
-          if (!refetch.ok) return;
-          const refetchedPayload = (await refetch.json()) as ApiResponse;
-          setRows(Array.isArray(refetchedPayload.data) ? refetchedPayload.data : []);
-        })
-        .finally(() => setSyncing(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch material requisitions');
       setRows([]);
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
-  }, [filters.project, filters.search, filters.status]);
+  }, [
+    filters.project,
+    filters.search,
+    filters.status,
+    materialRequisitionsIntegrationEnabled,
+  ]);
 
   useEffect(() => {
     void loadFlags();
   }, [loadFlags]);
 
   useEffect(() => {
+    if (materialRequisitionsIntegrationEnabled === null) return;
     void fetchRows();
-  }, [fetchRows]);
+  }, [fetchRows, materialRequisitionsIntegrationEnabled]);
+
+  useEffect(() => {
+    if (materialRequisitionsIntegrationEnabled !== true) {
+      initialSyncTriggeredRef.current = false;
+      setSyncing(false);
+      return;
+    }
+
+    if (initialSyncTriggeredRef.current) {
+      return;
+    }
+
+    initialSyncTriggeredRef.current = true;
+    let cancelled = false;
+
+    const runInitialSync = async () => {
+      setSyncing(true);
+      try {
+        const syncResponse = await apiFetch('/api/inventory/material-requisitions/sync', {
+          method: 'POST',
+        });
+        const syncPayload = (await syncResponse.json().catch(() => ({}))) as {
+          success?: boolean;
+          warning?: string;
+          upstreamErrors?: string[];
+          skipped?: boolean;
+        };
+
+        if (!syncResponse.ok || syncPayload.success === false) {
+          console.warn('[Material Requisitions][UI] Sync warning', {
+            status: syncResponse.status,
+            warning: syncPayload.warning,
+            upstreamErrors: syncPayload.upstreamErrors,
+          });
+          return;
+        }
+
+        if (!syncPayload.skipped && !cancelled) {
+          await fetchRows({ showLoader: false });
+        }
+      } finally {
+        if (!cancelled) {
+          setSyncing(false);
+        }
+      }
+    };
+
+    void runInitialSync();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchRows, materialRequisitionsIntegrationEnabled]);
 
   const clearAll = () => {
     setFilters({ search: '', status: '', project: '' });
@@ -149,19 +205,32 @@ export default function MaterialRequestsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Material Requisitions</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Synced material requisitions from Inventory system
+            {materialRequisitionsIntegrationEnabled === null
+              ? 'Loading integration settings...'
+              : materialRequisitionsIntegrationEnabled
+              ? 'Synced material requisitions from Inventory system'
+              : 'Internal material requisitions managed in Procurement'}
           </p>
         </div>
         <div className="mt-4 flex items-center gap-2 sm:ml-16 sm:mt-0 sm:flex-none">
+          {materialRequisitionsIntegrationEnabled === false ? (
+            <Link
+              href="/procurement/requisitions/new"
+              className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create
+            </Link>
+          ) : null}
           {syncing ? (
             <span className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
               Syncing
             </span>
           ) : null}
-          {inventoryBaseUrlConfigured === false ? (
+          {materialRequisitionsIntegrationEnabled === true && integrationMiddlewareConfigured === false ? (
             <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-              Inventory base URL not configured
+              Integration middleware URL not configured
             </span>
           ) : null}
         </div>

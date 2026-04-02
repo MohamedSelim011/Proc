@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface RFQ {
   id: string;
@@ -365,7 +366,7 @@ export default function RFQPage() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
@@ -379,10 +380,10 @@ export default function RFQPage() {
             <option value="UNDER_EVALUATION">Under Evaluation</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Item Type">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.itemType}
             onChange={(e) => setFilters(prev => ({ ...prev, itemType: e.target.value }))}
@@ -391,7 +392,7 @@ export default function RFQPage() {
             <option value="STOCK">Stock Items</option>
             <option value="SERVICE">Services</option>
             <option value="NON_STOCK">Non-Stock Items</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

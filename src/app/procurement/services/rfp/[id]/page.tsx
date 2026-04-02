@@ -34,12 +34,19 @@ interface ServiceRFP {
     id: string;
     prNumber: string;
     estimatedCost: string;
+    items?: Array<{
+      quantity?: number | string;
+      estimatedPrice?: number | string;
+    }>;
     servicePR?: {
       serviceScope: string;
       duration: number;
       durationUnit: string;
       items: Array<{
         id: string;
+        quantity?: number | string;
+        estimatedRate?: number | string;
+        duration?: number | string;
         serviceItem: {
           nameEn: string;
           serviceCategory: {
@@ -74,8 +81,10 @@ interface ServiceRFP {
     technicalDetails: string | null;
     deliveryTerms: string | null;
     notes: string | null;
+    awardJustification: string | null;
     proposalFileUrl: string | null;
     tokenUsed: boolean;
+    updatedAt: string;
     vendor: {
       id: string;
       nameEn: string;
@@ -102,6 +111,41 @@ interface ServiceRFP {
   }>;
 }
 
+interface EvaluationCriterion {
+  name: string;
+  weight: number;
+  description?: string;
+}
+
+type ProposalResponse = NonNullable<ServiceRFP['responses']>[number];
+
+function parseEvaluationCriteria(value: string | null | undefined): EvaluationCriterion[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item): item is { name: string; weight: unknown; description?: unknown } => {
+        return typeof item === 'object' && item !== null && 'name' in item;
+      })
+      .map((item) => {
+        const numericWeight =
+          typeof item.weight === 'number'
+            ? item.weight
+            : Number.parseFloat(String(item.weight ?? 0));
+
+        return {
+          name: item.name,
+          weight: Number.isFinite(numericWeight) ? numericWeight : 0,
+          description: typeof item.description === 'string' ? item.description : undefined,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
 export default function ServiceRFPDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -110,12 +154,13 @@ export default function ServiceRFPDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showScoringModal, setShowScoringModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedResponse, setSelectedResponse] = useState<any>(null);
-  const [scoringData, setScoringData] = useState<any>({});
+  const [selectedResponse, setSelectedResponse] = useState<ProposalResponse | null>(null);
+  const [expandedResponseId, setExpandedResponseId] = useState<string | null>(null);
+  const [scoringData, setScoringData] = useState<Record<string, number>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showWinnerConfirmModal, setShowWinnerConfirmModal] = useState(false);
   const [pendingWinnerSelection, setPendingWinnerSelection] = useState<{responseId: string; vendorId: string} | null>(null);
+  const [winnerJustification, setWinnerJustification] = useState('');
   const [selectingWinner, setSelectingWinner] = useState(false);
   const [activeTab, setActiveTab] = useState<'general' | 'invited-vendors' | 'vendor-proposals' | 'documents'>('general');
   const [uploadingDocument, setUploadingDocument] = useState(false);
@@ -309,7 +354,7 @@ export default function ServiceRFPDetailPage() {
     }
   };
 
-  const handleOpenScoring = (response: any) => {
+  const handleOpenScoring = (response: ProposalResponse) => {
     // Prevent opening scoring modal for already reviewed proposals
     if (response.status === 'REVIEWED' || response.status === 'SELECTED') {
       showToast('error', 'This proposal has already been evaluated and cannot be evaluated again');
@@ -318,10 +363,10 @@ export default function ServiceRFPDetailPage() {
     
     setSelectedResponse(response);
     
-    const criteria = rfp?.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria) : [];
-    const initialScores: any = {};
+    const criteria = parseEvaluationCriteria(rfp?.evaluationCriteria);
+    const initialScores: Record<string, number> = {};
     
-    criteria.forEach((c: any) => {
+    criteria.forEach((c) => {
       const key = c.name.toLowerCase().replace(/\s+/g, '');
       initialScores[key] = response[`${key}Score`] || 0;
     });
@@ -356,6 +401,7 @@ export default function ServiceRFPDetailPage() {
 
   const handleSelectWinner = async (responseId: string, vendorId: string) => {
     setPendingWinnerSelection({ responseId, vendorId });
+    setWinnerJustification('');
     setShowWinnerConfirmModal(true);
   };
 
@@ -409,6 +455,12 @@ export default function ServiceRFPDetailPage() {
   const confirmSelectWinner = async () => {
     if (!pendingWinnerSelection) return;
     
+    const justification = winnerJustification.trim();
+    if (!justification) {
+      showToast('error', 'Please provide a justification before selecting a winner');
+      return;
+    }
+
     setSelectingWinner(true);
     const { responseId, vendorId } = pendingWinnerSelection;
 
@@ -416,17 +468,21 @@ export default function ServiceRFPDetailPage() {
       const response = await fetch(`/api/services/rfp/${rfp?.id}/select-winner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ responseId, vendorId })
+        body: JSON.stringify({ responseId, vendorId, justification })
       });
 
       if (response.ok) {
         showToast('success', 'Winner selected successfully! RFP has been awarded.');
         setShowWinnerConfirmModal(false);
         setPendingWinnerSelection(null);
+        setWinnerJustification('');
         fetchRFPDetails();
         
-        // Show success message with option to create PO
-        showToast('info', 'You can now create a Purchase Order from the Purchase Orders page.');
+        // Show PO guidance only for mixed service + material requisitions.
+        const hasMaterialItems = (rfp?.pr?.items?.length ?? 0) > 0;
+        if (hasMaterialItems) {
+          showToast('info', 'You can now create a Purchase Order from the Purchase Orders page.');
+        }
       } else {
         const data = await response.json();
         showToast('error', data.error || 'Failed to select winner');
@@ -500,17 +556,61 @@ export default function ServiceRFPDetailPage() {
     );
   }
 
-  const evaluationCriteria = rfp.evaluationCriteria ? JSON.parse(rfp.evaluationCriteria) : [];
+  const evaluationCriteria = parseEvaluationCriteria(rfp.evaluationCriteria);
   const submittedResponses = rfp.responses?.filter(r => r.tokenUsed && r.proposalFileUrl) || [];
   const canApprove = hasAdminRole() && rfp.status === 'PENDING_APPROVAL';
   const canRequestApproval = rfp.status === 'DRAFT';
-  const canSendInvitations = (rfp.status === 'APPROVED' || rfp.status === 'PUBLISHED' || rfp.status === 'SENT') && 
+  const canSendInvitations = (rfp.status === 'APPROVED' || rfp.status === 'PUBLISHED') && 
                               (!rfp.invitedVendors || rfp.invitedVendors.length === 0 || 
                                !rfp.responses?.some(r => r.tokenUsed));
   const canEvaluate = (rfp.status === 'PUBLISHED' || rfp.status === 'SENT') && submittedResponses.length > 0;
   const canSelectWinner = (rfp.status === 'SENT' || rfp.status === 'PUBLISHED' || rfp.status === 'EVALUATED') && 
                           hasManagerRole() && 
                           submittedResponses.some(r => r.status === 'REVIEWED');
+  const linkedRequisitionValue = (() => {
+    if (!rfp?.pr) return 0;
+    const toNumber = (value: unknown) => {
+      const parsed = Number(value ?? 0);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const serviceItemsTotal = (rfp.pr.servicePR?.items || []).reduce((sum, item) => {
+      const quantity = toNumber(item.quantity);
+      const rate = toNumber(item.estimatedRate);
+      const duration = Math.max(toNumber(item.duration), 1);
+      return sum + quantity * rate * duration;
+    }, 0);
+
+    const materialItemsTotal = (rfp.pr.items || []).reduce((sum, item) => {
+      return sum + (toNumber(item.quantity) * toNumber(item.estimatedPrice));
+    }, 0);
+
+    const computedTotal = serviceItemsTotal + materialItemsTotal;
+    if (computedTotal > 0) return computedTotal;
+
+    return toNumber(rfp.pr.estimatedCost);
+  })();
+  const selectedWinnerResponse = rfp.responses?.find((response) => response.status === 'SELECTED') ?? null;
+
+  const getScoreFieldName = (criteriaName: string): keyof ProposalResponse => {
+    const key = criteriaName.toLowerCase().replace(/\s+/g, '').replace(/&/g, '');
+    const fieldMapping: Record<string, keyof ProposalResponse> = {
+      technicalcompliance: 'technicalScore',
+      technical: 'technicalScore',
+      commercialproposal: 'commercialScore',
+      commercial: 'commercialScore',
+      experiencereferences: 'experienceScore',
+      experience: 'experienceScore',
+      resourceavailability: 'deliveryScore',
+      delivery: 'deliveryScore',
+      resource: 'deliveryScore',
+    };
+
+    return fieldMapping[key] || (`${key}Score` as keyof ProposalResponse);
+  };
+
+  const scoreInputClassName =
+    'mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors';
 
   return (
     <div className="space-y-6">
@@ -687,7 +787,12 @@ export default function ServiceRFPDetailPage() {
                         <div>
                           <p className="text-sm font-medium text-wujha-primary/80">Estimated Value</p>
                           <p className="mt-1 text-sm font-semibold text-wujha-primary">
-                            {rfp.pr.estimatedCost ? `${parseFloat(rfp.pr.estimatedCost).toLocaleString()} OMR` : 'N/A'}
+                            {linkedRequisitionValue > 0
+                              ? `${linkedRequisitionValue.toLocaleString(undefined, {
+                                  minimumFractionDigits: 3,
+                                  maximumFractionDigits: 3,
+                                })} OMR`
+                              : 'N/A'}
                           </p>
                         </div>
                       </>
@@ -696,11 +801,50 @@ export default function ServiceRFPDetailPage() {
                 </div>
               )}
 
+              {selectedWinnerResponse && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-green-700">Award Decision</h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                      <p className="text-sm font-medium text-green-700/80">Winning Vendor</p>
+                      <p className="mt-1 text-sm font-semibold text-green-800">
+                        {selectedWinnerResponse.vendor.nameEn}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-700/80">Awarded Amount</p>
+                      <p className="mt-1 text-sm font-semibold text-green-800">
+                        {selectedWinnerResponse.totalAmount
+                          ? `${parseFloat(selectedWinnerResponse.totalAmount).toLocaleString(undefined, {
+                              minimumFractionDigits: 3,
+                              maximumFractionDigits: 3,
+                            })} OMR`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-700/80">Awarded On</p>
+                      <p className="mt-1 text-sm font-semibold text-green-800">
+                        {selectedWinnerResponse.updatedAt
+                          ? new Date(selectedWinnerResponse.updatedAt).toLocaleString()
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-md border border-green-200 bg-white p-4">
+                    <p className="text-sm font-medium text-green-700">Selection Justification</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+                      {selectedWinnerResponse.awardJustification || 'No justification recorded.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {evaluationCriteria.length > 0 && (
                 <div className="rounded-lg border border-gray-200 p-6">
                   <h3 className="mb-4 text-lg font-semibold text-gray-900">Evaluation Criteria</h3>
                   <div className="space-y-3">
-                    {evaluationCriteria.map((criteria: any, index: number) => (
+                    {evaluationCriteria.map((criteria, index: number) => (
                       <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <div className="flex items-center justify-between gap-4">
                           <div>
@@ -787,14 +931,13 @@ export default function ServiceRFPDetailPage() {
                           </span>
                           <div className="flex flex-wrap items-center gap-2">
                             <button
-                              onClick={() => {
-                                setSelectedResponse(response);
-                                setShowDetailsModal(true);
-                              }}
+                              onClick={() =>
+                                setExpandedResponseId((current) => (current === response.id ? null : response.id))
+                              }
                               className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                             >
                               <Eye className="mr-1 h-3.5 w-3.5" />
-                              View Details
+                              {expandedResponseId === response.id ? 'Hide Details' : 'View Details'}
                             </button>
                             {canEvaluate && response.status !== 'REVIEWED' && response.status !== 'SELECTED' && (
                               <button
@@ -816,6 +959,125 @@ export default function ServiceRFPDetailPage() {
                           </div>
                         </div>
                       </div>
+
+                      {expandedResponseId === response.id && (
+                        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            {response.totalAmount && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Total Amount</h4>
+                                <p className="mt-1 text-lg font-bold text-wujha-primary">
+                                  {parseFloat(response.totalAmount).toLocaleString()} OMR
+                                </p>
+                              </div>
+                            )}
+                            {response.validUntil && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Valid Until</h4>
+                                <p className="mt-1 text-sm text-gray-800">
+                                  {new Date(response.validUntil).toLocaleDateString()}
+                                </p>
+                              </div>
+                            )}
+                            {response.submittedAt && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Submitted At</h4>
+                                <p className="mt-1 text-sm text-gray-800">
+                                  {new Date(response.submittedAt).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {response.proposalFileUrl && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Proposal Document</h4>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <a
+                                    href={response.proposalFileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                                  >
+                                    View
+                                  </a>
+                                  <a
+                                    href={`${response.proposalFileUrl}?download=1`}
+                                    className="inline-flex items-center rounded-md border border-wujha-primary/30 bg-wujha-primary/10 px-3 py-1.5 text-xs font-medium text-wujha-primary hover:bg-wujha-primary/20"
+                                  >
+                                    Download
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-4 space-y-4">
+                            {response.priceBreakdown && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Price Breakdown</h4>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{response.priceBreakdown}</p>
+                              </div>
+                            )}
+                            {response.technicalDetails && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Technical Details</h4>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{response.technicalDetails}</p>
+                              </div>
+                            )}
+                            {response.deliveryTerms && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Delivery Terms</h4>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{response.deliveryTerms}</p>
+                              </div>
+                            )}
+                            {response.notes && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Additional Notes</h4>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{response.notes}</p>
+                              </div>
+                            )}
+                            {response.status === 'SELECTED' && response.awardJustification && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Winner Selection Justification</h4>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
+                                  {response.awardJustification}
+                                </p>
+                              </div>
+                            )}
+                            {(response.overallScore !== null ||
+                              response.technicalScore !== null ||
+                              response.commercialScore !== null ||
+                              response.deliveryScore !== null ||
+                              response.experienceScore !== null) && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700">Scores</h4>
+                                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  {evaluationCriteria.map((criteria) => {
+                                    const score = response[getScoreFieldName(criteria.name)] as number | null | undefined;
+                                    if (score === null || score === undefined) return null;
+
+                                    return (
+                                      <div key={`${response.id}-${criteria.name}`} className="rounded-md border border-gray-200 bg-white p-3">
+                                        <p className="text-xs text-gray-500">
+                                          {criteria.name} ({criteria.weight}%)
+                                        </p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900">{score}/100</p>
+                                      </div>
+                                    );
+                                  })}
+                                  {response.overallScore !== null && (
+                                    <div className="rounded-md border border-wujha-primary/20 bg-wujha-primary/10 p-3 sm:col-span-2">
+                                      <p className="text-xs text-wujha-primary">Overall Score</p>
+                                      <p className="mt-1 text-base font-bold text-wujha-primary">
+                                        {parseFloat(response.overallScore).toFixed(2)}/100
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -859,7 +1121,7 @@ export default function ServiceRFPDetailPage() {
               </div>
               
               <div className="space-y-4">
-                {evaluationCriteria.map((criteria: any) => {
+                {evaluationCriteria.map((criteria) => {
                   const key = criteria.name.toLowerCase().replace(/\s+/g, '');
                   return (
                     <div key={key}>
@@ -876,7 +1138,7 @@ export default function ServiceRFPDetailPage() {
                           [key]: parseInt(e.target.value) || 0
                         })}
                         placeholder="Enter score (0-100)"
-                        className="mt-1 block w-full rounded-md border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600 shadow-sm focus:border-wujha-primary focus:ring-2 focus:ring-wujha-primary"
+                        className={scoreInputClassName}
                       />
                     </div>
                   );
@@ -902,121 +1164,6 @@ export default function ServiceRFPDetailPage() {
         </div>
       )}
 
-      {/* Details Modal */}
-      {showDetailsModal && selectedResponse && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Proposal Details - {selectedResponse.vendor.nameEn}
-                </h3>
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {selectedResponse.totalAmount && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Total Amount</h4>
-                    <p className="text-lg font-bold text-wujha-primary">
-                      {parseFloat(selectedResponse.totalAmount).toLocaleString()} OMR
-                    </p>
-                  </div>
-                )}
-                {selectedResponse.priceBreakdown && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Price Breakdown</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedResponse.priceBreakdown}</p>
-                  </div>
-                )}
-                {selectedResponse.technicalDetails && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Technical Details</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedResponse.technicalDetails}</p>
-                  </div>
-                )}
-                {selectedResponse.deliveryTerms && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Delivery Terms</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedResponse.deliveryTerms}</p>
-                  </div>
-                )}
-                {selectedResponse.notes && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Additional Notes</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedResponse.notes}</p>
-                  </div>
-                )}
-                {selectedResponse.proposalFileUrl && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Proposal Document</h4>
-                    <a
-                      href={selectedResponse.proposalFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-wujha-primary hover:underline"
-                    >
-                      Download Proposal
-                    </a>
-                  </div>
-                )}
-                {(selectedResponse.overallScore !== null || 
-                  selectedResponse.technicalScore !== null || 
-                  selectedResponse.commercialScore !== null || 
-                  selectedResponse.deliveryScore !== null || 
-                  selectedResponse.experienceScore !== null) && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">Scores</h4>
-                    <div className="grid grid-cols-2 gap-4 mt-2">
-                      {evaluationCriteria.map((criteria: any) => {
-                        const key = criteria.name.toLowerCase().replace(/\s+/g, '').replace(/&/g, '');
-                        
-                        // Map criteria names to database field names (same as evaluate endpoint)
-                        const fieldMapping: Record<string, string> = {
-                          'technicalcompliance': 'technicalScore',
-                          'technical': 'technicalScore',
-                          'commercialproposal': 'commercialScore',
-                          'commercial': 'commercialScore',
-                          'experience&references': 'experienceScore',
-                          'experiencereferences': 'experienceScore',
-                          'experience': 'experienceScore',
-                          'resourceavailability': 'deliveryScore',
-                          'delivery': 'deliveryScore',
-                          'resource': 'deliveryScore'
-                        };
-                        
-                        const dbField = fieldMapping[key] || `${key}Score`;
-                        const score = selectedResponse[dbField];
-                        
-                        return score !== null && score !== undefined ? (
-                          <div key={key}>
-                            <p className="text-xs text-gray-500">{criteria.name} ({criteria.weight}%)</p>
-                            <p className="text-sm font-medium text-gray-900">{score}/100</p>
-                          </div>
-                        ) : null;
-                      })}
-                      {selectedResponse.overallScore !== null && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500">Overall Score</p>
-                          <p className="text-lg font-bold text-wujha-primary">
-                            {parseFloat(selectedResponse.overallScore).toFixed(2)}/100
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Winner Confirmation Modal */}
       {showWinnerConfirmModal && pendingWinnerSelection && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1033,11 +1180,25 @@ export default function ServiceRFPDetailPage() {
                 Are you sure you want to select this vendor as the winner? This action will mark the RFP as awarded.
               </p>
 
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Justification <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={winnerJustification}
+                  onChange={(e) => setWinnerJustification(e.target.value)}
+                  placeholder="Provide a clear business and technical justification for selecting this vendor."
+                  className={scoreInputClassName}
+                />
+              </div>
+
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowWinnerConfirmModal(false);
                     setPendingWinnerSelection(null);
+                    setWinnerJustification('');
                   }}
                   disabled={selectingWinner}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1046,7 +1207,7 @@ export default function ServiceRFPDetailPage() {
                 </button>
                 <button
                   onClick={confirmSelectWinner}
-                  disabled={selectingWinner}
+                  disabled={selectingWinner || !winnerJustification.trim()}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {selectingWinner ? (

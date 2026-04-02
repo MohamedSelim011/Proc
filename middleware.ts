@@ -6,8 +6,10 @@ const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/auth\/login$/,
   /^\/api\/rfq\/submit\/[^/]+\/[^/]+$/,
   /^\/api\/services\/rfp\/submit\/[^/]+\/[^/]+$/,
+  /^\/api\/services\/rfp\/[^/]+\/responses\/[^/]+\/proposal(?:\/)?$/,
   /^\/api\/purchase-orders\/[^/]+\/acknowledge$/,
   /^\/api\/contracts\/vendor-response\/[^/]+$/,
+  /^\/api\/contracts\/vendor-response\/[^/]+\/download$/,
 ];
 
 const API_KEY_ALLOWED_PREFIXES = ['/api/finance/', '/api/inventory/'];

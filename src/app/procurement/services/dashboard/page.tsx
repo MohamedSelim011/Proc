@@ -23,14 +23,23 @@ interface ServiceRequest {
   prNumber: string;
   itemType: string;
   departmentId: string;
+  projectId?: string;
   estimatedCost: number;
   status: string;
   priority: string;
   createdAt: string;
   servicePR?: {
     serviceScope: string;
-    items: any[];
+    items: Array<{
+      quantity?: number | string;
+      estimatedRate?: number | string;
+      duration?: number | string;
+    }>;
   };
+  items?: Array<{
+    quantity?: number | string;
+    estimatedPrice?: number | string;
+  }>;
 }
 
 export default function ServiceDashboard() {
@@ -43,6 +52,49 @@ export default function ServiceDashboard() {
   const [loading, setLoading] = useState(true);
   const [showNewReqMenu, setShowNewReqMenu] = useState(false);
   const [showQuickActionNewReqMenu, setShowQuickActionNewReqMenu] = useState(false);
+
+  const toNumber = (value: unknown) => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getRequestValue = (request: ServiceRequest) => {
+    const serviceTotal = (request.servicePR?.items || []).reduce((sum, item) => {
+      const quantity = toNumber(item.quantity);
+      const estimatedRate = toNumber(item.estimatedRate);
+      const duration = Math.max(toNumber(item.duration) || 1, 1);
+      return sum + quantity * estimatedRate * duration;
+    }, 0);
+
+    const materialTotal = (request.items || []).reduce((sum, item) => {
+      return sum + toNumber(item.quantity) * toNumber(item.estimatedPrice);
+    }, 0);
+
+    const computed = serviceTotal + materialTotal;
+    if (computed > 0) return computed;
+    return toNumber(request.estimatedCost);
+  };
+
+  const fetchAllServiceRequests = async () => {
+    const pageSize = 200;
+    let page = 1;
+    let totalPages = 1;
+    const allRows: ServiceRequest[] = [];
+
+    do {
+      const response = await fetch(`/api/services/service-requests?limit=${pageSize}&page=${page}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch service requests');
+      }
+      const data = await response.json();
+      const rows = Array.isArray(data?.serviceRequests) ? data.serviceRequests : [];
+      allRows.push(...rows);
+      totalPages = Number(data?.pagination?.totalPages || 1);
+      page += 1;
+    } while (page <= totalPages);
+
+    return allRows;
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -67,39 +119,35 @@ export default function ServiceDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch service requisitions using the dedicated service API
-      const serviceRequestsResponse = await fetch('/api/services/requisitions?limit=5&itemType=SERVICE');
-      const serviceRequestsData = await serviceRequestsResponse.json();
-      
-      // Fetch contracts (using POs as contracts for now)
-      const contractsResponse = await fetch('/api/purchase-orders?limit=10');
+      const [serviceRequests, contractsResponse] = await Promise.all([
+        fetchAllServiceRequests(),
+        fetch('/api/services/contracts?limit=200'),
+      ]);
+      if (!contractsResponse.ok) {
+        throw new Error('Failed to fetch service contracts');
+      }
       const contractsData = await contractsResponse.json();
-      
-      // Calculate metrics from real data
-      const serviceRequests = (serviceRequestsData.serviceRequisitions || []).filter((pr: any) =>
-        pr.itemType === 'SERVICE'
-      );
 
-      const pendingRequests = serviceRequests.filter((pr: any) =>
-        pr.status === 'SUBMITTED' || pr.status === 'DRAFT'
-      ).length || 0;
-      
-      const activeContracts = contractsData.purchaseOrders?.filter((po: any) => 
-        po.status === 'APPROVED' || po.status === 'DELIVERED'
-      ).length || 0;
-      
-      const totalContractValue = contractsData.purchaseOrders?.reduce((sum: number, po: any) => 
-        sum + Number(po.totalAmount || 0), 0
-      ) || 0;
+      const pendingRequests = serviceRequests.filter((pr: ServiceRequest) =>
+        pr.status === 'DRAFT' || pr.status === 'SUBMITTED' || pr.status === 'PENDING_APPROVAL'
+      ).length;
+      const contracts = Array.isArray(contractsData.contracts) ? contractsData.contracts : [];
+      const activeContractStatuses = new Set(['PENDING_APPROVAL', 'APPROVED', 'SIGNED', 'ACTIVE']);
+      const activeContracts = contracts.filter((contract: { status?: string }) =>
+        activeContractStatuses.has(String(contract.status || '').toUpperCase())
+      );
+      const totalServiceValue = serviceRequests.reduce((sum, request) => sum + getRequestValue(request), 0);
 
       setMetrics({
-        totalActiveContracts: activeContracts,
-        totalServiceValue: totalContractValue,
+        totalActiveContracts: activeContracts.length,
+        totalServiceValue,
         pendingServiceRequests: pendingRequests
       });
-
-      setRecentRequests(serviceRequests.slice(0, 5));
+      setRecentRequests(
+        [...serviceRequests]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5)
+      );
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -184,7 +232,7 @@ export default function ServiceDashboard() {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Active Contracts
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg font-medium text-gray-900 whitespace-nowrap">
                     {metrics.totalActiveContracts}
                   </dd>
                 </dl>
@@ -204,7 +252,7 @@ export default function ServiceDashboard() {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Service Value
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg font-medium text-gray-900 whitespace-nowrap">
                     {formatCurrency(metrics.totalServiceValue)}
                   </dd>
                 </dl>
@@ -224,7 +272,7 @@ export default function ServiceDashboard() {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Pending Requests
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg font-medium text-gray-900 whitespace-nowrap">
                     {metrics.pendingServiceRequests}
                   </dd>
                 </dl>
@@ -238,14 +286,8 @@ export default function ServiceDashboard() {
       {/* Recent Service Requests */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <h3 className="text-lg font-medium text-gray-900">Recent Service Requests</h3>
-            <Link
-              href="/procurement/services/requisitions"
-              className="text-sm font-medium text-wujha-primary hover:text-wujha-primary-hover"
-            >
-              View all
-            </Link>
           </div>
         </div>
         <div className="overflow-hidden">
@@ -260,6 +302,9 @@ export default function ServiceDashboard() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Department
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Project
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Value
@@ -292,7 +337,10 @@ export default function ServiceDashboard() {
                     {request.departmentId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(request.estimatedCost || 0)}
+                    {request.projectId || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(getRequestValue(request))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
@@ -310,7 +358,7 @@ export default function ServiceDashboard() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                     No service requests found
                   </td>
                 </tr>

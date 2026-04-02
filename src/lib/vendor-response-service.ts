@@ -3,6 +3,7 @@ import { VendorResponseStatus } from '@prisma/client'
 import crypto from 'crypto'
 import { sendContractReviewToVendor } from '@/lib/email-service'
 import { getAppBaseUrl } from '@/lib/app-base-url'
+import { createContractVersion } from '@/lib/contract-version-service'
 
 /**
  * Vendor Contract Response Service
@@ -135,12 +136,80 @@ export async function getVendorResponseByToken(token: string) {
               email: true,
             },
           },
+          servicePR: {
+            include: {
+              items: {
+                include: {
+                  serviceItem: {
+                    include: {
+                      serviceCategory: true,
+                    },
+                  },
+                },
+              },
+              materialItems: {
+                include: {
+                  item: {
+                    include: {
+                      category: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
   })
 
   return response
+}
+
+async function ensureServicePRLoaded(response: VendorResponseRecord | null) {
+  if (!response || !response.contract) {
+    return response
+  }
+
+  if (response.contract.servicePR || !response.contract.servicePrId) {
+    return response
+  }
+
+  const servicePR = await prisma.servicePR.findUnique({
+    where: { id: response.contract.servicePrId },
+    include: {
+      items: {
+        include: {
+          serviceItem: {
+            include: {
+              serviceCategory: true,
+            },
+          },
+        },
+      },
+      materialItems: {
+        include: {
+          item: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!servicePR) {
+    return response
+  }
+
+  return {
+    ...response,
+    contract: {
+      ...response.contract,
+      servicePR,
+    },
+  }
 }
 
 /**
@@ -151,7 +220,8 @@ export async function validateResponseToken(token: string): Promise<{
   reason?: string
   response?: VendorResponseRecord
 }> {
-  const response = await getVendorResponseByToken(token)
+  const rawResponse = await getVendorResponseByToken(token)
+  const response = await ensureServicePRLoaded(rawResponse)
 
   if (!response) {
     return { valid: false, reason: 'Invalid or expired token' }
@@ -226,12 +296,38 @@ export async function recordVendorResponse(input: VendorResponseInput) {
       },
     })
   } else {
-    // Contract rejected - move back to DRAFT for revision
-    await prisma.serviceContract.update({
-      where: { id: response.contractId },
-      data: {
-        status: 'DRAFT',
-      },
+    // Contract rejected by vendor - reset approval state and return to DRAFT
+    await prisma.$transaction(async (tx) => {
+      const currentContract = await tx.serviceContract.findUnique({
+        where: { id: response.contractId },
+        select: { approvalId: true },
+      })
+
+      if (currentContract?.approvalId) {
+        await tx.approval.update({
+          where: { id: currentContract.approvalId },
+          data: { status: 'REJECTED' },
+        })
+      }
+
+      await tx.serviceContract.update({
+        where: { id: response.contractId },
+        data: {
+          status: 'DRAFT',
+          approvalId: null,
+        },
+      })
+    })
+
+    const changeReason =
+      (comments && String(comments).trim()) || 'Vendor requested changes'
+
+    await createContractVersion({
+      contractId: response.contractId,
+      changeReason,
+      changeDescription: 'Vendor requested changes',
+      createdBy: response.vendorEmail,
+      createdByName: response.vendorName || response.vendorEmail,
     })
   }
 

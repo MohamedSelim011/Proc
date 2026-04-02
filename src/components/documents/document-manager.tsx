@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Download, ExternalLink, FileText, Trash2, UploadCloud } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 type DocumentItem = {
   id: string;
@@ -27,12 +28,127 @@ export default function DocumentManager({
   getViewUrl,
   getDownloadUrl,
 }: DocumentManagerProps) {
+  const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleFile = async (file: File | null) => {
     if (!file || uploading) return;
     await onUpload(file);
+  };
+
+  const isInternalApiUrl = (url: string) => {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/');
+    } catch {
+      return false;
+    }
+  };
+
+  const openPublicUrl = (url: string, mode: 'view' | 'download', fileName?: string) => {
+    if (mode === 'view') {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        window.location.href = url;
+      }
+      return;
+    }
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    if (fileName) {
+      anchor.download = fileName;
+    }
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  };
+
+  const openInternalDocument = async (
+    url: string,
+    mode: 'view' | 'download',
+    fileName?: string
+  ) => {
+    const pendingTab = mode === 'view' ? window.open('about:blank', '_blank') : null;
+
+    if (pendingTab) {
+      pendingTab.opener = null;
+      pendingTab.document.title = 'Opening document...';
+      pendingTab.document.body.style.fontFamily = 'Arial, sans-serif';
+      pendingTab.document.body.style.padding = '24px';
+      pendingTab.document.body.innerHTML = '<p style="color:#475569;">Opening document...</p>';
+    }
+
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const isInlineFriendly =
+        contentType.startsWith('application/pdf') ||
+        contentType.startsWith('image/') ||
+        contentType.startsWith('text/');
+
+      if (mode === 'view' && isInlineFriendly) {
+        if (pendingTab) {
+          pendingTab.location.href = objectUrl;
+        } else {
+          const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+          if (!opened) {
+            window.location.href = objectUrl;
+          }
+        }
+      } else {
+        if (mode === 'view' && pendingTab) {
+          pendingTab.close();
+        }
+
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = fileName || 'document';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+
+        if (mode === 'view' && !isInlineFriendly) {
+          showToast('info', 'This file type does not support inline preview. Downloaded instead.');
+        }
+      }
+
+      window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 60000);
+    } catch (error) {
+      if (pendingTab) {
+        pendingTab.close();
+      }
+      console.error('Document access failed:', error);
+      showToast('error', mode === 'view' ? 'Failed to open document' : 'Failed to download document');
+    }
+  };
+
+  const handleDocumentAction = async (
+    rawUrl: string,
+    mode: 'view' | 'download',
+    fileName?: string
+  ) => {
+    const url = rawUrl.trim();
+    if (!url) {
+      showToast('error', 'Document URL is missing');
+      return;
+    }
+
+    if (isInternalApiUrl(url)) {
+      await openInternalDocument(url, mode, fileName);
+      return;
+    }
+
+    openPublicUrl(url, mode, fileName);
   };
 
   return (
@@ -107,23 +223,24 @@ export default function DocumentManager({
                   <td className="px-4 py-4 text-sm text-gray-600">{(doc.fileSize / 1024).toFixed(1)} KB</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      <a
-                        href={getViewUrl(doc.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => void handleDocumentAction(getViewUrl(doc.id), 'view', doc.documentName)}
                         className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                       >
                         <ExternalLink className="mr-1 h-3.5 w-3.5" />
                         View
-                      </a>
-                      <a
-                        href={getDownloadUrl(doc.id)}
-                        download={doc.documentName}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleDocumentAction(getDownloadUrl(doc.id), 'download', doc.documentName)
+                        }
                         className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                       >
                         <Download className="mr-1 h-3.5 w-3.5" />
                         Download
-                      </a>
+                      </button>
                       <button
                         type="button"
                         onClick={() => void onDelete(doc.id)}

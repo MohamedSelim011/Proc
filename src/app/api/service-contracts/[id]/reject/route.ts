@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { canUserApproveAtLevel, getApprovalStatus } from '@/lib/approval-routing'
-import { rejectContractVersion } from '@/lib/contract-version-service'
-import { notifyApprovalLevelCompleted } from '@/lib/notification-service'
+import { createContractVersion, rejectContractVersion } from '@/lib/contract-version-service'
 import { requireAuth } from '@/lib/jwt'
 
 /**
@@ -31,7 +30,7 @@ export async function POST(
     const userId = user.id;
     const userName = user.name || user.email || 'Unknown User';
 
-    if (!comments) {
+    if (!comments || String(comments).trim() === '') {
       return NextResponse.json(
         { success: false, error: 'Comments are required when rejecting a contract' },
         { status: 400 }
@@ -97,79 +96,60 @@ export async function POST(
       )
     }
 
-    // Create approval history entry for rejection
-    await prisma.approvalHistory.create({
-      data: {
-        approvalId: contract.approval.id,
-        level: nextLevel,
-        action: 'REJECTED',
-        approverId: userId,
-        approverName: userName || 'Unknown',
-        comments,
-        timestamp: new Date(),
-      },
-    })
+    const currentVersionNumber = contract.versionNumber
 
-    // Update approval status to REJECTED
-    await prisma.approval.update({
-      where: { id: contract.approval.id },
-      data: {
-        status: 'REJECTED',
-        comments,
-      },
-    })
-
-    // Update contract status back to DRAFT for revision
-    await prisma.serviceContract.update({
-      where: { id },
-      data: {
-        status: 'DRAFT',
-        approvalId: null, // Clear approval reference
-      },
-    })
-
-    // Reject the contract version
-    await rejectContractVersion(id, contract.versionNumber, userId)
-
-    // Notify informed parties about rejection
-    const rule = await prisma.approvalRule.findUnique({
-      where: { id: contract.approval.routingRuleId || '' },
-      include: {
-        routings: {
-          where: { raciType: 'INFORMED' },
+    await prisma.$transaction(async (tx) => {
+      await tx.approvalHistory.create({
+        data: {
+          approvalId: contract.approval.id,
+          serviceContractId: id,
+          contractVersionNumber: currentVersionNumber,
+          level: nextLevel,
+          action: 'REJECTED',
+          approverId: userId,
+          approverName: userName || 'Unknown',
+          comments,
+          timestamp: new Date(),
         },
-      },
-    })
-
-    if (rule && rule.routings.length > 0) {
-      const informedUsers = await prisma.user.findMany({
-        where: {
-          role: {
-            in: rule.routings.map((r) => r.approverRole),
-          },
-          isActive: true,
-        },
-        select: { id: true },
       })
 
-      await notifyApprovalLevelCompleted(
-        'SERVICE_CONTRACT',
-        id,
-        informedUsers.map((u) => u.id),
-        nextLevel,
-        userName || 'Approver',
-        'REJECTED'
-      )
-    }
+      await tx.approval.update({
+        where: { id: contract.approval.id },
+        data: {
+          status: 'REJECTED',
+          comments,
+        },
+      })
+
+      await tx.serviceContract.update({
+        where: { id },
+        data: {
+          status: 'DRAFT',
+          approvalId: null,
+        },
+      })
+    })
+
+    // Mark the current version as rejected (no new version here)
+    await rejectContractVersion(id, currentVersionNumber, userId)
+
+    // Create a new version with the rejection comment as change reason
+    await createContractVersion({
+      contractId: id,
+      changeReason: comments,
+      changeDescription: `Rejected at approval level ${nextLevel}`,
+      createdBy: userId,
+      createdByName: userName || 'Unknown',
+    })
 
     return NextResponse.json({
       success: true,
-      message: 'Contract rejected and returned to DRAFT status',
+      message: 'Contract rejected',
       rejection: {
         level: nextLevel,
         rejectedBy: userName || 'Approver',
         comments,
-        status: 'DRAFT',
+        status: 'REJECTED',
       },
     })
   } catch (error) {

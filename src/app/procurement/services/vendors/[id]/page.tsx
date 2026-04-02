@@ -55,7 +55,6 @@ interface Vendor {
   }>;
   _count?: {
     purchaseOrders: number;
-    invoices: number;
     evaluations: number;
   };
 }
@@ -188,7 +187,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -200,24 +199,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                   <dt className="text-sm font-medium text-gray-500 truncate">Purchase Orders</dt>
                   <dd className="text-lg font-medium text-gray-900">
                     {vendor._count?.purchaseOrders || 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Hash className="h-6 w-6 text-green-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Invoices</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {vendor._count?.invoices || 0}
                   </dd>
                 </dl>
               </div>
@@ -478,30 +459,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
-            <div className="space-y-2">
-              <Link
-                href={`/procurement/purchase-orders/new?vendorId=${vendorId}`}
-                className="block w-full text-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Create Purchase Order
-              </Link>
-              <Link
-                href={`/procurement/invoices/new?vendorId=${vendorId}`}
-                className="block w-full text-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Create Invoice
-              </Link>
-              <Link
-                href={`/procurement/services/contracts/new?vendorId=${vendorId}`}
-                className="block w-full text-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Create Service Contract
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -15,9 +15,11 @@ export async function POST(
     const contract = await prisma.serviceContract.findUnique({
       where: { id },
       include: {
-        pr: {
+        servicePR: {
           include: {
-            items: true
+            materialItems: true,
+            department: true,
+            project: true
           }
         }
       }
@@ -62,19 +64,19 @@ export async function POST(
         data: updateData
       });
 
-      const updatedPR = await tx.purchaseRequisition.update({
-        where: { id: contract.prId },
+      const updatedServicePR = await tx.servicePR.update({
+        where: { id: contract.servicePrId },
         data: { status: 'CONVERTED' }
       });
 
       // Auto-create material PO when contract is activated (for mixed requisitions)
       // Idempotent check: skip if a PO for this PR + vendor already exists.
       let autoCreatedPO: any = null;
-      const materialLines = contract.pr.items || [];
+      const materialLines = contract.servicePR?.materialItems || [];
       if (materialLines.length > 0) {
         const existingPO = await tx.purchaseOrder.findFirst({
           where: {
-            prId: contract.prId,
+            sourceServiceContractId: contract.id,
             vendorId: contract.vendorId
           }
         });
@@ -90,26 +92,30 @@ export async function POST(
           autoCreatedPO = await tx.purchaseOrder.create({
             data: {
               poNumber,
-              prId: contract.prId,
+              sourceServiceContractId: contract.id,
+              sourceDepartmentId: contract.departmentId || contract.servicePR?.departmentId || null,
+              sourceDepartmentName: contract.servicePR?.department?.name || null,
+              sourceProjectId: contract.projectId || contract.servicePR?.projectId || null,
+              sourceProjectName: contract.servicePR?.project?.projectName || null,
               vendorId: contract.vendorId,
-              deliveryDate: contract.pr.requiredByDate || contract.endDate || new Date(),
+              deliveryDate: contract.servicePR?.requiredByDate || contract.endDate || new Date(),
               deliveryAddress: {
                 type: 'AUTO_FROM_CONTRACT',
                 note: `Auto-generated when activating contract ${contract.contractNumber}`
               },
               paymentTerms: contract.paymentTerms,
-              status: 'COMPLETED',
+              status: 'DRAFT',
               totalAmount,
               invoicedAmount: 0,
               currency: contract.currency,
               createdBy: activatedBy || contract.createdBy || 'system',
-              items: {
+                  items: {
                 create: materialLines.map((line) => ({
                   itemId: line.itemId,
                   quantity: Number(line.quantity || 0),
                   unitPrice: Number(line.estimatedPrice || 0),
                   totalPrice: Number(line.quantity || 0) * Number(line.estimatedPrice || 0),
-                  deliveryDate: line.requiredDate || contract.pr.requiredByDate || contract.endDate || null
+                  deliveryDate: line.requiredDate || contract.servicePR?.requiredByDate || contract.endDate || null
                 }))
               }
             }
@@ -117,13 +123,13 @@ export async function POST(
         }
       }
 
-      return { updatedContract, updatedPR, autoCreatedPO };
+      return { updatedContract, updatedServicePR, autoCreatedPO };
     });
 
     return NextResponse.json({
       message: 'Service contract activated successfully',
       contract: result.updatedContract,
-      purchaseRequisition: result.updatedPR,
+      purchaseRequisition: result.updatedServicePR,
       autoCreatedPO: result.autoCreatedPO
     });
 

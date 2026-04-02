@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { uploadFileToS3 } from '@/lib/s3-storage';
 
 export async function GET(
   request: NextRequest,
@@ -16,15 +15,39 @@ export async function GET(
       include: {
         rfp: {
           include: {
-            pr: {
-              include: {
-                servicePR: {
-                  include: {
-                    items: {
-                      include: {
-                        serviceItem: {
-                          include: {
-                            serviceCategory: true
+            servicePR: {
+              select: {
+                id: true,
+                prNumber: true,
+                estimatedCost: true,
+                serviceScope: true,
+                serviceCategory: true,
+                serviceType: true,
+                paymentTerms: true,
+                technicalSpecifications: true,
+                qualityStandards: true,
+                duration: true,
+                durationUnit: true,
+                items: {
+                  select: {
+                    id: true,
+                    quantity: true,
+                    estimatedRate: true,
+                    unit: true,
+                    duration: true,
+                    durationUnit: true,
+                    specifications: true,
+                    deliverables: true,
+                    performanceMetrics: true,
+                    serviceItem: {
+                      select: {
+                        serviceCode: true,
+                        nameEn: true,
+                        description: true,
+                        unitOfMeasure: true,
+                        serviceCategory: {
+                          select: {
+                            nameEn: true
                           }
                         }
                       }
@@ -71,14 +94,22 @@ export async function GET(
       nowLocal: now.toLocaleString()
     });
 
+    const legacyPr = response.rfp.servicePR
+      ? {
+          id: response.rfp.servicePR.id,
+          prNumber: response.rfp.servicePR.prNumber,
+          estimatedCost: response.rfp.servicePR.estimatedCost,
+          servicePR: response.rfp.servicePR,
+        }
+      : null;
+
     return NextResponse.json({
       id: response.rfp.id,
       rfpNumber: response.rfp.rfpNumber,
       title: response.rfp.title,
       description: response.rfp.description,
       closingDate: response.rfp.closingDate,
-      evaluationCriteria: response.rfp.evaluationCriteria,
-      pr: response.rfp.pr,
+      pr: legacyPr,
       isOpen
     });
 
@@ -163,25 +194,25 @@ export async function POST(
 
     // Handle file upload
     let proposalFileUrl = '';
+    let proposalFileMeta: string | null = null;
     if (proposalFile && proposalFile.size > 0) {
       const bytes = await proposalFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Create upload directory if it doesn't exist
-      const uploadDir = join(process.cwd(), 'public', 'uploads', 'rfp-proposals');
-      try {
-        await mkdir(uploadDir, { recursive: true });
-      } catch (err) {
-        console.log('Upload directory already exists or created');
-      }
+      const uploadResult = await uploadFileToS3({
+        fileBuffer: buffer,
+        contentType: proposalFile.type || 'application/pdf',
+        originalFileName: proposalFile.name || `${rfpId}-${response.vendorId}-proposal.pdf`,
+        folder: `service-rfp-proposals/${rfpId}/${response.vendorId}`,
+      });
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const filename = `${rfpId}-${response.vendorId}-${timestamp}.pdf`;
-      const filepath = join(uploadDir, filename);
-
-      await writeFile(filepath, buffer);
-      proposalFileUrl = `/uploads/rfp-proposals/${filename}`;
+      proposalFileUrl = `/api/services/rfp/${rfpId}/responses/${response.id}/proposal`;
+      proposalFileMeta = JSON.stringify({
+        storageKey: uploadResult.key,
+        sourceUrl: uploadResult.url,
+        fileName: proposalFile.name,
+        contentType: proposalFile.type || 'application/pdf',
+      });
     }
 
     // Get client IP
@@ -199,6 +230,7 @@ export async function POST(
         deliveryTerms,
         notes,
         proposalFileUrl,
+        attachments: proposalFileMeta,
         submittedAt: new Date(),
         tokenUsed: true,
         submissionIp: ip,

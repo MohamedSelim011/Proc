@@ -20,7 +20,6 @@ export async function GET(
         _count: {
           select: {
             purchaseOrders: true,
-            invoices: true,
             evaluations: true
           }
         }

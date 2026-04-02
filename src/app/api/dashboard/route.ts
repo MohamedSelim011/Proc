@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 
 // GET /api/dashboard - Get dashboard statistics
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get date range for current month
     const now = new Date();
@@ -13,11 +13,11 @@ export async function GET(request: NextRequest) {
     // Fetch all statistics in parallel
     const [
       vendorStats,
+      materialRequestStats,
       prStats,
       poStats,
       invoiceStats,
       monthlySpend,
-      pendingApprovals,
       topVendors,
       categorySpend
     ] = await Promise.all([
@@ -27,6 +27,15 @@ export async function GET(request: NextRequest) {
         _count: true,
         _avg: {
           performanceScore: true
+        }
+      }),
+
+      // Material Request statistics (from integration)
+      prisma.hrMaterialRequest.groupBy({
+        by: ['status'],
+        _count: true,
+        _sum: {
+          budgetTotalAmount: true
         }
       }),
 
@@ -65,11 +74,6 @@ export async function GET(request: NextRequest) {
       // Monthly spend trend (last 6 months)
       getMonthlySpend(),
 
-      // Pending approvals
-      prisma.approval.count({
-        where: { status: 'PENDING' }
-      }),
-
       // Top vendors by spend
       getTopVendors(5),
 
@@ -85,6 +89,14 @@ export async function GET(request: NextRequest) {
       approved: prStats.find(s => s.status === 'APPROVED')?._count || 0,
       rejected: prStats.find(s => s.status === 'REJECTED')?._count || 0,
       totalValue: prStats.reduce((sum, stat) => sum + Number(stat._sum.estimatedCost || 0), 0)
+    };
+
+    const materialSummary = {
+      total: materialRequestStats.reduce((sum, stat) => sum + stat._count, 0),
+      approved: materialRequestStats.find(s => ['APPROVED', 'Approved', 'approved'].includes(s.status))?._count || 0,
+      pending: materialRequestStats.find(s => ['PENDING', 'Pending', 'pending'].includes(s.status))?._count || 0,
+      rejected: materialRequestStats.find(s => ['REJECTED', 'Rejected', 'rejected'].includes(s.status))?._count || 0,
+      totalValue: materialRequestStats.reduce((sum, stat) => sum + Number(stat._sum.budgetTotalAmount || 0), 0)
     };
 
     // Process invoice statistics
@@ -152,13 +164,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       // Dashboard-specific metrics (for backward compatibility)
       totalPRs: prSummary.total,
-      pendingApprovals,
+      draftPRs: prSummary.draft,
+      submittedPRs: prSummary.submitted,
+      approvedPRs: prSummary.approved,
+      rejectedPRs: prSummary.rejected,
+      totalPRValue: prSummary.totalValue,
       activePOs,
+      completedPOs: completedPOs.length,
       pendingDeliveries,
       totalSpend: Number(totalSpendResult._sum.totalAmount || 0),
-      budgetUtilization: 0, // Requires budget data
-      onTimeDelivery: 0, // Requires expectedDeliveryDate field in schema
-      costSavings: 0, // Requires historical pricing data
+      monthlySpend: Number(poStats._sum.totalAmount || 0),
+      monthlyOrders: poStats._count,
+      activeVendors: vendorStats._count,
+      averageVendorScore: Number(vendorStats._avg.performanceScore || 0),
+      totalInvoices: invoiceSummary.total,
+      unpaidInvoices: invoiceSummary.unpaid,
+      overdueInvoices: invoiceSummary.overdue,
+      totalUnpaid: invoiceSummary.totalUnpaid,
       avgLeadTime,
 
       // Detailed breakdowns
@@ -166,9 +188,9 @@ export async function GET(request: NextRequest) {
         activeVendors: vendorStats._count,
         averageVendorScore: vendorStats._avg.performanceScore || 0,
         monthlySpend: Number(poStats._sum.totalAmount || 0),
-        monthlyOrders: poStats._count,
-        pendingApprovals
+        monthlyOrders: poStats._count
       },
+      materialRequests: materialSummary,
       purchaseRequisitions: prSummary,
       invoices: invoiceSummary,
       charts: {

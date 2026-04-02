@@ -68,14 +68,20 @@ export async function apiFetch(
     }
   }
   
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers = new Headers(options.headers);
+  const body = options.body;
+  const isFormDataBody = typeof FormData !== 'undefined' && body instanceof FormData;
+  const isUrlEncodedBody =
+    typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
+  const shouldSetJsonContentType = !isFormDataBody && !isUrlEncodedBody && !headers.has('Content-Type');
+
+  if (shouldSetJsonContentType) {
+    headers.set('Content-Type', 'application/json');
+  }
   
   // Add Authorization header if token exists
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const defaultOptions: RequestInit = {

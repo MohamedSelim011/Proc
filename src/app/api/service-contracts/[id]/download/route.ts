@@ -18,26 +18,22 @@ export async function GET(
       where: { id },
       include: {
         vendor: true,
-        pr: {
+        servicePR: {
           include: {
             items: {
               include: {
-                item: {
+                serviceItem: {
                   include: {
-                    category: true
+                    serviceCategory: true
                   }
                 }
               }
             },
-            servicePR: {
+            materialItems: {
               include: {
-                items: {
+                item: {
                   include: {
-                    serviceItem: {
-                      include: {
-                        serviceCategory: true
-                      }
-                    }
+                    category: true
                   }
                 }
               }
@@ -350,8 +346,8 @@ export async function GET(
                   <div class="info-value">${contract.contractNumber}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Purchase Requisition</div>
-                  <div class="info-value">${contract.pr?.prNumber || 'N/A'}</div>
+                  <div class="info-label">Service Requisition</div>
+                  <div class="info-value">${contract.servicePR?.prNumber || 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Vendor</div>
@@ -376,33 +372,33 @@ export async function GET(
             </div>
           </div>
 
-          ${contract.pr?.servicePR ? `
+          ${contract.servicePR ? `
           <div class="section">
             <div class="section-title">Service Requirements</div>
             <div class="info-grid">
               <div class="info-column">
                 <div class="info-item">
                   <div class="info-label">Service Scope</div>
-                  <div class="info-value">${contract.pr.servicePR.serviceScope || 'N/A'}</div>
+                  <div class="info-value">${contract.servicePR.serviceScope || 'N/A'}</div>
                 </div>
               </div>
               <div class="info-column">
                 <div class="info-item">
                   <div class="info-label">Duration</div>
-                  <div class="info-value">${contract.pr.servicePR.duration || 0} ${contract.pr.servicePR.durationUnit || 'DAYS'}</div>
+                  <div class="info-value">${contract.servicePR.duration || 0} ${contract.servicePR.durationUnit || 'DAYS'}</div>
                 </div>
               </div>
             </div>
-            ${contract.pr.servicePR.technicalSpecifications ? `
+            ${contract.servicePR.technicalSpecifications ? `
               <div style="margin-top: 15px; padding: 15px; background: #f9fafb; border-radius: 6px;">
                 <div class="info-label">Technical Specifications</div>
-                <div class="info-value" style="margin-top: 8px;">${contract.pr.servicePR.technicalSpecifications}</div>
+                <div class="info-value" style="margin-top: 8px;">${contract.servicePR.technicalSpecifications}</div>
               </div>
             ` : ''}
           </div>
           ` : ''}
 
-          ${contract.pr?.servicePR?.items && contract.pr.servicePR.items.length > 0 ? `
+          ${contract.servicePR?.items && contract.servicePR.items.length > 0 ? `
           <div class="section">
             <div class="section-title">Service Items</div>
             <table>
@@ -417,7 +413,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${contract.pr.servicePR.items.map((item: any) => `
+                ${contract.servicePR.items.map((item: any) => `
                   <tr>
                     <td>${item.serviceItem?.serviceCode || 'N/A'}</td>
                     <td>${item.serviceItem?.nameEn || 'N/A'}</td>
@@ -432,7 +428,7 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${contract.pr?.items && contract.pr.items.length > 0 ? `
+          ${contract.servicePR?.materialItems && contract.servicePR.materialItems.length > 0 ? `
           <div class="section">
             <div class="section-title">Material Items (Mixed Requisition)</div>
             <table>
@@ -447,7 +443,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${contract.pr.items.map((item: any) => `
+                ${contract.servicePR.materialItems.map((item: any) => `
                   <tr>
                     <td>${item.item?.itemCode || 'N/A'}</td>
                     <td>${item.item?.nameEn || 'N/A'}</td>
@@ -510,11 +506,11 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${contract.pr?.justification ? `
+          ${contract.servicePR?.justification ? `
           <div class="section">
             <div class="section-title">Business Justification</div>
             <div style="padding: 15px; background: #f9fafb; border-radius: 6px;">
-              <p style="font-size: 12px; color: #374151; white-space: pre-wrap;">${contract.pr.justification}</p>
+              <p style="font-size: 12px; color: #374151; white-space: pre-wrap;">${contract.servicePR.justification}</p>
             </div>
           </div>
           ` : ''}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Mail, KeySquare, ArrowRight, Shield } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
@@ -11,27 +11,13 @@ export default function SignInPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    remember: false,
   });
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    const rememberedEmail = localStorage.getItem("wujha-remembered-email");
-    if (rememberedEmail) {
-      setFormData((prev) => ({ ...prev, email: rememberedEmail, remember: true }));
-    }
-  }, []);
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (formData.remember) {
-      localStorage.setItem("wujha-remembered-email", formData.email);
-    } else {
-      localStorage.removeItem("wujha-remembered-email");
-    }
 
     setIsLoading(true);
     try {
@@ -212,27 +198,6 @@ export default function SignInPage() {
                   />
                 </div>
               </div>
-
-              {/* Remember Me & Forgot Password */}
-              {/* <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.remember}
-                    onChange={(e) =>
-                      setFormData({ ...formData, remember: e.target.checked })
-                    }
-                    className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                  />
-                  <span className="text-lg text-gray-700 font-medium">Remember Me</span>
-                </label>
-                <button
-                  type="button"
-                  className="text-lg text-orange-600 hover:text-orange-700 font-semibold transition-colors"
-                >
-                  Lost your password?
-                </button>
-              </div> */}
 
               {/* Sign In Button */}
               <button

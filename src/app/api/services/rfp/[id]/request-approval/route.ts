@@ -36,7 +36,11 @@ export async function POST(
     // Find the RFP
     const rfp = await prisma.serviceRFP.findUnique({
       where: { id },
-      include: { pr: true }
+      select: {
+        id: true,
+        status: true,
+        servicePrId: true
+      }
     });
 
     if (!rfp) {
@@ -76,7 +80,7 @@ export async function POST(
         documentType: 'SERVICE_RFP',
         documentId: id,
         serviceRFPId: id,
-        prId: rfp.prId,
+        servicePrId: rfp.servicePrId,
         approverId: approvers[0].id,
         status: 'PENDING',
         level: 1

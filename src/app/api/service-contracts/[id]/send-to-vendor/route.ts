@@ -64,18 +64,37 @@ export async function POST(
       )
     }
 
+    const existingResponse = await prisma.vendorContractResponse.findFirst({
+      where: {
+        contractId: id,
+        versionNumber: contract.versionNumber,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (existingResponse) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Vendor review has already been sent for this contract version',
+        },
+        { status: 400 }
+      )
+    }
+
     // Create vendor response request and send email
+    const vendorName = contract.vendor.nameEn || contract.vendor.nameAr || 'Vendor';
     const vendorResponse = await createVendorResponseRequest({
       contractId: id,
       versionNumber: contract.versionNumber,
       vendorEmail: contract.vendor.email,
-      vendorName: contract.vendor.name,
+      vendorName,
       expiryDays,
     })
 
     return NextResponse.json({
       success: true,
-      message: `Contract sent to ${contract.vendor.name} for review`,
+      message: `Contract sent to ${vendorName} for review`,
       vendorResponse: {
         email: vendorResponse.vendorEmail,
         expiresAt: vendorResponse.expiresAt,

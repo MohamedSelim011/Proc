@@ -47,7 +47,7 @@ export async function POST(
       where: { id },
       include: { 
         approvals: true,
-        pr: true
+        servicePR: true
       }
     });
 

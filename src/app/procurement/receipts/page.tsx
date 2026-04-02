@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { 
   Plus, 
-  Search, 
-  Filter, 
   Download, 
   Eye, 
   Edit, 
@@ -14,27 +12,40 @@ import {
   Clock,
   XCircle,
   AlertTriangle,
-  Truck
+  Truck,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { apiFetch } from '@/lib/apiFetch';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface GoodsReceipt {
   id: string;
   grNumber: string;
   receivedDate: string;
   receivedBy: string;
-  status: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'REJECTED';
+  status:
+    | 'DRAFT'
+    | 'PENDING'
+    | 'INSPECTING'
+    | 'PENDING_APPROVAL'
+    | 'APPROVED'
+    | 'PARTIAL'
+    | 'PARTIALLY_ACCEPTED'
+    | 'COMPLETED'
+    | 'REJECTED';
   qualityChecked: boolean;
   qualityComments?: string;
-  po: {
+  po?: {
     poNumber: string;
     vendor: {
       nameEn: string;
       email: string;
     };
   };
+  rawPayload?: Record<string, unknown>;
   items: Array<{
     id: string;
     orderedQuantity: number;
@@ -61,12 +72,16 @@ export default function GoodsReceiptsPage() {
   const { showToast } = useToast();
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [integrationMiddlewareConfigured, setIntegrationMiddlewareConfigured] = useState<boolean | null>(null);
+  const [goodsReceiptsIntegrationEnabled, setGoodsReceiptsIntegrationEnabled] = useState<boolean | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
     limit: 10,
     total: 0,
     totalPages: 0
   });
+  const initialSyncTriggeredRef = useRef(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -75,13 +90,39 @@ export default function GoodsReceiptsPage() {
     search: ''
   });
 
-  useEffect(() => {
-    fetchReceipts();
-  }, [pagination.page, pagination.limit, filters]);
-
-  const fetchReceipts = async () => {
+  const loadFlags = useCallback(async () => {
     try {
-      setLoading(true);
+      const response = await apiFetch('/api/system/integration-flags', { cache: 'no-store' });
+      const payload = (await response.json()) as {
+        success?: boolean;
+        data?: {
+          integrationMiddlewareConfigured?: boolean;
+          goodsReceiptsIntegrationEnabled?: boolean;
+        };
+      };
+      setIntegrationMiddlewareConfigured(Boolean(payload?.data?.integrationMiddlewareConfigured));
+      setGoodsReceiptsIntegrationEnabled(Boolean(payload?.data?.goodsReceiptsIntegrationEnabled));
+      console.log('[Goods Receipts][UI] integration flags', {
+        integrationMiddlewareConfigured: Boolean(payload?.data?.integrationMiddlewareConfigured),
+        goodsReceiptsIntegrationEnabled: Boolean(payload?.data?.goodsReceiptsIntegrationEnabled),
+      });
+    } catch {
+      setIntegrationMiddlewareConfigured(false);
+      setGoodsReceiptsIntegrationEnabled(false);
+      console.error('[Goods Receipts][UI] Failed to load integration flags');
+    }
+  }, []);
+
+  const fetchReceipts = useCallback(async (options?: { showLoader?: boolean }) => {
+    if (goodsReceiptsIntegrationEnabled === null) {
+      return;
+    }
+
+    const showLoader = options?.showLoader ?? true;
+    try {
+      if (showLoader) {
+        setLoading(true);
+      }
       
       const params = new URLSearchParams({
         page: pagination.page.toString(),
@@ -91,21 +132,128 @@ export default function GoodsReceiptsPage() {
         ...(filters.search && { search: filters.search })
       });
 
-      const response = await fetch(`/api/goods-receipts?${params}`);
+      const response = await apiFetch(`/api/goods-receipts?${params.toString()}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (response.ok) {
         setReceipts(data.receipts || []);
         setPagination(data.pagination);
+        console.log('[Goods Receipts][UI] list loaded', {
+          count: Array.isArray(data.receipts) ? data.receipts.length : 0,
+          total: data?.pagination?.total ?? 0,
+          page: data?.pagination?.page ?? pagination.page,
+          limit: data?.pagination?.limit ?? pagination.limit,
+        });
       } else {
         console.error('Error fetching goods receipts:', data.error);
+        showToast('error', data?.error || 'Failed to load goods receipts');
       }
     } catch (error) {
       console.error('Error fetching goods receipts:', error);
+      showToast('error', 'Failed to load goods receipts');
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
-  };
+  }, [filters.poNumber, filters.search, filters.status, goodsReceiptsIntegrationEnabled, pagination.limit, pagination.page, showToast]);
+
+  useEffect(() => {
+    void loadFlags();
+  }, [loadFlags]);
+
+  useEffect(() => {
+    if (goodsReceiptsIntegrationEnabled === null) return;
+    void fetchReceipts();
+  }, [fetchReceipts, goodsReceiptsIntegrationEnabled]);
+
+  useEffect(() => {
+    if (goodsReceiptsIntegrationEnabled !== true) {
+      initialSyncTriggeredRef.current = false;
+      setSyncing(false);
+      return;
+    }
+
+    if (initialSyncTriggeredRef.current) return;
+    initialSyncTriggeredRef.current = true;
+
+    let cancelled = false;
+    const runInitialSync = async () => {
+      setSyncing(true);
+      try {
+        const syncResponse = await apiFetch('/api/goods-receipts/sync', {
+          method: 'POST',
+        });
+        const syncPayload = (await syncResponse.json().catch(() => ({}))) as {
+          success?: boolean;
+          skipped?: boolean;
+          warning?: string;
+          upstreamErrors?: string[];
+          synced?: number;
+          failedRecords?: number;
+          missingLocalPo?: number;
+          retrievedFromIntegration?: number;
+          totalLocalRows?: number;
+        };
+
+        console.log('[Goods Receipts][UI] sync response', {
+          httpStatus: syncResponse.status,
+          ...syncPayload,
+        });
+
+        if (!syncResponse.ok || syncPayload.success === false) {
+          console.warn('[Goods Receipts][UI] Sync warning', {
+            status: syncResponse.status,
+            warning: syncPayload.warning,
+            upstreamErrors: syncPayload.upstreamErrors,
+          });
+          showToast(
+            'error',
+            syncPayload.warning ||
+              syncPayload.upstreamErrors?.[0] ||
+              'Goods receipts sync failed. Please check integration middleware/inventory API.',
+          );
+          return;
+        }
+
+        if (syncPayload.skipped) {
+          showToast(
+            'error',
+            syncPayload.warning ||
+              syncPayload.upstreamErrors?.[0] ||
+              'Goods receipts sync skipped due upstream failure.',
+          );
+          return;
+        }
+
+        showToast(
+          'success',
+          `Goods Receipts sync finished. Retrieved ${syncPayload.retrievedFromIntegration ?? 0}, synced ${syncPayload.synced ?? 0}, failed ${syncPayload.failedRecords ?? 0}.`,
+        );
+
+        if ((syncPayload.missingLocalPo ?? 0) > 0) {
+          showToast(
+            'warning',
+            `${syncPayload.missingLocalPo} record(s) were missing local PO mapping and were linked without PO.`,
+          );
+        }
+
+        if (!cancelled) {
+          await fetchReceipts({ showLoader: false });
+        }
+      } finally {
+        if (!cancelled) {
+          setSyncing(false);
+        }
+      }
+    };
+
+    void runInitialSync();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchReceipts, goodsReceiptsIntegrationEnabled, showToast]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -126,10 +274,11 @@ export default function GoodsReceiptsPage() {
     });
   };
 
-  const getStatusIcon = (status: string) => {
+const getStatusIcon = (status: string) => {
     switch (status) {
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'PARTIALLY_ACCEPTED':
       case 'PARTIAL':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'REJECTED':
@@ -139,10 +288,11 @@ export default function GoodsReceiptsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
+      case 'PARTIALLY_ACCEPTED':
       case 'PARTIAL':
         return 'bg-yellow-100 text-yellow-800';
       case 'REJECTED':
@@ -180,7 +330,7 @@ export default function GoodsReceiptsPage() {
         ...(filters.search && { search: filters.search })
       });
 
-      const response = await fetch(`/api/goods-receipts?${params}`);
+      const response = await apiFetch(`/api/goods-receipts?${params.toString()}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (!response.ok) {
@@ -195,9 +345,9 @@ export default function GoodsReceiptsPage() {
           'GR Number': gr.grNumber,
           'Received Date': formatDate(gr.receivedDate),
           'Received By': gr.receivedBy,
-          'PO Number': gr.po.poNumber,
-          'Vendor Name': gr.po.vendor.nameEn,
-          'Vendor Email': gr.po.vendor.email,
+          'PO Number': gr.po?.poNumber || 'WITHOUT PO',
+          'Vendor Name': gr.po?.vendor?.nameEn || gr.rawPayload?.supplier?.name || 'N/A',
+          'Vendor Email': gr.po?.vendor?.email || 'N/A',
           'Status': gr.status,
           'Quality Checked': gr.qualityChecked ? 'Yes' : 'No',
           'Quality Comments': gr.qualityComments || 'N/A',
@@ -260,17 +410,34 @@ export default function GoodsReceiptsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Goods Receipts</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Track and manage goods receipts from purchase orders
+            {goodsReceiptsIntegrationEnabled === null
+              ? 'Loading integration settings...'
+              : goodsReceiptsIntegrationEnabled
+              ? 'Synced goods receipts from Inventory system'
+              : 'Internal goods receipts managed in Procurement'}
           </p>
         </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-          <Link
-            href="/procurement/receipts/new"
-            className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Goods Receipt
-          </Link>
+        <div className="mt-4 flex items-center gap-2 sm:ml-16 sm:mt-0 sm:flex-none">
+          {goodsReceiptsIntegrationEnabled === false ? (
+            <Link
+              href="/procurement/receipts/new"
+              className="inline-flex items-center justify-center rounded-md bg-wujha-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-wujha-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wujha-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Goods Receipt
+            </Link>
+          ) : null}
+          {syncing ? (
+            <span className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              Syncing
+            </span>
+          ) : null}
+          {goodsReceiptsIntegrationEnabled === true && integrationMiddlewareConfigured === false ? (
+            <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+              Integration middleware URL not configured
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -320,7 +487,11 @@ export default function GoodsReceiptsPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Partial</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {receipts.filter(r => r.status === 'PARTIAL').length}
+                    {
+                      receipts.filter(
+                        (r) => r.status === 'PARTIALLY_ACCEPTED' || r.status === 'PARTIAL',
+                      ).length
+                    }
                   </dd>
                 </dl>
               </div>
@@ -363,17 +534,18 @@ export default function GoodsReceiptsPage() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
           >
             <option value="">All</option>
             <option value="PENDING">Pending</option>
-            <option value="PARTIAL">Partial</option>
+            <option value="PARTIALLY_ACCEPTED">Partial</option>
+            <option value="PARTIAL">Partial (Legacy)</option>
             <option value="COMPLETED">Completed</option>
             <option value="REJECTED">Rejected</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="PO Number">
           <input
@@ -462,15 +634,17 @@ export default function GoodsReceiptsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {gr.po.poNumber}
+                          {gr.po?.poNumber || 'WITHOUT PO'}
                         </div>
                         <div className="text-sm text-gray-500">
                           {gr.items.length} item{gr.items.length > 1 ? 's' : ''}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{gr.po.vendor.nameEn}</div>
-                        <div className="text-sm text-gray-500">{gr.po.vendor.email}</div>
+                        <div className="text-sm text-gray-900">
+                          {gr.po?.vendor?.nameEn || gr.rawPayload?.supplier?.name || 'N/A'}
+                        </div>
+                        <div className="text-sm text-gray-500">{gr.po?.vendor?.email || '-'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -521,7 +695,10 @@ export default function GoodsReceiptsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
-                          {(gr.status === 'PENDING' || gr.status === 'PARTIAL') && (
+                          {(gr.status === 'PENDING' ||
+                            gr.status === 'PARTIALLY_ACCEPTED' ||
+                            gr.status === 'PARTIAL') &&
+                          goodsReceiptsIntegrationEnabled === false && (
                             <Link
                               href={`/procurement/receipts/${gr.id}/edit`}
                               className="text-gray-600 hover:text-gray-900"

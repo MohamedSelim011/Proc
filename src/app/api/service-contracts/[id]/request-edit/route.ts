@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { canUserApproveAtLevel, getApprovalStatus } from '@/lib/approval-routing'
+import { createContractVersion } from '@/lib/contract-version-service'
 import { requireAuth } from '@/lib/jwt'
 import { sendEmail } from '@/lib/email-service'
 import { getAppBaseUrl } from '@/lib/app-base-url'
@@ -97,10 +98,21 @@ export async function POST(
       )
     }
 
+    // Persist the approver's comment as a new version entry
+    const editVersion = await createContractVersion({
+      contractId: id,
+      changeReason: comments,
+      changeDescription: 'Edit requested',
+      createdBy: userId,
+      createdByName: userName || 'Unknown',
+    })
+
     // Create approval history entry for edit request
     await prisma.approvalHistory.create({
       data: {
         approvalId: contract.approval.id,
+        serviceContractId: id,
+        contractVersionNumber: editVersion.versionNumber,
         level: nextLevel,
         action: 'REQUEST_EDIT',
         approverId: userId,
@@ -110,22 +122,22 @@ export async function POST(
       },
     })
 
-    // Update approval status to indicate edit requested
-    await prisma.approval.update({
-      where: { id: contract.approval.id },
-      data: {
-        status: 'PENDING',
-        comments: `Edit requested by ${userName}: ${comments}`,
-      },
-    })
+    await prisma.$transaction(async (tx) => {
+      await tx.approval.update({
+        where: { id: contract.approval.id },
+        data: {
+          status: 'PENDING',
+          comments: `Edit requested by ${userName}: ${comments}`,
+        },
+      })
 
-    // Update contract status back to DRAFT and clear approval
-    await prisma.serviceContract.update({
-      where: { id },
-      data: {
-        status: 'DRAFT',
-        approvalId: null, // Clear approval for resubmission
-      },
+      await tx.serviceContract.update({
+        where: { id },
+        data: {
+          status: 'DRAFT',
+          approvalId: null,
+        },
+      })
     })
 
     // Send notification to contract creator

@@ -3,7 +3,6 @@ import { getAuthenticatedUser } from '@/lib/jwt';
 import { prisma } from '@/lib/db';
 import {
   createMR,
-  getInventoryItemById,
   getInventoryUserIdByEmail,
   isInventoryConfigured,
 } from '@/lib/inventory-client';
@@ -78,7 +77,6 @@ export async function POST(request: NextRequest) {
   };
 
   const departmentId = b.departmentId?.trim();
-  const budgetCode = 'AUTO';
   if (!departmentId) {
     console.error(`${LOG_PREFIX} → Validation: missing departmentId`);
     return Response.json(
@@ -123,25 +121,15 @@ export async function POST(request: NextRequest) {
       );
       const inventoryId = lineWithId?.inventoryItemId?.trim();
 
-      if (isInventoryConfigured() && inventoryId) {
-        const invItem = await getInventoryItemById(inventoryId);
-        if (invItem.success) {
-          const inv = invItem.data;
-          const nameEn = inv.name?.trim() || inv.code || code;
-          const nameAr = inv.arabicName?.trim() || nameEn;
-          const uom = inv.baseUom?.abbreviation?.trim() || inv.baseUom?.name?.trim() || 'EA';
-          const created = await prisma.item.create({
-            data: {
-              itemCode: inv.code?.trim() || code,
-              nameEn,
-              nameAr,
-              description: inv.description?.trim() || null,
-              categoryId: defaultCategoryId,
-              unitOfMeasure: uom,
-            },
-            select: { id: true, itemCode: true },
-          });
-          codeToId.set(created.itemCode, created.id);
+      if (inventoryId) {
+        const local = await prisma.item.findFirst({
+          where: {
+            OR: [{ externalId: inventoryId }, { id: inventoryId }, { itemCode: inventoryId }],
+          },
+          select: { id: true, itemCode: true },
+        });
+        if (local) {
+          codeToId.set(code, local.id);
           continue;
         }
       }
@@ -209,11 +197,9 @@ export async function POST(request: NextRequest) {
       priority,
       status: 'DRAFT',
       estimatedCost,
-      budgetCode,
       justification: b.justification?.trim() || null,
       requiredByDate: b.requiredByDate ? new Date(b.requiredByDate) : null,
       projectId: b.projectId?.trim() || null,
-      costCenter: null,
       sourceMaterialRequestId,
       createdBy: requesterId,
       items: {

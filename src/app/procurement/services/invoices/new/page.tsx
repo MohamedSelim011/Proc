@@ -18,6 +18,7 @@ import {
   Users
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Contract {
   id: string;
@@ -35,7 +36,7 @@ interface Contract {
     name: string;
     amount: number;
     targetDate: string;
-    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    completedAt?: string | null;
   }[];
 }
 
@@ -188,21 +189,21 @@ export default function NewServiceInvoicePage() {
         name: 'Project Initiation',
         amount: totalAmount * 0.3,
         targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: 'COMPLETED' as const
+        completedAt: new Date().toISOString()
       },
       {
         id: `milestone-${contractId}-2`,
         name: 'Implementation Phase',
         amount: totalAmount * 0.5,
         targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: 'IN_PROGRESS' as const
+        completedAt: null
       },
       {
         id: `milestone-${contractId}-3`,
         name: 'Project Completion',
         amount: totalAmount * 0.2,
         targetDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: 'PENDING' as const
+        completedAt: null
       }
     ];
   };
@@ -252,7 +253,7 @@ export default function NewServiceInvoicePage() {
     if (milestoneItems.length > 0) {
       milestoneItems.forEach(item => {
         const milestone = selectedContract.milestones.find(m => m.id === item.milestoneId);
-        if (milestone && milestone.status !== 'COMPLETED') {
+        if (milestone && !milestone.completedAt) {
           discrepancies.push({
             type: 'MILESTONE',
             description: `Milestone "${milestone.name}" is not completed`,
@@ -509,7 +510,7 @@ export default function NewServiceInvoicePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Service Type
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value as any }))}
@@ -519,7 +520,7 @@ export default function NewServiceInvoicePage() {
                   <option value="TRAINING">Training</option>
                   <option value="SUPPORT">Support</option>
                   <option value="OTHER">Other</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -577,7 +578,7 @@ export default function NewServiceInvoicePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Service Contract *
               </label>
-              <select
+              <SearchableSelect
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 ${
                   errors.contractId ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -590,7 +591,7 @@ export default function NewServiceInvoicePage() {
                     {contract.contractNumber} - {contract.vendor.nameEn} - {(Number(contract.totalAmount) || 0).toLocaleString()} {contract.currency}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
               {errors.contractId && (
                 <p className="mt-1 text-sm text-red-600">{errors.contractId}</p>
               )}
@@ -630,7 +631,7 @@ export default function NewServiceInvoicePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Service Receipt Note (SRN) *
               </label>
-              <select
+              <SearchableSelect
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 ${
                   errors.srnId ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -643,7 +644,7 @@ export default function NewServiceInvoicePage() {
                     {srn.srnNumber} - {srn.acceptanceStatus} - {new Date(srn.completionDate).toLocaleDateString()}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
               {errors.srnId && (
                 <p className="mt-1 text-sm text-red-600">{errors.srnId}</p>
               )}
@@ -768,7 +769,7 @@ export default function NewServiceInvoicePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Milestone Reference
                       </label>
-                      <select
+                      <SearchableSelect
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
                         value={item.milestoneId || ''}
                         onChange={(e) => updateInvoiceItem(index, 'milestoneId', e.target.value)}
@@ -779,7 +780,7 @@ export default function NewServiceInvoicePage() {
                             {milestone.name} - {milestone.amount.toLocaleString()} {selectedContract.currency}
                           </option>
                         ))}
-                      </select>
+                      </SearchableSelect>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">Total Amount</p>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Check, Eye, FileText, Loader2, X } from 'lucide-react';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
 import { useToast } from '@/components/ui/toast';
 import { apiFetch } from '@/lib/apiFetch';
 import { getUserData } from '@/lib/jwt';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 type MaterialRequest = {
   id: string;
@@ -40,8 +41,12 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [materialRequestsIntegrationEnabled, setMaterialRequestsIntegrationEnabled] =
+    useState<boolean | null>(null);
   const [rejectModal, setRejectModal] = useState<{ open: boolean; row: MaterialRequest | null }>({ open: false, row: null });
   const [rejectionReason, setRejectionReason] = useState('');
+  const initialSyncTriggeredRef = useRef(false);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -52,6 +57,30 @@ export default function RequestsPage() {
     const user = typeof window !== 'undefined' ? getUserData() : null;
     if (!user) return '';
     return user.employeeId || user.id || '';
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadFlags = async () => {
+      try {
+        const response = await apiFetch('/api/system/integration-flags', { cache: 'no-store' });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          data?: { materialRequestsIntegrationEnabled?: boolean };
+        };
+        if (!active) return;
+        setMaterialRequestsIntegrationEnabled(Boolean(payload?.data?.materialRequestsIntegrationEnabled));
+      } catch {
+        if (!active) return;
+        setMaterialRequestsIntegrationEnabled(false);
+      }
+    };
+
+    void loadFlags();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const fetchRequests = async () => {
@@ -76,18 +105,6 @@ export default function RequestsPage() {
       const typed = payload as ApiResponse;
       setRows(Array.isArray(typed.data) ? typed.data : []);
 
-      // Background sync from external API into DB, then refresh list.
-      void apiFetch('/api/hr/material-requests/sync', { method: 'POST' })
-        .then(async (syncResponse) => {
-          if (!syncResponse.ok) return;
-          const refetch = await apiFetch(`/api/hr/material-requests?${params.toString()}`, { cache: 'no-store' });
-          if (!refetch.ok) return;
-          const refetchedPayload = (await refetch.json()) as ApiResponse;
-          setRows(Array.isArray(refetchedPayload.data) ? refetchedPayload.data : []);
-        })
-        .catch(() => {
-          // keep current list if sync fails
-        });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load requests');
       setRows([]);
@@ -100,6 +117,39 @@ export default function RequestsPage() {
     void fetchRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.department, filters.search, filters.status]);
+
+  useEffect(() => {
+    if (materialRequestsIntegrationEnabled !== true) {
+      initialSyncTriggeredRef.current = false;
+      setSyncing(false);
+      return;
+    }
+
+    if (initialSyncTriggeredRef.current) {
+      return;
+    }
+
+    initialSyncTriggeredRef.current = true;
+    let cancelled = false;
+
+    const runInitialSync = async () => {
+      setSyncing(true);
+      try {
+        const syncResponse = await apiFetch('/api/hr/material-requests/sync', { method: 'POST' });
+        if (!syncResponse.ok || cancelled) return;
+        await fetchRequests();
+      } finally {
+        if (!cancelled) setSyncing(false);
+      }
+    };
+
+    void runInitialSync();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materialRequestsIntegrationEnabled]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -185,6 +235,12 @@ export default function RequestsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Requests</h1>
             <p className="mt-2 text-sm text-gray-700">Material requests synced from HR system</p>
           </div>
+          {syncing ? (
+            <span className="mt-3 inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-600 sm:mt-0">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Syncing
+            </span>
+          ) : null}
         </div>
 
         <ListFiltersCard
@@ -201,7 +257,7 @@ export default function RequestsPage() {
             />
           </ListFilterField>
           <ListFilterField label="Status">
-            <select
+            <SearchableSelect
               className="erp-input"
               value={filters.status}
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
@@ -210,7 +266,7 @@ export default function RequestsPage() {
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
-            </select>
+            </SearchableSelect>
           </ListFilterField>
           <ListFilterField label="Department">
             <input

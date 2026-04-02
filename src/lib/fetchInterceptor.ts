@@ -66,6 +66,9 @@ function shouldSkipTokenCheck(url: string | URL): boolean {
   if (typeof window === 'undefined') return false;
   
   const urlString = typeof url === 'string' ? url : url.toString();
+  const currentPath = window.location.pathname;
+  const isPublicRfpSubmitPage = currentPath.startsWith('/rfp/submit/');
+  const isPublicRfpSubmitApi = urlString.includes('/api/services/rfp/submit/');
   
   // Skip token check for login/signin routes
   if (urlString.includes('/api/auth/signin') || 
@@ -74,16 +77,31 @@ function shouldSkipTokenCheck(url: string | URL): boolean {
       urlString.includes('/signin')) {
     return true;
   }
+
+  // Vendor submission links are token-based public flows and must not enforce app login tokens.
+  if (isPublicRfpSubmitPage || isPublicRfpSubmitApi) {
+    return true;
+  }
   
   // Skip token check if we're already on the login page
-  if (window.location.pathname === '/login' || window.location.pathname === '/signin') {
+  if (currentPath === '/login' || currentPath === '/signin') {
     return true;
   }
   
   return false;
 }
 
+function normalizeRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.url;
+
+  const maybeUrl = (input as { url?: unknown } | null)?.url;
+  return typeof maybeUrl === 'string' ? maybeUrl : '';
+}
+
 function isInternalApiRequest(url: string): boolean {
+  if (typeof url !== 'string' || url.length === 0) return false;
   if (url.startsWith('/api/')) return true;
 
   if (typeof window === 'undefined') return false;
@@ -113,7 +131,7 @@ export function initFetchInterceptor() {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input : input.url;
+    const url = normalizeRequestUrl(input);
     const isInternalApi = isInternalApiRequest(url);
     
     // Skip token check for login/signin routes

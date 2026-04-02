@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/jwt';
 import { notifyApprovalSubmitted } from '@/lib/notification-service';
-import { initializeApprovalWorkflow } from '@/lib/approval-routing';
 
 // POST /api/purchase-requisitions/[id]/submit - Submit draft PR for approval
 export async function POST(
@@ -58,18 +57,7 @@ export async function POST(
 
     // Notify informed parties (includes system admins); optional rule-based list
     const submitterName = user?.name ?? user?.email ?? 'User';
-    let notifyUserIds: string[] = [];
-    try {
-      const plan = await initializeApprovalWorkflow({
-        documentType: 'PR',
-        amount: Number(pr.estimatedCost),
-        departmentId: pr.departmentId ?? undefined,
-        createdBy: pr.createdBy ?? '',
-      });
-      if (plan?.notifyUsers?.length) notifyUserIds = plan.notifyUsers;
-    } catch {
-      // No rule or routing error: still notify admins via empty list
-    }
+    const notifyUserIds: string[] = [];
     await notifyApprovalSubmitted(
       'PR',
       id,

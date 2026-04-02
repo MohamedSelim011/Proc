@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -9,17 +10,22 @@ import {
   Building, 
   AlertCircle, 
   CheckCircle, 
+  XCircle,
   Clock, 
   FileText,
   Edit,
   Download,
   Settings,
-  DollarSign,
   Users,
-  Eye
+  ClipboardList,
+  Package,
+  FolderOpen,
+  Send,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
-import { getUserRole, getUserData } from '@/lib/jwt';
+import { getUserRole } from '@/lib/jwt';
+import DocumentManager from '@/components/documents/document-manager';
 
 interface ServiceRequisition {
   id: string;
@@ -27,12 +33,10 @@ interface ServiceRequisition {
   itemType: string;
   departmentId: string;
   projectId?: string;
-  costCenter?: string;
   requesterId: string;
   priority: string;
   status: string;
   estimatedCost: string;
-  budgetCode: string;
   justification: string;
   requestedDeliveryDate?: string;
   createdAt: string;
@@ -52,8 +56,6 @@ interface ServiceRequisition {
     safetyRequirements?: string;
     paymentSchedule?: string;
     paymentTerms?: string;
-    retentionPercentage?: number;
-    insuranceRequired?: boolean;
     certificationRequired?: boolean;
     preferredVendors?: string[] | any;
     milestones?: any;
@@ -96,7 +98,53 @@ interface ServiceRequisition {
       };
     };
   }>;
+  serviceRFP?: {
+    id: string;
+    rfpNumber: string;
+    title: string;
+    status: string;
+    issueDate: string;
+    closingDate: string;
+    createdAt: string;
+    responses?: Array<{
+      id: string;
+      tokenUsed: boolean;
+      submittedAt?: string | null;
+      proposalFileUrl?: string | null;
+    }>;
+    _count?: {
+      invitedVendors: number;
+    };
+  } | null;
+  serviceContracts?: Array<{
+    id: string;
+    contractNumber: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    totalValue: string | number;
+    currency: string;
+    vendor?: {
+      id: string;
+      nameEn: string;
+      vendorCode: string;
+    } | null;
+  }>;
 }
+
+type PreferredVendor = {
+  id: string;
+  nameEn: string;
+  vendorCode: string;
+  email?: string;
+};
+
+type RequisitionDocument = {
+  id: string;
+  documentName: string;
+  fileSize: number;
+  uploadedAt: string;
+};
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -121,9 +169,14 @@ export default function ServiceRequisitionDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [preferredVendors, setPreferredVendors] = useState<Array<{ id: string; nameEn: string; vendorCode: string }>>([]);
+  const [preferredVendors, setPreferredVendors] = useState<PreferredVendor[]>([]);
+  const [activeTab, setActiveTab] = useState<'info' | 'vendors' | 'requirements' | 'rfps' | 'contracts' | 'documents'>('info');
+  const [documents, setDocuments] = useState<RequisitionDocument[]>([]);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showRejectConfirmModal, setShowRejectConfirmModal] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
@@ -487,12 +540,10 @@ export default function ServiceRequisitionDetail() {
                 <span class="info-label">Department:</span>
                 <span class="info-value">${sr.departmentId || 'N/A'}</span>
               </div>
-              ${sr.projectId ? `
               <div class="info-row">
-                <span class="info-label">Project ID:</span>
-                <span class="info-value">${sr.projectId}</span>
+                <span class="info-label">Project:</span>
+                <span class="info-value">${sr.projectId || 'N/A'}</span>
               </div>
-              ` : ''}
             </div>
 
             <div class="info-section">
@@ -526,16 +577,6 @@ export default function ServiceRequisitionDetail() {
             <div class="info-section">
               <div class="info-title">Financial Information</div>
               <div class="info-row">
-                <span class="info-label">Budget Code:</span>
-                <span class="info-value">${sr.budgetCode || 'N/A'}</span>
-              </div>
-              ${sr.costCenter ? `
-              <div class="info-row">
-                <span class="info-label">Cost Center:</span>
-                <span class="info-value">${sr.costCenter}</span>
-              </div>
-              ` : ''}
-              <div class="info-row">
                 <span class="info-label">Total Estimated Cost:</span>
                 <span class="info-value" style="color: #f97316; font-size: 13px;">${formatCurrency(parseFloat(sr.estimatedCost))}</span>
               </div>
@@ -553,14 +594,6 @@ export default function ServiceRequisitionDetail() {
                 <span class="info-value">${sr.servicePR.paymentTerms}</span>
               </div>
               ` : ''}
-              <div class="info-row">
-                <span class="info-label">Retention:</span>
-                <span class="info-value">${sr.servicePR?.retentionPercentage || 0}%</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Insurance Required:</span>
-                <span class="info-value">${sr.servicePR?.insuranceRequired ? 'Yes' : 'No'}</span>
-              </div>
             </div>
           </div>
 
@@ -684,7 +717,12 @@ export default function ServiceRequisitionDetail() {
           const res = await fetch(`/api/vendors/${id}`);
           if (res.ok) {
             const vendor = await res.json();
-            return { id: vendor.id, nameEn: vendor.nameEn, vendorCode: vendor.vendorCode };
+            return {
+              id: vendor.id,
+              nameEn: vendor.nameEn,
+              vendorCode: vendor.vendorCode,
+              email: vendor.email || undefined,
+            };
           }
           return null;
         } catch (err) {
@@ -693,9 +731,88 @@ export default function ServiceRequisitionDetail() {
         }
       });
       const vendors = await Promise.all(vendorPromises);
-      setPreferredVendors(vendors.filter(v => v !== null) as Array<{ id: string; nameEn: string; vendorCode: string }>);
+      setPreferredVendors(vendors.filter(v => v !== null) as PreferredVendor[]);
     } catch (error) {
       console.error('Error fetching preferred vendors:', error);
+    }
+  };
+
+  const fetchDocuments = async (requisitionId: string) => {
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${requisitionId}/documents`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        setDocuments([]);
+        return;
+      }
+      const data = await response.json();
+      setDocuments(Array.isArray(data) ? data : []);
+    } catch (fetchError) {
+      console.error('Error fetching requisition documents:', fetchError);
+      setDocuments([]);
+    }
+  };
+
+  const handleUploadDocument = async (file: File | null) => {
+    if (!sr?.id || !file) return;
+
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (rawUser) {
+        try {
+          const parsed = JSON.parse(rawUser) as { id?: string; employeeId?: string };
+          const uploadedBy = parsed.id || parsed.employeeId;
+          if (uploadedBy) {
+            formData.append('uploadedBy', uploadedBy);
+          }
+        } catch {
+          // Ignore invalid local user payload.
+        }
+      }
+
+      const response = await fetch(`/api/purchase-requisitions/${sr.id}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || 'Failed to upload document');
+      }
+
+      showToast('success', 'Document uploaded successfully');
+      await fetchDocuments(sr.id);
+    } catch (uploadError) {
+      console.error('Error uploading requisition document:', uploadError);
+      showToast('error', uploadError instanceof Error ? uploadError.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!sr?.id) return;
+
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${sr.id}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || 'Failed to delete document');
+      }
+
+      showToast('success', 'Document deleted successfully');
+      await fetchDocuments(sr.id);
+    } catch (deleteError) {
+      console.error('Error deleting requisition document:', deleteError);
+      showToast('error', deleteError instanceof Error ? deleteError.message : 'Failed to delete document');
     }
   };
 
@@ -732,6 +849,11 @@ export default function ServiceRequisitionDetail() {
     setShowConfirmModal(true);
   };
 
+  const handleRejectRequisition = async () => {
+    if (!sr) return;
+    setShowRejectConfirmModal(true);
+  };
+
   const confirmApproveRequisition = async () => {
     if (!sr) return;
     setShowConfirmModal(false);
@@ -765,6 +887,38 @@ export default function ServiceRequisitionDetail() {
     }
   };
 
+  const confirmRejectRequisition = async () => {
+    if (!sr) return;
+    setShowRejectConfirmModal(false);
+
+    try {
+      setRejecting(true);
+
+      const response = await fetch(`/api/services/requisitions/${sr.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'REJECTED'
+        }),
+      });
+
+      if (response.ok) {
+        showToast('success', 'Service requisition rejected successfully!');
+        fetchServiceRequisition();
+      } else {
+        const errorData = await response.json();
+        showToast('error', `Failed to reject: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error rejecting requisition:', error);
+      showToast('error', 'Failed to reject service requisition');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   useEffect(() => {
     fetchServiceRequisition();
   }, [params.id]);
@@ -776,23 +930,12 @@ export default function ServiceRequisitionDetail() {
       
       // Try multiple sources for role
       let role = '';
-      let user: any = {};
       
       // Method 1: From JWT utility
       const jwtRole = getUserRole();
-      const jwtUser = getUserData();
       
       // Method 2: Direct from localStorage
       const localRole = localStorage.getItem('role');
-      const localUserStr = localStorage.getItem('user');
-      let localUser: any = null;
-      if (localUserStr) {
-        try {
-          localUser = JSON.parse(localUserStr);
-        } catch (e) {
-          console.error('Error parsing user from localStorage:', e);
-        }
-      }
       
       // Method 3: Decode from JWT token directly
       const token = localStorage.getItem('token');
@@ -811,18 +954,6 @@ export default function ServiceRequisitionDetail() {
       
       // Priority: JWT util > localStorage role > token decode
       role = jwtRole || localRole || tokenRole || '';
-      user = jwtUser || localUser || {};
-      
-      console.log('Service Requisition Detail - Role Detection:', {
-        jwtRole,
-        localRole,
-        tokenRole,
-        finalRole: role,
-        jwtUser,
-        localUser,
-        finalUser: user,
-        tokenExists: !!token
-      });
       
       setUserRole(role ? role.toUpperCase() : null);
     };
@@ -843,38 +974,6 @@ export default function ServiceRequisitionDetail() {
     }
   }, []);
 
-  // Debug logging
-  useEffect(() => {
-    if (sr) {
-      console.log('ServiceRequisition Data:', sr);
-      console.log('ServicePR Items:', sr.servicePR?.items);
-      console.log('Items Length:', sr.servicePR?.items?.length);
-    }
-  }, [sr]);
-
-  // Debug button visibility
-  useEffect(() => {
-    if (sr && userRole) {
-      const statusMatch = sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL';
-      const roleMatch = userRole.toUpperCase() === 'SUPER_ADMIN' || 
-                       userRole.toUpperCase() === 'SYSTEM_ADMIN' || 
-                       userRole.toUpperCase() === 'ADMIN' || 
-                       userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' || 
-                       userRole.toUpperCase() === 'HEAD_OF_PROCUREMENT' ||
-                       userRole.toUpperCase() === 'PROCUREMENT_MANAGER' || 
-                       userRole.toUpperCase() === 'APPROVER' || 
-                       userRole.toUpperCase() === 'DEPARTMENT_MANAGER';
-      
-      console.log('Approve Button Visibility Check:', {
-        status: sr.status,
-        statusMatch,
-        userRole,
-        roleMatch,
-        shouldShow: statusMatch && roleMatch
-      });
-    }
-  }, [sr, userRole]);
-
   const fetchServiceRequisition = async () => {
     try {
       setLoading(true);
@@ -883,12 +982,14 @@ export default function ServiceRequisitionDetail() {
       const data = await response.json();
       
       if (response.ok) {
-        console.log('Fetched service requisition data:', data);
         setSr(data);
+        await fetchDocuments(data.id);
         
         // Fetch preferred vendors if they exist
         if (data.servicePR?.preferredVendors && Array.isArray(data.servicePR.preferredVendors) && data.servicePR.preferredVendors.length > 0) {
           fetchPreferredVendors(data.servicePR.preferredVendors);
+        } else {
+          setPreferredVendors([]);
         }
       } else {
         setError(data.error || 'Failed to fetch service requisition');
@@ -900,6 +1001,34 @@ export default function ServiceRequisitionDetail() {
       setLoading(false);
     }
   };
+
+  const normalizedRole = (userRole || '').toUpperCase();
+  const canRequestApproval = sr?.status === 'DRAFT';
+  const canEdit = sr?.status === 'DRAFT';
+  const canApproveReject =
+    Boolean(sr) &&
+    (sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') &&
+    ['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_MANAGER'].includes(normalizedRole);
+  const preferredVendorIds = Array.isArray(sr?.servicePR?.preferredVendors)
+    ? sr?.servicePR?.preferredVendors
+    : [];
+  const toNumber = (value: unknown) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const serviceItemsTotal = (sr?.servicePR?.items || []).reduce((sum, item) => {
+    const quantity = toNumber(item.quantity);
+    const rate = toNumber(item.estimatedRate);
+    const duration = Math.max(toNumber(item.duration), 1);
+    return sum + (quantity * rate * duration);
+  }, 0);
+  const materialItemsTotal = (sr?.items || []).reduce((sum, item) => {
+    return sum + (toNumber(item.quantity) * toNumber(item.estimatedPrice));
+  }, 0);
+  const displayedEstimatedCost = serviceItemsTotal + materialItemsTotal;
+  const submittedRfpCount = (sr?.serviceRFP?.responses || []).filter((response) => {
+    return response.tokenUsed && (Boolean(response.proposalFileUrl) || Boolean(response.submittedAt));
+  }).length;
 
   if (loading) {
     return (
@@ -917,11 +1046,11 @@ export default function ServiceRequisitionDetail() {
         <p className="mt-1 text-sm text-gray-500">{error || 'Service requisition not found'}</p>
         <div className="mt-6">
           <button
-            onClick={() => router.push('/procurement/services/requisitions')}
+            onClick={() => router.push('/procurement/services/dashboard')}
             className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Service Requisitions
+            Back to Service Requests
           </button>
         </div>
       </div>
@@ -934,14 +1063,14 @@ export default function ServiceRequisitionDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => router.push('/procurement/services/requisitions')}
+            onClick={() => router.push('/procurement/services/dashboard')}
             className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Service Requisitions
+            Back to Service Requests
           </button>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={handleExportPDF}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -949,7 +1078,54 @@ export default function ServiceRequisitionDetail() {
             <Download className="h-4 w-4 mr-2" />
             Download
           </button>
-          {sr.status === 'DRAFT' && (
+          {canRequestApproval && (
+            <button
+              onClick={handleSubmitRequisition}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Request Approval
+            </button>
+          )}
+          {canApproveReject && (
+            <>
+              <button
+                onClick={handleApproveRequisition}
+                disabled={approving || rejecting}
+                className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {approving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Approving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleRejectRequisition}
+                disabled={approving || rejecting}
+                className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {rejecting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Rejecting...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          {canEdit && (
             <button 
               onClick={handleEdit}
               className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -976,55 +1152,42 @@ export default function ServiceRequisitionDetail() {
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[sr.priority as keyof typeof priorityColors]}`}>
                   {sr.priority}
                 </span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[sr.status as keyof typeof statusColors]}`}>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[sr.status as keyof typeof statusColors]}`}>
                   {sr.status}
                 </span>
               </div>
-              {sr.status === 'DRAFT' && (
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={handleSubmitRequisition}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Submit for Approval
-                  </button>
-                  <button 
-                    onClick={handleEdit}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Requisition
-                  </button>
-                </div>
-              )}
-              {(sr.status === 'SUBMITTED' || sr.status === 'PENDING_APPROVAL') && userRole && (
-                userRole.toUpperCase() === 'SUPER_ADMIN' ||
-                userRole.toUpperCase() === 'ADMIN' ||
-                userRole.toUpperCase() === 'PROCUREMENT_MANAGER'
-              ) && (
-                <button
-                  onClick={handleApproveRequisition}
-                  disabled={approving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {approving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Approving...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
-                    </>
-                  )}
-                </button>
-              )}
             </div>
           </div>
         </div>
 
+        <div className="border-t border-gray-200 px-6">
+          <nav className="-mb-px flex flex-wrap gap-x-8">
+            {[
+              { id: 'info', name: 'Info', icon: ClipboardList },
+              { id: 'vendors', name: 'Vendors', icon: Users },
+              { id: 'requirements', name: 'Service Requirements', icon: Package },
+              { id: 'rfps', name: 'RFPs', icon: FileText },
+              { id: 'contracts', name: 'Contracts', icon: FileText },
+              { id: 'documents', name: 'Documents', icon: FolderOpen },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-wujha-primary text-wujha-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {activeTab === 'info' && (
+          <>
         {/* Workflow Status */}
         <div className=" w-full px-6 py-4 bg-gray-50 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Approval Workflow</h3>
@@ -1094,31 +1257,11 @@ export default function ServiceRequisitionDetail() {
 
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
-                <DollarSign className="h-4 w-4 mr-2" />
-                Budget Code
+                <FileText className="h-4 w-4 mr-2" />
+                Project
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">{sr.budgetCode}</dd>
+              <dd className="mt-1 text-sm text-gray-900">{sr.projectId || 'N/A'}</dd>
             </div>
-
-            {sr.costCenter && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 flex items-center">
-                  <Building className="h-4 w-4 mr-2" />
-                  Cost Center
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900">{sr.costCenter}</dd>
-              </div>
-            )}
-
-            {sr.projectId && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Project ID
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900">{sr.projectId}</dd>
-              </div>
-            )}
 
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
@@ -1193,34 +1336,54 @@ export default function ServiceRequisitionDetail() {
                 <p className="text-sm text-gray-900">{sr.servicePR.paymentTerms}</p>
               </div>
             )}
-            <div>
-              <span className="text-xs text-gray-500">Retention:</span>
-              <p className="text-sm text-gray-900">{sr.servicePR?.retentionPercentage || 0}%</p>
-            </div>
-            <div>
-              <span className="text-xs text-gray-500">Insurance Required:</span>
-              <p className="text-sm text-gray-900">{sr.servicePR?.insuranceRequired ? 'Yes' : 'No'}</p>
-            </div>
           </div>
         </div>
+          </>
+        )}
 
         {/* Preferred Vendors */}
-        {sr.servicePR?.preferredVendors && Array.isArray(sr.servicePR.preferredVendors) && sr.servicePR.preferredVendors.length > 0 && (
+        {activeTab === 'vendors' && (
           <div className="px-6 py-4 border-t border-gray-200">
             <dt className="text-sm font-medium text-gray-500 mb-2 flex items-center">
               <Users className="h-4 w-4 mr-2" />
               Preferred Vendors
             </dt>
-            <dd className="flex flex-wrap gap-2 mt-2">
-              {preferredVendors.length > 0 ? (
-                preferredVendors.map((vendor) => (
-                  <span
-                    key={vendor.id}
-                    className="inline-flex items-center px-3 py-1 bg-wujha-primary/10 text-wujha-primary text-sm rounded-full border border-wujha-primary/30"
-                  >
-                    {vendor.nameEn} ({vendor.vendorCode})
-                  </span>
-                ))
+            <dd className="mt-2">
+              {preferredVendorIds.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-600">
+                  No preferred vendors are linked to this requisition.
+                </div>
+              ) : preferredVendors.length > 0 ? (
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Vendor Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Vendor Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Email</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Record</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {preferredVendors.map((vendor) => (
+                        <tr key={vendor.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900">{vendor.vendorCode || '-'}</td>
+                          <td className="px-4 py-4 text-sm text-gray-900">{vendor.nameEn}</td>
+                          <td className="px-4 py-4 text-sm text-gray-600">{vendor.email || '-'}</td>
+                          <td className="px-4 py-4 text-right">
+                            <Link
+                              href={`/procurement/services/vendors/${vendor.id}`}
+                              className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                              Open Vendor
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <span className="text-sm text-gray-500">Loading vendor information...</span>
               )}
@@ -1229,6 +1392,8 @@ export default function ServiceRequisitionDetail() {
         )}
       </div>
 
+      {activeTab === 'requirements' && (
+        <>
       {/* Service Items */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -1296,7 +1461,11 @@ export default function ServiceRequisitionDetail() {
                       {formatCurrency(parseFloat(String(item.estimatedRate ?? 0)))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency((parseFloat(String(item.quantity ?? 0)) * parseFloat(String(item.estimatedRate ?? 0)) * (item.duration || 1)))}
+                      {formatCurrency(
+                        toNumber(item.quantity) *
+                          toNumber(item.estimatedRate) *
+                          Math.max(toNumber(item.duration), 1)
+                      )}
                     </td>
                   </tr>
                 ))
@@ -1314,7 +1483,7 @@ export default function ServiceRequisitionDetail() {
                   Total Estimated Cost:
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                  {formatCurrency(parseFloat(sr.estimatedCost))}
+                  {formatCurrency(displayedEstimatedCost)}
                 </td>
               </tr>
             </tfoot>
@@ -1441,20 +1610,124 @@ export default function ServiceRequisitionDetail() {
         </div>
       )}
 
-      {/* Next Steps */}
-      {sr.status === 'APPROVED' && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Next Steps</h3>
-          <div className="flex">
-            <button
-              onClick={() => router.push(`/procurement/services/contracts/new?prId=${sr.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Create Service Contract
-            </button>
-          </div>
+        </>
+      )}
+
+      {activeTab === 'rfps' && (
+        <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Linked RFPs</h3>
+          {sr.serviceRFP ? (
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">RFP Number</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Title</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Invited Vendors</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Submissions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Created</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Open</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900">{sr.serviceRFP.rfpNumber}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{sr.serviceRFP.title}</td>
+                    <td className="px-4 py-4 text-sm">
+                      <span className="inline-flex items-center rounded-full bg-wujha-primary/10 px-2.5 py-0.5 text-xs font-medium text-wujha-primary">
+                        {sr.serviceRFP.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{sr.serviceRFP._count?.invitedVendors ?? 0}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{submittedRfpCount}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{formatDate(sr.serviceRFP.createdAt)}</td>
+                    <td className="px-4 py-4 text-right">
+                      <Link
+                        href={`/procurement/services/rfp/${sr.serviceRFP.id}`}
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                        Open RFP
+                      </Link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-600">
+              No RFP is linked to this service request yet.
+            </div>
+          )}
         </div>
+      )}
+
+      {activeTab === 'contracts' && (
+        <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Linked Contracts</h3>
+          {sr.serviceContracts && sr.serviceContracts.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Contract #</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Vendor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Start</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">End</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Total</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Open</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {sr.serviceContracts.map((contract) => (
+                    <tr key={contract.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">{contract.contractNumber}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {contract.vendor?.nameEn || '—'}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <span className="inline-flex items-center rounded-full bg-wujha-primary/10 px-2.5 py-0.5 text-xs font-medium text-wujha-primary">
+                          {contract.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{formatDate(contract.startDate)}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{formatDate(contract.endDate)}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {formatCurrency(Number(contract.totalValue || 0))}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          href={`/procurement/services/contracts/${contract.id}`}
+                          className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                          Open Contract
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-600">
+              No contracts are linked to this service request yet.
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <DocumentManager
+          documents={documents}
+          uploading={uploadingDocument}
+          onUpload={handleUploadDocument}
+          onDelete={handleDeleteDocument}
+          getViewUrl={(documentId) => `/api/purchase-requisitions/${sr.id}/documents/${documentId}/file`}
+          getDownloadUrl={(documentId) => `/api/purchase-requisitions/${sr.id}/documents/${documentId}/file?download=1`}
+        />
       )}
 
       {/* Confirmation Modal */}
@@ -1476,14 +1749,14 @@ export default function ServiceRequisitionDetail() {
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setShowConfirmModal(false)}
-                  disabled={approving}
+                  disabled={approving || rejecting}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmApproveRequisition}
-                  disabled={approving}
+                  disabled={approving || rejecting}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {approving ? (
@@ -1495,6 +1768,53 @@ export default function ServiceRequisitionDetail() {
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Confirm Approval
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Confirmation Modal */}
+      {showRejectConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  Confirm Rejection
+                </h3>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to reject this service requisition? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowRejectConfirmModal(false)}
+                  disabled={approving || rejecting}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRejectRequisition}
+                  disabled={approving || rejecting}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {rejecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Rejecting...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Confirm Rejection
                     </>
                   )}
                 </button>

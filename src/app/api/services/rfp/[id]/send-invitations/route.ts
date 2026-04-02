@@ -17,17 +17,13 @@ export async function POST(
     const rfp = await prisma.serviceRFP.findUnique({
       where: { id },
       include: {
-        pr: {
+        servicePR: {
           include: {
-            servicePR: {
+            items: {
               include: {
-                items: {
+                serviceItem: {
                   include: {
-                    serviceItem: {
-                      include: {
-                        serviceCategory: true
-                      }
-                    }
+                    serviceCategory: true
                   }
                 }
               }
@@ -115,18 +111,6 @@ export async function POST(
       );
     }
 
-    // Parse evaluation criteria
-    let evaluationCriteria: Array<{ name: string; weight: number }> = [];
-    try {
-      if (rfp.evaluationCriteria) {
-        const parsed = JSON.parse(rfp.evaluationCriteria as string);
-        evaluationCriteria = Array.isArray(parsed) ? parsed : [];
-      }
-    } catch (error) {
-      console.error('Error parsing evaluation criteria:', error);
-      evaluationCriteria = [];
-    }
-
     // Parse and format terms and conditions
     let termsAndConditionsString: string = '';
     try {
@@ -174,8 +158,7 @@ export async function POST(
       title: rfp.title,
       description: rfp.description || '',
       closingDate: rfp.closingDate,
-      scopeOfWork: rfp.pr?.servicePR?.serviceScope || '',
-      evaluationCriteria: evaluationCriteria,
+      scopeOfWork: rfp.servicePR?.serviceScope || '',
       termsAndConditions: termsAndConditionsString || undefined,
       vendors: validVendorData,
       baseUrl

@@ -78,7 +78,6 @@ export async function POST(request: NextRequest) {
     ? b.priority
     : 'NORMAL';
   const requesterId = typeof b.requesterId === 'string' ? b.requesterId.trim() || 'inventory-system' : 'inventory-system';
-  const budgetCode = typeof b.budgetCode === 'string' && b.budgetCode.trim() ? b.budgetCode.trim() : 'AUTO';
 
   const justification = typeof b.justification === 'string' ? b.justification : null;
   const requiredByDate = b.requiredByDate != null && b.requiredByDate !== ''
@@ -169,11 +168,9 @@ export async function POST(request: NextRequest) {
         priority,
         status: 'DRAFT',
         estimatedCost,
-        budgetCode,
         justification,
         requiredByDate,
         projectId,
-        costCenter: null,
         createdBy: requesterId,
         items: {
           create: normalizedItems.map((item) => ({

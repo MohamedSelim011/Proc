@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Building, Mail, Phone, MapPin, FileText, Hash, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { filterArabicCharacters, filterNonArabicCharacters, filterPhoneNumber, validatePhoneNumber } from '@/lib/utils';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface VendorFormData {
   vendorCode: string;
@@ -302,7 +303,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <label className="block text-sm font-medium text-gray-700">
                 Status
               </label>
-              <select
+              <SearchableSelect
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary transition-colors sm:text-sm px-3 py-2 text-gray-900 bg-white"
@@ -310,7 +311,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
                 <option value="PENDING">Pending</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>
@@ -549,7 +550,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
               <label className="block text-sm font-medium text-gray-700">
                 Business Type <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
                 value={formData.businessType}
                 onChange={(e) => handleInputChange('businessType', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border ${
@@ -563,7 +564,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
                 <option value="JOINT_STOCK">Joint Stock Company</option>
                 <option value="BRANCH">Branch Office</option>
                 <option value="OTHER">Other</option>
-              </select>
+              </SearchableSelect>
               {errors.businessType && (
                 <p className="mt-1 text-sm text-red-600">{errors.businessType}</p>
               )}

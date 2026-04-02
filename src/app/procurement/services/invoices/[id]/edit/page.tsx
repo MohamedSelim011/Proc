@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface InvoiceFormData {
   invoiceNumber: string;
@@ -238,7 +239,7 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Currency <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
                 name="currency"
                 value={formData.currency}
                 onChange={handleChange}
@@ -248,7 +249,7 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>
@@ -362,7 +363,7 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status
               </label>
-              <select
+              <SearchableSelect
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
@@ -374,14 +375,14 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED">Rejected</option>
                 <option value="PAID">Paid</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Matching Status
               </label>
-              <select
+              <SearchableSelect
                 name="matchingStatus"
                 value={formData.matchingStatus}
                 onChange={handleChange}
@@ -391,14 +392,14 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 <option value="MATCHED">Matched</option>
                 <option value="DISCREPANCY">Discrepancy</option>
                 <option value="APPROVED">Approved</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Payment Status
               </label>
-              <select
+              <SearchableSelect
                 name="paymentStatus"
                 value={formData.paymentStatus}
                 onChange={handleChange}
@@ -408,7 +409,7 @@ export default function EditServiceInvoicePage({ params }: { params: Promise<{ i
                 <option value="PARTIAL">Partial</option>
                 <option value="PAID">Paid</option>
                 <option value="OVERDUE">Overdue</option>
-              </select>
+              </SearchableSelect>
             </div>
           </div>
         </div>

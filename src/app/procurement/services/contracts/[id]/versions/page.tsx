@@ -36,6 +36,14 @@ interface VersionHistoryItem {
   changesSummary: string[];
   isFirstVersion: boolean;
   isLatestVersion: boolean;
+  approvalNotes?: Array<{
+    id: string;
+    level: number;
+    action: string;
+    approverName?: string | null;
+    comments?: string | null;
+    timestamp?: string | null;
+  }>;
 }
 
 interface VersionHistoryResponse {
@@ -357,6 +365,26 @@ export default function ContractVersionsPage() {
                           </ul>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {item.approvalNotes && item.approvalNotes.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded p-4 mb-4">
+                      <p className="text-xs font-medium text-gray-500 mb-2">Approval Notes</p>
+                      <div className="space-y-3">
+                        {item.approvalNotes.map((note) => (
+                          <div key={note.id} className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
+                            <div className="flex flex-wrap items-center justify-between text-xs text-gray-500">
+                              <span className="font-medium text-gray-700">{note.action} (Level {note.level})</span>
+                              <span>{note.timestamp ? formatDate(note.timestamp) : 'N/A'}</span>
+                            </div>
+                            <div className="mt-1 text-sm text-gray-700">
+                              <span className="font-medium text-gray-900">{note.approverName || 'Unknown'}</span>
+                              {note.comments ? ` — ${note.comments}` : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

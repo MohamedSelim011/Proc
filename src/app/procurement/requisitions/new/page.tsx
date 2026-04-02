@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { apiFetch } from '@/lib/apiFetch';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 const CREATE_PR_PREFILL_KEY = 'requisitionCreatePrPrefill';
 
@@ -165,9 +166,19 @@ export default function NewPurchaseRequisition() {
         .then((r) => r.json())
         .then((d) => setWarehouses(d.warehouses || []))
         .catch(() => setWarehouses([]));
-      fetch('/api/inventory-projects?limit=50')
+      apiFetch('/api/organization/projects?limit=1000')
         .then((r) => r.json())
-        .then((d) => setProjects(d.projects || []))
+        .then((d) => {
+          const rows = Array.isArray(d?.items) ? d.items : [];
+          const mapped = rows
+            .map((row: Record<string, unknown>) => ({
+              id: String(row.id ?? ''),
+              code: String(row.projectCode ?? row.code ?? ''),
+              name: String(row.projectName ?? row.name ?? ''),
+            }))
+            .filter((row: { id: string }) => Boolean(row.id));
+          setProjects(mapped);
+        })
         .catch(() => setProjects([]));
     }
   }, [currentStep, formData.itemType]);
@@ -862,7 +873,7 @@ export default function NewPurchaseRequisition() {
                     <label className="block text-sm font-semibold text-gray-800">
                       Select Material Request <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-2 block w-full rounded-lg border-gray-300 bg-white py-3 px-4 text-base text-gray-900 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={selectedMaterialRequestId}
                       onChange={(e) => {
@@ -882,7 +893,7 @@ export default function NewPurchaseRequisition() {
                           {mr.externalId} - {(mr.categoryName || 'Uncategorized')} - {(mr.requesterName || 'Unknown requester')}
                         </option>
                       ))}
-                    </select>
+                    </SearchableSelect>
                     {errors.selectedMaterialRequestId && (
                       <p className="mt-2 text-sm text-red-600 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
@@ -909,21 +920,21 @@ export default function NewPurchaseRequisition() {
                     <label className="block text-sm font-semibold text-gray-800">
                       Item Type <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.itemType}
                       onChange={(e) => setFormData(prev => ({ ...prev, itemType: e.target.value as any }))}
                     >
                       <option value="STOCK">Stock Items</option>
                       <option value="NON_STOCK">Non-Stock Items</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-800">
                       Request Basis <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={requestBasis}
                       onChange={(e) => {
@@ -946,7 +957,7 @@ export default function NewPurchaseRequisition() {
                     >
                       <option value="DEPARTMENT">Department</option>
                       <option value="PROJECT">Project</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   {requestBasis === 'DEPARTMENT' ? (
@@ -954,7 +965,7 @@ export default function NewPurchaseRequisition() {
                       <label className="block text-sm font-semibold text-gray-800">
                         Department <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
                         className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                           errors.departmentId ? 'border-red-300 ring-red-100' : ''
                         }`}
@@ -977,7 +988,7 @@ export default function NewPurchaseRequisition() {
                             {dept.name}{dept.code ? ` (${dept.code})` : ''}
                           </option>
                         ))}
-                      </select>
+                      </SearchableSelect>
                       {errors.departmentId && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
@@ -990,7 +1001,7 @@ export default function NewPurchaseRequisition() {
                       <label className="block text-sm font-semibold text-gray-800">
                         Project <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
                         className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200 ${
                           errors.projectId ? 'border-red-300 ring-red-100' : ''
                         }`}
@@ -1018,7 +1029,7 @@ export default function NewPurchaseRequisition() {
                             {project.code} - {project.name}
                           </option>
                         ))}
-                      </select>
+                      </SearchableSelect>
                       {errors.projectId && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
@@ -1032,7 +1043,7 @@ export default function NewPurchaseRequisition() {
                     <label className="block text-sm font-semibold text-gray-800">
                       Priority <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.priority}
                       onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
@@ -1041,7 +1052,7 @@ export default function NewPurchaseRequisition() {
                       <option value="NORMAL">Normal Priority</option>
                       <option value="HIGH">High Priority</option>
                       <option value="URGENT">Urgent Priority</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   <div className="space-y-2">
@@ -1114,7 +1125,7 @@ export default function NewPurchaseRequisition() {
                         <label className="block text-sm font-semibold text-gray-800">
                           Delivery Warehouse <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <SearchableSelect
                           className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base ${
                             errors.deliveryWarehouseId ? 'border-red-300' : ''
                           }`}
@@ -1125,7 +1136,7 @@ export default function NewPurchaseRequisition() {
                           {warehouses.map((w) => (
                             <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                         {errors.deliveryWarehouseId && (
                           <p className="mt-2 text-sm text-red-600 flex items-center">
                             <AlertCircle className="h-4 w-4 mr-1" />

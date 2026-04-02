@@ -10,7 +10,7 @@ import {
 /**
  * GET /api/inventory/purchase-orders
  * List POs for inventory system. Auth: Bearer <jwt> or X-API-Key / Authorization: ApiKey <key>
- * Query: page, limit, status, vendorId
+ * Query: page, limit, status, vendorId, includeItems
  */
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
   );
   const status = searchParams.get('status') || '';
   const vendorId = searchParams.get('vendorId') || '';
+  const includeItemsParam = (searchParams.get('includeItems') || '').toLowerCase();
+  const includeItems = ['1', 'true', 'yes'].includes(includeItemsParam);
 
   console.log('[inventory/purchase-orders][GET] Incoming request', {
     requestId,
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
     limit,
     status: status || null,
     vendorId: vendorId || null,
+    includeItems,
   });
 
   if (!auth.ok) {
@@ -74,11 +77,15 @@ export async function GET(request: NextRequest) {
               items: { include: { item: true } },
             },
           },
-          items: {
-            include: {
-              item: { include: { category: true } },
-            },
-          },
+          ...(includeItems
+            ? {
+                items: {
+                  include: {
+                    item: { include: { category: true } },
+                  },
+                },
+              }
+            : {}),
           _count: {
             select: {
               goodsReceipts: true,

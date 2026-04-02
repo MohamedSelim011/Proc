@@ -195,6 +195,56 @@ export async function approveContractVersion(
   versionNumber: number,
   approvedBy: string
 ) {
+  const existing = await prisma.serviceContractVersion.findUnique({
+    where: {
+      contractId_versionNumber: {
+        contractId,
+        versionNumber,
+      },
+    },
+  })
+
+  if (!existing) {
+    const contract = await prisma.serviceContract.findUnique({
+      where: { id: contractId },
+      include: {
+        vendor: { select: { nameEn: true } },
+      },
+    })
+    if (!contract) {
+      throw new Error(`Contract ${contractId} not found`)
+    }
+
+    const created = await prisma.serviceContractVersion.create({
+      data: {
+        contractId,
+        versionNumber,
+        contractNumber: contract.contractNumber,
+        vendorId: contract.vendorId,
+        contractType: contract.contractType,
+        startDate: contract.startDate,
+        endDate: contract.endDate,
+        totalValue: contract.totalValue,
+        serviceAmount: contract.serviceAmount,
+        currency: contract.currency,
+        paymentTerms: contract.paymentTerms,
+        slaTerms: contract.slaTerms,
+        penaltyClause: contract.penaltyClause,
+        performanceBond: contract.performanceBond,
+        retentionAmount: contract.retentionAmount,
+        insuranceRequirements: contract.insuranceRequirements,
+        status: contract.status,
+        createdBy: approvedBy,
+        createdByName: contract.vendor?.nameEn || approvedBy,
+        approvalStatus: 'APPROVED',
+        approvedBy,
+        approvedAt: new Date(),
+      },
+    })
+
+    return created
+  }
+
   const version = await prisma.serviceContractVersion.update({
     where: {
       contractId_versionNumber: {
@@ -220,6 +270,56 @@ export async function rejectContractVersion(
   versionNumber: number,
   approvedBy: string
 ) {
+  const existing = await prisma.serviceContractVersion.findUnique({
+    where: {
+      contractId_versionNumber: {
+        contractId,
+        versionNumber,
+      },
+    },
+  })
+
+  if (!existing) {
+    const contract = await prisma.serviceContract.findUnique({
+      where: { id: contractId },
+      include: {
+        vendor: { select: { nameEn: true } },
+      },
+    })
+    if (!contract) {
+      throw new Error(`Contract ${contractId} not found`)
+    }
+
+    const created = await prisma.serviceContractVersion.create({
+      data: {
+        contractId,
+        versionNumber,
+        contractNumber: contract.contractNumber,
+        vendorId: contract.vendorId,
+        contractType: contract.contractType,
+        startDate: contract.startDate,
+        endDate: contract.endDate,
+        totalValue: contract.totalValue,
+        serviceAmount: contract.serviceAmount,
+        currency: contract.currency,
+        paymentTerms: contract.paymentTerms,
+        slaTerms: contract.slaTerms,
+        penaltyClause: contract.penaltyClause,
+        performanceBond: contract.performanceBond,
+        retentionAmount: contract.retentionAmount,
+        insuranceRequirements: contract.insuranceRequirements,
+        status: contract.status,
+        createdBy: approvedBy,
+        createdByName: contract.vendor?.nameEn || approvedBy,
+        approvalStatus: 'REJECTED',
+        approvedBy,
+        approvedAt: new Date(),
+      },
+    })
+
+    return created
+  }
+
   const version = await prisma.serviceContractVersion.update({
     where: {
       contractId_versionNumber: {
@@ -247,6 +347,25 @@ export async function getContractVersionHistory(contractId: string) {
     return []
   }
 
+  const versionNumbers = versions.map((version) => version.versionNumber)
+  const approvalHistory = await prisma.approvalHistory.findMany({
+    where: {
+      serviceContractId: contractId,
+      contractVersionNumber: { in: versionNumbers },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  })
+
+  const approvalNotesByVersion = new Map<number, typeof approvalHistory>()
+  for (const entry of approvalHistory) {
+    if (entry.contractVersionNumber == null) continue
+    const list = approvalNotesByVersion.get(entry.contractVersionNumber) || []
+    list.push(entry)
+    approvalNotesByVersion.set(entry.contractVersionNumber, list)
+  }
+
   const history = []
 
   for (let i = 0; i < versions.length; i++) {
@@ -272,6 +391,7 @@ export async function getContractVersionHistory(contractId: string) {
       changesSummary,
       isFirstVersion: i === versions.length - 1,
       isLatestVersion: i === 0,
+      approvalNotes: approvalNotesByVersion.get(currentVersion.versionNumber) || [],
     })
   }
 

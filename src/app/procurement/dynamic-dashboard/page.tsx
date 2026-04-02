@@ -96,7 +96,6 @@ function MetabaseIframe({
       width="100%"
       height={height}
       frameBorder="0"
-      allowTransparency
       className={className}
       title="Metabase Dashboard"
     />

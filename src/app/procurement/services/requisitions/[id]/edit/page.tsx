@@ -10,10 +10,6 @@ import {
   AlertCircle,
   CheckCircle,
   Calculator,
-  FileText,
-  Users,
-  Calendar,
-  DollarSign,
   X,
   ChevronDown,
   Search,
@@ -21,6 +17,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceItem {
   id: string;
@@ -28,6 +25,7 @@ interface ServiceItem {
   serviceType: string;
   quantity: number;
   unit: string;
+  pricingModel: 'ONE_TIME' | 'RECURRING';
   estimatedRate: number;
   duration: number;
   durationUnit: string;
@@ -62,14 +60,13 @@ interface ServicePRFormData {
   // Step 3: Commercial Details
   estimatedCost: number;
   paymentTerms: string;
-  paymentSchedule: 'LUMPSUM' | 'MILESTONE' | 'MONTHLY' | 'TIME_MATERIAL';
+  paymentSchedule: 'LUMPSUM' | 'MILESTONE' | 'MONTHLY' | 'TIME_MATERIAL' | '';
   preferredVendors: string[];
+  slaRequirements?: Record<string, string> | null;
+  certificationRequired?: boolean;
 
-  // Step 4: Compliance & Budget
-  budgetCode: string;
-  costCenter?: string;
+  // Step 4: Compliance
   requiredByDate: string;
-  insuranceRequired: boolean;
   safetyRequirements?: string;
   qualityStandards?: string;
   justification: string;
@@ -83,6 +80,18 @@ interface Vendor {
   email: string;
 }
 
+interface DepartmentOption {
+  id: string;
+  name: string;
+  code?: string | null;
+}
+
+interface ProjectOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export default function EditServiceRequisition() {
   const params = useParams();
   const router = useRouter();
@@ -91,27 +100,32 @@ export default function EditServiceRequisition() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [itemErrors, setItemErrors] = useState<Record<number, Record<string, string>>>({});
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [requestBasis, setRequestBasis] = useState<'DEPARTMENT' | 'PROJECT'>('DEPARTMENT');
 
   const [formData, setFormData] = useState<ServicePRFormData>({
     serviceCategory: '',
     serviceType: '',
     departmentId: '',
+    projectId: '',
     priority: 'NORMAL',
     requestor: '',
     detailedScope: '',
     items: [],
     milestones: [],
     estimatedCost: 0,
-    paymentTerms: 'NET_30',
-    paymentSchedule: 'MILESTONE',
+    paymentTerms: '',
+    paymentSchedule: '',
     preferredVendors: [],
-    budgetCode: '',
     requiredByDate: '',
-    insuranceRequired: false,
     justification: ''
   });
 
@@ -119,7 +133,7 @@ export default function EditServiceRequisition() {
     { id: 1, name: 'Service Details', description: 'Basic service information' },
     { id: 2, name: 'Scope Definition', description: 'Detailed requirements' },
     { id: 3, name: 'Commercial Details', description: 'Pricing and terms' },
-    { id: 4, name: 'Compliance & Budget', description: 'Budget validation' },
+    { id: 4, name: 'Compliance', description: 'Compliance and timeline' },
     { id: 5, name: 'Review & Submit', description: 'Final review' }
   ];
 
@@ -149,6 +163,34 @@ export default function EditServiceRequisition() {
     'Other': ['Custom Service']
   };
 
+  const billingUnitOptions = [
+    { value: 'Job', label: 'Job (fixed scope)' },
+    { value: 'Visit', label: 'Visit / Callout' },
+    { value: 'Unit', label: 'Unit' },
+    { value: 'Lot', label: 'Lot (lump sum)' },
+  ];
+
+  const normalizeDurationUnitForUi = (value: unknown): string => {
+    const raw = String(value || '').trim().toUpperCase();
+    if (raw === 'DAYS') return 'Days';
+    if (raw === 'WEEKS') return 'Weeks';
+    if (raw === 'MONTHS') return 'Months';
+    return '';
+  };
+
+  const getPeriodUnitLabel = (durationUnit: string) => {
+    const normalized = (durationUnit || 'Days').trim().toLowerCase();
+    if (normalized === 'days') return 'day';
+    if (normalized === 'weeks') return 'week';
+    if (normalized === 'months') return 'month';
+    return normalized;
+  };
+
+  const getItemTotal = (item: ServiceItem) => {
+    const periodMultiplier = item.pricingModel === 'RECURRING' ? Math.max(item.duration, 1) : 1;
+    return item.quantity * item.estimatedRate * periodMultiplier;
+  };
+
   // Fetch existing requisition data
   useEffect(() => {
     if (params?.id) {
@@ -159,6 +201,8 @@ export default function EditServiceRequisition() {
   // Fetch vendors on component mount
   useEffect(() => {
     fetchVendors();
+    fetchDepartments();
+    fetchProjects();
   }, []);
 
   // Auto-calculate estimated cost when items change
@@ -173,21 +217,24 @@ export default function EditServiceRequisition() {
       const response = await fetch(`/api/services/requisitions/${params?.id}`);
       const data = await response.json();
 
-      console.log('Fetched requisition data:', data); // Debug log
-
       if (response.ok) {
         // Map the API data to form data structure
         const items = data.servicePR?.items?.map((item: any, index: number) => {
-          console.log('Processing item:', item); // Debug log
+          const duration = Number(item.duration ?? 1);
+          const estimatedRate = Number(item.estimatedRate ?? 0);
+          const quantity = Number(item.quantity ?? 0);
+          const normalizedDurationUnit = normalizeDurationUnitForUi(item.durationUnit);
+
           return {
             id: item.id || `item-${index}`,
-            description: item.serviceItem?.nameEn || item.specifications || '',
+            description: item.specifications || item.serviceItem?.nameEn || '',
             serviceType: item.serviceItem?.serviceCategory?.nameEn || '',
-            quantity: item.quantity || 1,
-            unit: item.unit || 'Hours',
-            estimatedRate: parseFloat(item.estimatedRate) || 0,
-            duration: item.duration || 1,
-            durationUnit: item.durationUnit || 'Days',
+            quantity,
+            unit: item.unit || '',
+            pricingModel: duration > 1 ? 'RECURRING' : 'ONE_TIME',
+            estimatedRate,
+            duration,
+            durationUnit: normalizedDurationUnit || 'Days',
             specifications: item.specifications || '',
             deliverables: Array.isArray(item.deliverables) && item.deliverables.length > 0 
               ? item.deliverables.filter((d: string) => d && d.trim() !== '')
@@ -198,45 +245,56 @@ export default function EditServiceRequisition() {
           };
         }) || [];
 
-        // Try to get category from first item or use a default
-        const firstCategory = data.servicePR?.items?.[0]?.serviceItem?.serviceCategory?.nameEn || '';
-        const firstServiceType = data.servicePR?.items?.[0]?.serviceItem?.nameEn || '';
-
-        console.log('Setting form data with category:', firstCategory, 'type:', firstServiceType); // Debug log
+        // Prefer canonical values stored on servicePR, then fallback to first item metadata.
+        const firstCategory = data.servicePR?.serviceCategory || data.servicePR?.items?.[0]?.serviceItem?.serviceCategory?.nameEn || '';
+        const firstServiceType = data.servicePR?.serviceType || data.servicePR?.items?.[0]?.serviceItem?.nameEn || '';
+        const basisFromApi =
+          String(data.requestBasis || '').toUpperCase() === 'PROJECT' ||
+          (typeof data.projectId === 'string' && data.projectId.trim())
+            ? 'PROJECT'
+            : 'DEPARTMENT';
+        setRequestBasis(basisFromApi);
 
         setFormData({
-          serviceCategory: firstCategory || 'Professional Services',
+          serviceCategory: firstCategory || '',
           serviceType: firstServiceType || '',
           departmentId: data.departmentId || '',
           projectId: data.projectId || '',
           priority: data.priority || 'NORMAL',
-          requestor: data.requesterId || '',
+          requestor: data.servicePR?.requestor || data.requestor || '',
           detailedScope: data.servicePR?.serviceScope || '',
           technicalSpecifications: data.servicePR?.technicalSpecifications || '',
           items: items.length > 0 ? items : [],
           milestones: [],
           estimatedCost: parseFloat(data.estimatedCost) || 0,
-          paymentTerms: 'NET_30',
-          paymentSchedule: data.servicePR?.paymentSchedule || 'MILESTONE',
+          paymentTerms: data.servicePR?.paymentTerms || '',
+          paymentSchedule: data.servicePR?.paymentSchedule || '',
           preferredVendors: Array.isArray(data.servicePR?.preferredVendors) 
             ? data.servicePR.preferredVendors.filter((v: string) => v)
             : [],
-          budgetCode: data.budgetCode || '',
-          costCenter: data.costCenter || '',
-          requiredByDate: data.requestedDeliveryDate ? new Date(data.requestedDeliveryDate).toISOString().split('T')[0] : '',
-          insuranceRequired: data.servicePR?.insuranceRequired || false,
+          slaRequirements:
+            data.servicePR?.slaRequirements && typeof data.servicePR.slaRequirements === 'object'
+              ? data.servicePR.slaRequirements
+              : null,
+          certificationRequired:
+            typeof data.servicePR?.certificationRequired === 'boolean'
+              ? data.servicePR.certificationRequired
+              : false,
+          requiredByDate: (data.requiredByDate || data.requestedDeliveryDate)
+            ? new Date(data.requiredByDate || data.requestedDeliveryDate).toISOString().split('T')[0]
+            : '',
           safetyRequirements: data.servicePR?.safetyRequirements || '',
           qualityStandards: data.servicePR?.qualityStandards || '',
           justification: data.justification || ''
         });
       } else {
         showToast('error', 'Failed to load service requisition');
-        router.push('/procurement/services/requisitions');
+        router.push('/procurement/services/dashboard');
       }
     } catch (error) {
       console.error('Error fetching requisition:', error);
       showToast('error', 'Failed to load service requisition');
-      router.push('/procurement/services/requisitions');
+      router.push('/procurement/services/dashboard');
     } finally {
       setLoadingData(false);
     }
@@ -257,6 +315,58 @@ export default function EditServiceRequisition() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const response = await fetch('/api/organization/departments?limit=1000');
+      const data = await response.json();
+      if (response.ok) {
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const mapped = rows
+          .map((row: Record<string, unknown>) => ({
+            id: String(row.id ?? ''),
+            name: String(row.name ?? ''),
+            code: row.code == null ? null : String(row.code),
+          }))
+          .filter((row: DepartmentOption) => Boolean(row.id) && Boolean(row.name));
+        setDepartments(mapped);
+      } else {
+        setDepartments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      setDepartments([]);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await fetch('/api/organization/projects?limit=1000');
+      const data = await response.json();
+      if (response.ok) {
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const mapped = rows
+          .map((row: Record<string, unknown>) => ({
+            id: String(row.id ?? ''),
+            code: String(row.projectCode ?? row.code ?? ''),
+            name: String(row.projectName ?? row.name ?? ''),
+          }))
+          .filter((row: ProjectOption) => Boolean(row.id));
+        setProjects(mapped);
+      } else {
+        setProjects([]);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-OM', {
       style: 'currency',
@@ -271,7 +381,8 @@ export default function EditServiceRequisition() {
       description: '',
       serviceType: formData.serviceType,
       quantity: 1,
-      unit: 'Hours',
+      unit: 'Job',
+      pricingModel: 'ONE_TIME',
       estimatedRate: 0,
       duration: 1,
       durationUnit: 'Days',
@@ -298,6 +409,35 @@ export default function EditServiceRequisition() {
         i === index ? { ...item, [field]: value } : item
       )
     }));
+
+    if (field === 'description') {
+      setItemErrors(prev => {
+        const next = { ...prev };
+        if (next[index]?.description) {
+          delete next[index].description;
+          if (Object.keys(next[index]).length === 0) {
+            delete next[index];
+          }
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleItemBlur = (index: number, value: string) => {
+    const trimmedValue = value?.trim() || '';
+    if (!trimmedValue) {
+      setItemErrors(prev => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          description: 'Service item description is required',
+        },
+      }));
+      if (value && !trimmedValue) {
+        updateServiceItem(index, 'description', '');
+      }
+    }
   };
 
   const addMilestone = () => {
@@ -331,9 +471,7 @@ export default function EditServiceRequisition() {
   };
 
   const calculateTotalCost = () => {
-    return formData.items.reduce((total, item) => {
-      return total + (item.quantity * item.estimatedRate);
-    }, 0);
+    return formData.items.reduce((sum, item) => sum + getItemTotal(item), 0);
   };
 
   const validateStep = (step: number): boolean => {
@@ -342,22 +480,38 @@ export default function EditServiceRequisition() {
     switch (step) {
       case 1:
         if (!formData.serviceCategory) newErrors.serviceCategory = 'Service category is required';
-        if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
-        if (formData.projectId && !formData.projectId.trim()) newErrors.projectId = 'Project ID cannot be only whitespace';
+        if (requestBasis === 'DEPARTMENT') {
+          if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+        } else {
+          if (!formData.projectId || !formData.projectId.trim()) newErrors.projectId = 'Project is required';
+        }
         if (!formData.priority) newErrors.priority = 'Priority is required';
         if (!formData.requestor || !formData.requestor.trim()) newErrors.requestor = 'Requestor is required';
         break;
       case 2:
         if (!formData.detailedScope || !formData.detailedScope.trim()) newErrors.detailedScope = 'Detailed scope is required';
-        if (formData.items.length === 0) newErrors.items = 'At least one service item is required';
+        if (formData.items.length === 0) {
+          newErrors.items = 'At least one service item is required';
+        } else {
+          const nextItemErrors: Record<number, Record<string, string>> = {};
+          formData.items.forEach((item, index) => {
+            if (!item.description || !item.description.trim()) {
+              nextItemErrors[index] = {
+                description: 'Service item description is required',
+              };
+            }
+          });
+          setItemErrors(nextItemErrors);
+          if (Object.keys(nextItemErrors).length > 0) {
+            newErrors.items = 'Please fill in all required service item fields';
+          }
+        }
         break;
       case 3:
         if (formData.estimatedCost <= 0) newErrors.estimatedCost = 'Estimated cost must be greater than 0';
         if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
         break;
       case 4:
-        if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
-        
         // Validate Required By Date
         if (!formData.requiredByDate) {
           newErrors.requiredByDate = 'Required by date is required';
@@ -384,15 +538,6 @@ export default function EditServiceRequisition() {
         }
         
         if (!formData.justification || !formData.justification.trim()) newErrors.justification = 'Justification is required';
-        
-        // Cost Center is optional, but if provided, it cannot be only whitespace
-        if (formData.costCenter && typeof formData.costCenter === 'string' && formData.costCenter.length > 0) {
-          const trimmed = formData.costCenter.trim();
-          if (trimmed.length === 0) {
-            newErrors.costCenter = 'Cost Center cannot be only whitespace';
-            setFormData(prev => ({ ...prev, costCenter: '' }));
-          }
-        }
         break;
     }
 
@@ -415,34 +560,33 @@ export default function EditServiceRequisition() {
 
     try {
       setLoading(true);
-
-      // Trim whitespace from costCenter before submitting
-      const trimmedCostCenter = formData.costCenter?.trim() || undefined;
+      const selectedDepartmentId = requestBasis === 'DEPARTMENT' ? (formData.departmentId || '').trim() : '';
+      const selectedProjectId = requestBasis === 'PROJECT' ? (formData.projectId || '').trim() : '';
 
       // Update service requisition using PUT method
       const serviceData = {
-        departmentId: formData.departmentId,
-        requesterId: 'current-user-id', // In real app, get from auth
+        requestBasis,
+        departmentId: selectedDepartmentId || null,
+        projectId: selectedProjectId || null,
+        requestor: formData.requestor,
         priority: formData.priority,
-        budgetCode: formData.budgetCode,
-        costCenter: trimmedCostCenter,
         justification: formData.justification,
+        requestedDeliveryDate: formData.requiredByDate,
         serviceScope: formData.detailedScope,
         technicalSpecifications: formData.technicalSpecifications,
         duration: formData.items.reduce((max, item) => Math.max(max, item.duration), 0),
-        durationUnit: 'DAYS',
-        deliverables: formData.items.flatMap(item => item.deliverables),
-        performanceMetrics: formData.items.flatMap(item => item.performanceMetrics),
-        slaRequirements: {
-          responseTime: '4 hours',
-          availability: '99.9%',
-          support: '8x5 business hours'
-        },
-        insuranceRequired: formData.insuranceRequired,
-        certificationRequired: true,
+        durationUnit: (() => {
+          const recurring = formData.items.find((item) => item.pricingModel === 'RECURRING');
+          const source = recurring?.durationUnit || formData.items[0]?.durationUnit || '';
+          return source ? source.toUpperCase() : undefined;
+        })(),
+        deliverables: formData.items.flatMap(item => item.deliverables.filter((entry) => entry && entry.trim())),
+        performanceMetrics: formData.items.flatMap(item => item.performanceMetrics.filter((entry) => entry && entry.trim())),
+        slaRequirements: formData.slaRequirements || null,
+        certificationRequired: Boolean(formData.certificationRequired),
         safetyRequirements: formData.safetyRequirements,
+        paymentTerms: formData.paymentTerms,
         paymentSchedule: formData.paymentSchedule,
-        retentionPercentage: 10,
         preferredVendors: formData.preferredVendors,
         items: formData.items.map(item => ({
           quantity: item.quantity,
@@ -522,20 +666,6 @@ export default function EditServiceRequisition() {
         <p className="mt-2 text-sm text-gray-600">
           Update the service requisition details
         </p>
-        
-        {/* Debug Info - Remove after testing */}
-        {!loadingData && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
-            <p className="font-medium text-yellow-900 mb-2">Debug Info (will be removed):</p>
-            <p>Category: {formData.serviceCategory || 'NOT SET'}</p>
-            <p>Type: {formData.serviceType || 'NOT SET'}</p>
-            <p>Department: {formData.departmentId || 'NOT SET'}</p>
-            <p>Priority: {formData.priority}</p>
-            <p>Budget Code: {formData.budgetCode || 'NOT SET'}</p>
-            <p>Items count: {formData.items.length}</p>
-            <p>Scope: {formData.detailedScope ? 'SET' : 'NOT SET'}</p>
-          </div>
-        )}
       </div>
 
       {/* Progress Steps */}
@@ -588,7 +718,7 @@ export default function EditServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData({ ...formData, serviceCategory: e.target.value })}
                   placeholder="Enter service category"
@@ -604,7 +734,7 @@ export default function EditServiceRequisition() {
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceType}
                   onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
                   placeholder="Enter service type"
@@ -613,41 +743,96 @@ export default function EditServiceRequisition() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Department *
+                  Request Basis *
                 </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
-                  value={formData.departmentId}
-                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
-                  placeholder="Enter department ID"
-                  readOnly
-                />
-                {errors.departmentId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
-                )}
+                <SearchableSelect
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  value={requestBasis}
+                  onChange={(e) => {
+                    const basis = e.target.value as 'DEPARTMENT' | 'PROJECT';
+                    setRequestBasis(basis);
+                    setFormData(prev => ({
+                      ...prev,
+                      departmentId: basis === 'DEPARTMENT' ? prev.departmentId : '',
+                      projectId: basis === 'PROJECT' ? prev.projectId : '',
+                    }));
+                    setErrors(prev => {
+                      const next = { ...prev };
+                      delete next.departmentId;
+                      delete next.projectId;
+                      return next;
+                    });
+                  }}
+                >
+                  <option value="DEPARTMENT">Department Based</option>
+                  <option value="PROJECT">Project Based</option>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Project ID
+                  {requestBasis === 'DEPARTMENT' ? 'Department *' : 'Project *'}
                 </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
-                  value={formData.projectId || ''}
-                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                  placeholder="Enter project ID (optional)"
-                  readOnly
-                />
+                <SearchableSelect
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                  value={requestBasis === 'DEPARTMENT' ? formData.departmentId : (formData.projectId || '')}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (requestBasis === 'DEPARTMENT') {
+                      setFormData(prev => ({ ...prev, departmentId: value, projectId: '' }));
+                      if (errors.departmentId) {
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          delete next.departmentId;
+                          return next;
+                        });
+                      }
+                    } else {
+                      setFormData(prev => ({ ...prev, projectId: value, departmentId: '' }));
+                      if (errors.projectId) {
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          delete next.projectId;
+                          return next;
+                        });
+                      }
+                    }
+                  }}
+                >
+                  {requestBasis === 'DEPARTMENT' ? (
+                    <>
+                      <option value="">{loadingDepartments ? 'Loading departments...' : 'Select department'}</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}{dept.code ? ` (${dept.code})` : ''}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="">{loadingProjects ? 'Loading projects...' : 'Select project'}</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.code ? `${project.code} - ` : ''}{project.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </SearchableSelect>
+                {requestBasis === 'DEPARTMENT' && errors.departmentId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
+                )}
+                {requestBasis === 'PROJECT' && errors.projectId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Priority *
                 </label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                <SearchableSelect
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
                 >
@@ -655,7 +840,7 @@ export default function EditServiceRequisition() {
                   <option value="NORMAL">Normal</option>
                   <option value="HIGH">High</option>
                   <option value="URGENT">Urgent</option>
-                </select>
+                </SearchableSelect>
                 {errors.priority && (
                   <p className="mt-1 text-sm text-red-600">{errors.priority}</p>
                 )}
@@ -663,16 +848,18 @@ export default function EditServiceRequisition() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Requestor
+                  Requestor *
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.requestor}
                   onChange={(e) => setFormData({ ...formData, requestor: e.target.value })}
                   placeholder="Enter requestor name"
-                  readOnly
                 />
+                {errors.requestor && (
+                  <p className="mt-1 text-sm text-red-600">{errors.requestor}</p>
+                )}
               </div>
             </div>
           </div>
@@ -689,7 +876,7 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                   errors.detailedScope ? 'border-red-300 ring-red-100' : ''
                 }`}
                 value={formData.detailedScope}
@@ -718,7 +905,7 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.technicalSpecifications || ''}
                 onChange={(e) => setFormData({ ...formData, technicalSpecifications: e.target.value })}
                 placeholder="Enter any technical specifications or standards..."
@@ -728,230 +915,265 @@ export default function EditServiceRequisition() {
             {/* Service Items */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Service Items *
-                </label>
+                <h4 className="text-md font-medium text-gray-900">Service Items</h4>
                 <button
                   type="button"
                   onClick={addServiceItem}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Item
+                  Add Service Item
                 </button>
               </div>
 
-              {errors.items && (
-                <p className="mb-4 text-sm text-red-600">{errors.items}</p>
-              )}
+              {formData.items.map((item, index) => (
+                <div key={item.id} className="border border-gray-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h5 className="text-sm font-medium text-gray-900">Service Item {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeServiceItem(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
 
-              <div className="space-y-4">
-                {formData.items.map((item, index) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-medium text-gray-900">Item {index + 1}</h4>
-                      <button
-                        type="button"
-                        onClick={() => removeServiceItem(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="lg:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Service Item Description *
+                      </label>
+                      <textarea
+                        rows={2}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary text-gray-900 bg-white ${
+                          itemErrors[index]?.description 
+                            ? 'border-red-300 focus:border-red-500' 
+                            : 'border-gray-300 focus:border-wujha-primary'
+                        }`}
+                        value={item.description}
+                        onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
+                        onBlur={(e) => handleItemBlur(index, e.target.value)}
+                        placeholder="Describe this specific service item..."
+                      />
+                      {itemErrors[index]?.description && (
+                        <p className="mt-1 text-sm text-red-600">{itemErrors[index].description}</p>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                      <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Specific Service Item Description *
-                        </label>
-                        <textarea
-                          rows={2}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
-                          value={item.description}
-                          onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
-                          placeholder="Describe the specific service or work to be performed for this item..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Quantity *
-                        </label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Quantity / Scope *
+                      </label>
+                      <div className="flex rounded-lg shadow-sm">
                         <input
                           type="number"
                           min="1"
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                          className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Unit *
-                        </label>
-                        <select
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                        <SearchableSelect
+                          className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
                           onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
                         >
-                          <option>Hours</option>
-                          <option>Days</option>
-                          <option>Weeks</option>
-                          <option>Months</option>
-                          <option>Units</option>
-                          <option>Visits</option>
-                          <option>Lump Sum</option>
-                        </select>
+                          <option value="">Select unit</option>
+                          {billingUnitOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </SearchableSelect>
                       </div>
+                    </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Pricing Model *
+                      </label>
+                      <SearchableSelect
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                        value={item.pricingModel}
+                        onChange={(e) => {
+                          const pricingModel = e.target.value as 'ONE_TIME' | 'RECURRING';
+                          updateServiceItem(index, 'pricingModel', pricingModel);
+                          if (pricingModel === 'ONE_TIME') {
+                            updateServiceItem(index, 'duration', 1);
+                            updateServiceItem(index, 'durationUnit', 'Days');
+                          }
+                        }}
+                      >
+                        <option value="ONE_TIME">One-time</option>
+                        <option value="RECURRING">Recurring</option>
+                      </SearchableSelect>
+                    </div>
+
+                    {item.pricingModel === 'RECURRING' ? (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Estimated Rate (OMR) *
+                        <label className="block text-sm font-medium text-gray-700">
+                          Billing Period *
                         </label>
+                        <div className="flex rounded-lg shadow-sm">
+                          <input
+                            type="number"
+                            min="1"
+                            className="block w-full rounded-l-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            value={item.duration}
+                            onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
+                          />
+                          <SearchableSelect
+                            className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
+                            value={item.durationUnit}
+                            onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
+                          >
+                            <option value="Days">Days</option>
+                            <option value="Weeks">Weeks</option>
+                            <option value="Months">Months</option>
+                          </SearchableSelect>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Service Period
+                        </label>
+                        <div className="h-[42px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 flex items-center">
+                          Not required for this pricing basis
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        {item.pricingModel === 'RECURRING'
+                          ? `Rate (OMR per ${item.unit || 'unit'} per ${getPeriodUnitLabel(item.durationUnit)}) *`
+                          : `Rate (OMR per ${item.unit || 'unit'}) *`}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">OMR</span>
                         <input
                           type="number"
                           step="0.001"
                           min="0"
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                          className="pl-12 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={item.estimatedRate}
                           onChange={(e) => updateServiceItem(index, 'estimatedRate', parseFloat(e.target.value) || 0)}
+                          placeholder="0.000"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Duration *
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
-                          value={item.duration}
-                          onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Duration Unit *
-                        </label>
-                        <select
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
-                          value={item.durationUnit}
-                          onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
-                        >
-                          <option>Days</option>
-                          <option>Weeks</option>
-                          <option>Months</option>
-                        </select>
-                      </div>
-
-                      <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Specifications
-                        </label>
-                        <textarea
-                          rows={2}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
-                          value={item.specifications || ''}
-                          onChange={(e) => updateServiceItem(index, 'specifications', e.target.value)}
-                          placeholder="Enter any specific requirements or specifications..."
-                        />
-                      </div>
-
-                      {/* Deliverables */}
-                      <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Deliverables (e.g., Detailed project report, Training materials...)
-                        </label>
-                        {item.deliverables.map((deliverable, dIndex) => (
-                          <div key={dIndex} className="flex items-center mt-1 mb-2">
-                            <input
-                              type="text"
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-                              value={deliverable}
-                              onChange={(e) => {
-                                const newDeliverables = [...item.deliverables];
-                                newDeliverables[dIndex] = e.target.value;
-                                updateServiceItem(index, 'deliverables', newDeliverables);
-                              }}
-                              placeholder="e.g., Detailed project report"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newDeliverables = item.deliverables.filter((_, i) => i !== dIndex);
-                                updateServiceItem(index, 'deliverables', newDeliverables);
-                              }}
-                              className="ml-2 p-2 text-red-600 hover:text-red-800 border border-gray-300 rounded-r-lg"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => updateServiceItem(index, 'deliverables', [...item.deliverables, ''])}
-                          className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-wujha-primary bg-wujha-primary/10 hover:bg-wujha-primary/20"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Deliverable
-                        </button>
-                      </div>
-
-                      {/* Performance Metrics */}
-                      <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Performance Metrics (e.g., 99% uptime, Response time &lt; 2 hours...)
-                        </label>
-                        {item.performanceMetrics.map((metric, mIndex) => (
-                          <div key={mIndex} className="flex items-center mt-1 mb-2">
-                            <input
-                              type="text"
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
-                              value={metric}
-                              onChange={(e) => {
-                                const newMetrics = [...item.performanceMetrics];
-                                newMetrics[mIndex] = e.target.value;
-                                updateServiceItem(index, 'performanceMetrics', newMetrics);
-                              }}
-                              placeholder="e.g., 99% uptime"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newMetrics = item.performanceMetrics.filter((_, i) => i !== mIndex);
-                                updateServiceItem(index, 'performanceMetrics', newMetrics);
-                              }}
-                              className="ml-2 p-2 text-red-600 hover:text-red-800 border border-gray-300 rounded-r-lg"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => updateServiceItem(index, 'performanceMetrics', [...item.performanceMetrics, ''])}
-                          className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-wujha-primary bg-wujha-primary/10 hover:bg-wujha-primary/20"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Metric
-                        </button>
-                      </div>
-
-                      <div className="lg:col-span-3 bg-blue-50 p-3 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">Item Total:</span>
-                          <span className="text-lg font-bold text-wujha-primary">
-                            {formatCurrency(item.quantity * item.estimatedRate)}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="lg:col-span-3 mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Deliverables
+                    </label>
+                    <div className="space-y-2">
+                      {item.deliverables.map((deliverable, delIndex) => (
+                        <div key={delIndex} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            value={deliverable}
+                            onChange={(e) => {
+                              const next = [...item.deliverables];
+                              next[delIndex] = e.target.value;
+                              updateServiceItem(index, 'deliverables', next);
+                            }}
+                            placeholder="Add deliverable"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateServiceItem(index, 'deliverables', item.deliverables.filter((_, i) => i !== delIndex))}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateServiceItem(index, 'deliverables', [...item.deliverables, ''])}
+                        className="text-sm text-wujha-primary hover:text-wujha-primary-hover flex items-center gap-1"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Deliverable
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Performance Metrics / Technical Specifications
+                    </label>
+                    <div className="space-y-2">
+                      {item.performanceMetrics.map((metric, metIndex) => (
+                        <div key={metIndex} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                            value={metric}
+                            onChange={(e) => {
+                              const next = [...item.performanceMetrics];
+                              next[metIndex] = e.target.value;
+                              updateServiceItem(index, 'performanceMetrics', next);
+                            }}
+                            placeholder="Add performance metric"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateServiceItem(index, 'performanceMetrics', item.performanceMetrics.filter((_, i) => i !== metIndex))}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateServiceItem(index, 'performanceMetrics', [...item.performanceMetrics, ''])}
+                        className="text-sm text-wujha-primary hover:text-wujha-primary-hover flex items-center gap-1"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Performance Metric
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-3 mt-4 flex items-center justify-between pt-2 border-t border-gray-200">
+                    <span className="text-sm text-gray-500">
+                      Item Total: {formatCurrency(getItemTotal(item))}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {item.pricingModel === 'RECURRING'
+                        ? 'Formula: Quantity x Billing Period x Rate'
+                        : 'Formula: Quantity x Rate'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {errors.items && (
+                <p className="mt-1 text-sm text-red-600">{errors.items}</p>
+              )}
+
+              {formData.items.length === 0 && (
+                <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No service items</h3>
+                  <p className="mt-1 text-sm text-gray-500">Get started by adding a service item.</p>
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={addServiceItem}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Service Item
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -982,17 +1204,18 @@ export default function EditServiceRequisition() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Terms *
                 </label>
-                <select
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                <SearchableSelect
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
                 >
+                  <option value="">Select payment terms</option>
                   <option value="NET_15">Net 15 Days</option>
                   <option value="NET_30">Net 30 Days</option>
                   <option value="NET_45">Net 45 Days</option>
                   <option value="NET_60">Net 60 Days</option>
                   <option value="ADVANCE">Advance Payment</option>
-                </select>
+                </SearchableSelect>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
                 )}
@@ -1002,16 +1225,17 @@ export default function EditServiceRequisition() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Schedule *
                 </label>
-                <select
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                <SearchableSelect
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData({ ...formData, paymentSchedule: e.target.value as any })}
                 >
+                  <option value="">Select payment schedule</option>
                   <option value="LUMPSUM">Lump Sum</option>
                   <option value="MILESTONE">Milestone-based</option>
                   <option value="MONTHLY">Monthly</option>
                   <option value="TIME_MATERIAL">Time & Material</option>
-                </select>
+                </SearchableSelect>
               </div>
             </div>
 
@@ -1024,7 +1248,7 @@ export default function EditServiceRequisition() {
                 <button
                   type="button"
                   onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
-                  className="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-wujha-primary focus:border-wujha-primary sm:text-sm"
+                  className="relative w-full bg-white border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary sm:text-sm"
                 >
                   <span className="block truncate">
                     {formData.preferredVendors.length > 0 
@@ -1043,7 +1267,7 @@ export default function EditServiceRequisition() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
                           type="text"
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-wujha-primary focus:border-wujha-primary"
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           placeholder="Search vendors..."
                           value={vendorSearchTerm}
                           onChange={(e) => setVendorSearchTerm(e.target.value)}
@@ -1081,115 +1305,19 @@ export default function EditServiceRequisition() {
           </div>
         )}
 
-        {/* Step 4: Compliance & Budget */}
+        {/* Step 4: Compliance */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Compliance & Budget</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-6">Compliance</h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget Code *
-                </label>
-                <input
-                  type="text"
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
-                    errors.budgetCode ? 'border-red-300 ring-red-100' : ''
-                  }`}
-                  value={formData.budgetCode}
-                  onChange={(e) => {
-                    const inputValue = e.target.value;
-                    setFormData({ ...formData, budgetCode: inputValue });
-                    
-                    // Validate in real-time: if value is only whitespace, show error
-                    if (inputValue && !inputValue.trim()) {
-                      setErrors(prev => ({ ...prev, budgetCode: 'Budget code cannot be only whitespace' }));
-                    } else {
-                      // Clear error when user types valid content
-                      if (errors.budgetCode) {
-                        setErrors(prev => {
-                          const newErrors = { ...prev };
-                          delete newErrors.budgetCode;
-                          return newErrors;
-                        });
-                      }
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const inputValue = e.target.value;
-                    const trimmedValue = inputValue.trim();
-                    
-                    // If value is only whitespace, clear it and show error
-                    if (inputValue && !trimmedValue) {
-                      setFormData({ ...formData, budgetCode: '' });
-                      setErrors(prev => ({ ...prev, budgetCode: 'Budget code is required' }));
-                    } else if (trimmedValue !== inputValue) {
-                      // Trim leading/trailing whitespace but keep the value
-                      setFormData({ ...formData, budgetCode: trimmedValue });
-                    }
-                  }}
-                  placeholder="Enter budget code"
-                />
-                {errors.budgetCode && (
-                  <p className="mt-1 text-sm text-red-600">{errors.budgetCode}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cost Center
-                </label>
-                <input
-                  type="text"
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
-                    errors.costCenter ? 'border-red-300 ring-red-100' : ''
-                  }`}
-                  value={formData.costCenter || ''}
-                  onChange={(e) => {
-                    const inputValue = e.target.value;
-                    setFormData({ ...formData, costCenter: inputValue });
-                    
-                    // Validate in real-time: if value is only whitespace, show error
-                    if (inputValue && !inputValue.trim()) {
-                      setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                    } else {
-                      // Clear error when user types valid content
-                      if (errors.costCenter) {
-                        setErrors(prev => {
-                          const newErrors = { ...prev };
-                          delete newErrors.costCenter;
-                          return newErrors;
-                        });
-                      }
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const inputValue = e.target.value;
-                    const trimmedValue = inputValue.trim();
-                    
-                    // If value is only whitespace, clear it and show error
-                    if (inputValue && !trimmedValue) {
-                      setFormData({ ...formData, costCenter: '' });
-                      setErrors(prev => ({ ...prev, costCenter: 'Cost Center cannot be only whitespace' }));
-                    } else if (trimmedValue !== inputValue) {
-                      // Trim leading/trailing whitespace but keep the value
-                      setFormData({ ...formData, costCenter: trimmedValue });
-                    }
-                  }}
-                  placeholder="Enter cost center (optional)"
-                />
-                {errors.costCenter && (
-                  <p className="mt-1 text-sm text-red-600">{errors.costCenter}</p>
-                )}
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Required By Date *
                 </label>
                 <input
                   type="date"
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                     errors.requiredByDate ? 'border-red-300 ring-red-100' : ''
                   }`}
                   value={formData.requiredByDate}
@@ -1243,19 +1371,6 @@ export default function EditServiceRequisition() {
                   <p className="mt-1 text-sm text-red-600">{errors.requiredByDate}</p>
                 )}
               </div>
-
-              <div className="flex items-center pt-8">
-                <input
-                  type="checkbox"
-                  id="insurance"
-                  className="h-4 w-4 text-wujha-primary focus:ring-wujha-primary border-gray-300 rounded"
-                  checked={formData.insuranceRequired}
-                  onChange={(e) => setFormData({ ...formData, insuranceRequired: e.target.checked })}
-                />
-                <label htmlFor="insurance" className="ml-2 block text-sm text-gray-700">
-                  Insurance Required
-                </label>
-              </div>
             </div>
 
             <div>
@@ -1264,7 +1379,7 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.safetyRequirements || ''}
                 onChange={(e) => setFormData({ ...formData, safetyRequirements: e.target.value })}
                 placeholder="Enter any safety requirements..."
@@ -1277,7 +1392,7 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={3}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.qualityStandards || ''}
                 onChange={(e) => setFormData({ ...formData, qualityStandards: e.target.value })}
                 placeholder="Enter quality standards or certifications required..."
@@ -1290,7 +1405,7 @@ export default function EditServiceRequisition() {
               </label>
               <textarea
                 rows={4}
-                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary px-3 py-2 ${
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                   errors.justification ? 'border-red-300 ring-red-100' : ''
                 }`}
                 value={formData.justification}
@@ -1356,9 +1471,8 @@ export default function EditServiceRequisition() {
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-gray-700">Budget Information</h4>
+                <h4 className="text-sm font-medium text-gray-700">Timeline</h4>
                 <div className="mt-2 space-y-1 text-sm text-gray-600">
-                  <p><span className="font-medium">Budget Code:</span> {formData.budgetCode}</p>
                   <p><span className="font-medium">Required By:</span> {formData.requiredByDate}</p>
                 </div>
               </div>
@@ -1433,3 +1547,4 @@ export default function EditServiceRequisition() {
     </div>
   );
 }
+

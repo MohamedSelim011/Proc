@@ -18,7 +18,6 @@ import {
   Phone,
   MapPin,
   User,
-  CreditCard,
   XCircle,
   Loader2,
   
@@ -42,11 +41,28 @@ interface PurchaseOrder {
   };
   pr: {
     id: string;
-    prNumber: string;
+    prNumber?: string | null;
+    mrNumber?: string | null;
     itemType?: string;
-    departmentId: string;
-    requestor: string;
+    departmentId?: string | null;
+    departmentName?: string | null;
+    requestedDepartmentName?: string | null;
+    requesterId?: string | null;
+    requesterName?: string | null;
+    requestor?: string | null;
   };
+  sourceMaterialRequisition?: {
+    id: string;
+    prNumber?: string | null;
+    mrNumber?: string | null;
+    itemType?: string | null;
+    departmentId?: string | null;
+    departmentName?: string | null;
+    requestedDepartmentName?: string | null;
+    requesterId?: string | null;
+    requesterName?: string | null;
+    requestor?: string | null;
+  } | null;
   items: {
     id: string;
     item: {
@@ -325,13 +341,23 @@ export default function PurchaseOrderDetailPage() {
   };
 
   const getRequisitionLink = () => {
-    if (!po?.pr) return '/procurement/requisitions';
-    const isServicePR =
-      po.pr.itemType === 'SERVICE' ||
-      (po.pr.prNumber || '').toUpperCase().startsWith('SPR-');
-    return isServicePR
-      ? `/procurement/services/requisitions/${po.pr.id}`
-      : `/procurement/requisitions/${po.pr.id}`;
+    // MR-first flow: PO source should open Material Requests details
+    if (po?.sourceMaterialRequisition?.id) {
+      return `/procurement/services/material-requests/${po.sourceMaterialRequisition.id}`;
+    }
+
+    // Legacy PR-based fallback
+    if (po?.pr?.id) {
+      const requisitionNumber = po.pr.prNumber || '';
+      const isServiceRequisition =
+        po.pr.itemType === 'SERVICE' ||
+        requisitionNumber.toUpperCase().startsWith('SPR-');
+      return isServiceRequisition
+        ? `/procurement/services/requisitions/${po.pr.id}`
+        : `/procurement/services/material-requests/${po.pr.id}`;
+    }
+
+    return '/procurement/services/material-requests';
   };
 
   const handleDownloadPDF = async () => {
@@ -513,24 +539,8 @@ export default function PurchaseOrderDetailPage() {
 
   // Check permissions
   const roleUpper = userRole?.toUpperCase() || '';
-  const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
-  const isSystemAdmin = roleUpper === 'SYSTEM_ADMIN';
-  const isAdmin = roleUpper === 'ADMIN' || isSuperAdmin || isSystemAdmin;
-  
-  // Roles that can approve POs
-  const hasApprovalRole = [
-    'DEPARTMENT_MANAGER',
-    'PROCUREMENT_MANAGER',
-    'FINANCE_MANAGER',
-    'ADMIN',
-    'SYSTEM_ADMIN',
-    'SUPER_ADMIN',
-  ].includes(roleUpper);
-  
+  const canApprove = ['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_MANAGER'].includes(roleUpper);
   const isCreator = po?.createdBy === userId || po?.createdBy === userEmployeeId;
-  
-  // Admin-level roles can approve regardless of creator to avoid deadlocks.
-  const canApprove = hasApprovalRole && (isSuperAdmin || isSystemAdmin || roleUpper === 'ADMIN' || !isCreator);
   
   // Only Buyer (REQUESTOR), Procurement Officer (PROCUREMENT_MANAGER), and Admin can submit POs for approval
   // Also allow if user is the creator of the PO
@@ -553,12 +563,8 @@ export default function PurchaseOrderDetailPage() {
       userEmployeeId,
       poStatus: po?.status,
       poCreatedBy: po?.createdBy,
-      isSuperAdmin,
-      isAdmin,
-      hasApprovalRole,
       canApprove,
       canSubmit,
-      isCreator,
       localStorageRole: localStorage.getItem('role'),
       localStorageToken: localStorage.getItem('token') ? 'exists' : 'missing',
       jwtDecoded: (() => {
@@ -592,16 +598,6 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'UNPAID': return 'bg-red-100 text-red-800';
-      case 'PARTIAL': return 'bg-yellow-100 text-yellow-800';
-      case 'PAID': return 'bg-green-100 text-green-800';
-      case 'OVERDUE': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -630,6 +626,45 @@ export default function PurchaseOrderDetailPage() {
     );
   }
 
+  const sourceRequisition = po.sourceMaterialRequisition ?? po.pr;
+  const sourceRequisitionType = po.sourceMaterialRequisition ? 'MR' : 'PR';
+  const sourceRequisitionNumber =
+    sourceRequisition?.mrNumber ||
+    sourceRequisition?.prNumber ||
+    '-';
+  const sourceRequisitionDepartment =
+    sourceRequisition?.requestedDepartmentName ||
+    sourceRequisition?.departmentName ||
+    sourceRequisition?.departmentId ||
+    '-';
+  const sourceRequisitionRequester =
+    sourceRequisition?.requesterName ||
+    sourceRequisition?.requesterId ||
+    sourceRequisition?.requestor ||
+    '-';
+
+  const workflowSteps = [
+    { status: 'DRAFT', label: 'Draft Created', icon: FileText },
+    { status: 'SUBMITTED', label: 'Submitted for Approval', icon: Clock },
+    { status: 'PENDING_APPROVAL', label: 'Pending Approval', icon: Clock },
+    { status: 'APPROVED', label: 'Approved', icon: CheckCircle },
+    { status: 'SENT', label: 'Sent to Vendor', icon: Mail },
+    { status: 'ACKNOWLEDGED', label: 'Vendor Acknowledged', icon: CheckCircle },
+    { status: 'COMPLETED', label: 'Completed', icon: CheckCircle },
+  ];
+  const statusOrder = workflowSteps.map((step) => step.status);
+  const currentStatusIndex = statusOrder.indexOf(po.status);
+  const historyAsc = [...history].sort(
+    (a, b) => new Date(a.performedAt).getTime() - new Date(b.performedAt).getTime()
+  );
+  const getStepHistory = (status: string) =>
+    historyAsc.find((entry) => {
+      const action = String(entry.action || '').toUpperCase();
+      const details = (entry.details || {}) as Record<string, unknown>;
+      const detailStatus = String(details.status || details.newStatus || '').toUpperCase();
+      return action === status || detailStatus === status;
+    });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -652,7 +687,7 @@ export default function PurchaseOrderDetailPage() {
               </div>
               <div className="flex items-center gap-1">
                 <FileText className="h-4 w-4" />
-                PR: {po.pr?.prNumber ?? '—'}
+                {sourceRequisitionType}: {sourceRequisitionNumber}
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -685,13 +720,24 @@ export default function PurchaseOrderDetailPage() {
                 </>
               )}
               {po.status === 'PENDING_APPROVAL' && canApprove && (
-                <Link
-                  href={`/procurement/purchase-orders/${po.id}/approve`}
-                  className="px-4 py-2 text-sm font-medium text-white bg-wujha-primary rounded-lg hover:bg-wujha-primary-hover"
-                >
-                  <CheckCircle className="h-4 w-4 inline mr-1" />
-                  Review & Approve
-                </Link>
+                <>
+                  <button
+                    onClick={() => handleStatusUpdate('APPROVED')}
+                    disabled={updatingStatus}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle className="h-4 w-4 inline mr-1" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate('REJECTED')}
+                    disabled={updatingStatus}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <XCircle className="h-4 w-4 inline mr-1" />
+                    Reject
+                  </button>
+                </>
               )}
               {po.status === 'APPROVED' && (
                 <button 
@@ -746,7 +792,6 @@ export default function PurchaseOrderDetailPage() {
               { id: 'details', name: 'Details', icon: FileText },
               { id: 'items', name: 'Items', icon: Package },
               { id: 'delivery', name: 'Delivery', icon: Truck },
-              { id: 'invoices', name: 'Invoices', icon: CreditCard },
               { id: 'documents', name: 'Documents', icon: FileText },
               { id: 'history', name: 'History', icon: Clock }
             ].map((tab) => (
@@ -829,69 +874,72 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                 </div>
 
-                {/* Workflow Progress */}
+                {/* Workflow Timeline */}
                 <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Approval Workflow</h4>
-                  <div className="space-y-3">
-                    {(() => {
-                      const workflowSteps = [
-                        { status: 'DRAFT', label: 'Draft Created', icon: FileText },
-                        { status: 'SUBMITTED', label: 'Submitted for Approval', icon: Clock },
-                        { status: 'PENDING_APPROVAL', label: 'Pending Approval', icon: Clock },
-                        { status: 'APPROVED', label: 'Approved', icon: CheckCircle },
-                        { status: 'SENT', label: 'Sent to Vendor', icon: Mail },
-                        { status: 'ACKNOWLEDGED', label: 'Vendor Acknowledged', icon: CheckCircle },
-                        { status: 'COMPLETED', label: 'Completed', icon: CheckCircle }
-                      ];
-                      
-                      // Define status order for completion check
-                      const statusOrder = ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'ACKNOWLEDGED', 'COMPLETED'];
-                      const currentStatusIndex = statusOrder.indexOf(po.status);
-                      
-                      return workflowSteps.map((step, index) => {
-                        const stepStatusIndex = statusOrder.indexOf(step.status);
-                        const isCompleted = currentStatusIndex >= stepStatusIndex && currentStatusIndex > -1;
-                        const isCurrent = po.status === step.status;
-                        const isRejected = po.status === 'REJECTED' && stepStatusIndex < currentStatusIndex;
-                        const isCancelled = po.status === 'CANCELLED';
-                        
-                        return (
-                          <div key={step.status} className="flex items-center gap-3">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
-                              isRejected || isCancelled
-                                ? 'bg-red-500 border-red-500 text-white'
-                                : isCompleted 
-                                ? 'bg-green-500 border-green-500 text-white' 
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Approval Workflow Timeline</h4>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+                    {workflowSteps.map((step, index) => {
+                      const stepStatusIndex = statusOrder.indexOf(step.status);
+                      const isCompleted =
+                        currentStatusIndex >= 0 && currentStatusIndex >= stepStatusIndex;
+                      const isCurrent = po.status === step.status;
+                      const isPending = !isCompleted && !isCurrent;
+                      const stepHistory = getStepHistory(step.status);
+
+                      return (
+                        <div key={step.status} className="relative pl-10 pb-6 last:pb-0">
+                          {index < workflowSteps.length - 1 && (
+                            <span
+                              className={`absolute left-[15px] top-8 h-[calc(100%-8px)] w-[2px] ${
+                                isCompleted ? 'bg-green-300' : 'bg-gray-200'
+                              }`}
+                            />
+                          )}
+                          <span
+                            className={`absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                              isCompleted
+                                ? 'border-green-500 bg-green-500 text-white'
                                 : isCurrent
-                                ? 'bg-wujha-primary border-wujha-primary text-white'
-                                : 'bg-gray-100 border-gray-300 text-gray-400'
-                            }`}>
-                              {isCompleted || isCurrent ? (
-                                <step.icon className="h-4 w-4" />
-                              ) : (
-                                <span className="text-sm font-medium">{index + 1}</span>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <div className={`text-sm font-medium ${
-                                isRejected || isCancelled
-                                  ? 'text-red-700'
-                                  : isCompleted 
-                                  ? 'text-green-700' 
-                                  : isCurrent 
-                                  ? 'text-wujha-primary' 
+                                ? 'border-wujha-primary bg-wujha-primary text-white'
+                                : 'border-gray-300 bg-white text-gray-400'
+                            }`}
+                          >
+                            {isCompleted || isCurrent ? (
+                              <step.icon className="h-4 w-4" />
+                            ) : (
+                              <span className="text-xs font-semibold">{index + 1}</span>
+                            )}
+                          </span>
+                          <div className="flex flex-col">
+                            <div
+                              className={`text-sm font-semibold ${
+                                isCompleted
+                                  ? 'text-green-700'
+                                  : isCurrent
+                                  ? 'text-wujha-primary'
                                   : 'text-gray-500'
-                              }`}>
-                                {step.label}
-                              </div>
-                              {isCurrent && (
-                                <div className="text-xs text-wujha-primary">Current Step</div>
-                              )}
+                              }`}
+                            >
+                              {step.label}
                             </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {isCurrent ? 'Current stage' : isPending ? 'Pending' : 'Completed'}
+                            </div>
+                            {stepHistory?.performedAt && (
+                              <div className="mt-1 text-xs text-gray-600">
+                                {new Date(stepHistory.performedAt).toLocaleString()}
+                                {stepHistory.performedBy ? ` by ${stepHistory.performedBy}` : ''}
+                              </div>
+                            )}
                           </div>
-                        );
-                      });
-                    })()}
+                        </div>
+                      );
+                    })}
+                    {(po.status === 'REJECTED' || po.status === 'CANCELLED') && (
+                      <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        This purchase order is {po.status.toLowerCase()}.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -938,16 +986,18 @@ export default function PurchaseOrderDetailPage() {
                   )}
                 </div>
 
-                {/* PR Reference */}
-                {po.pr && (
+                {/* Source Requisition Reference */}
+                {sourceRequisition && (
                 <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Purchase Requisition</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Source Requisition</h4>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm font-medium text-blue-900">{po.pr.prNumber}</p>
-                        <p className="text-xs text-blue-700">Department: {po.pr.departmentId}</p>
-                        <p className="text-xs text-blue-700">Requestor: {po.pr.requesterId ?? '—'}</p>
+                        <p className="text-sm font-medium text-blue-900">
+                          {sourceRequisitionType}: {sourceRequisitionNumber}
+                        </p>
+                        <p className="text-xs text-blue-700">Department: {sourceRequisitionDepartment}</p>
+                        <p className="text-xs text-blue-700">Requester: {sourceRequisitionRequester}</p>
                       </div>
                       <Link
                         href={getRequisitionLink()}
@@ -1120,46 +1170,6 @@ export default function PurchaseOrderDetailPage() {
             </div>
           )}
 
-          {activeTab === 'invoices' && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Related Invoices</h3>
-              {po.invoices.length > 0 ? (
-                <div className="space-y-4">
-                  {po.invoices.map((invoice) => (
-                    <div key={invoice.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h5 className="text-sm font-medium text-gray-900">{invoice.invoiceNumber}</h5>
-                          <p className="text-sm text-gray-500">
-                            Invoice Date: {new Date(invoice.invoiceDate).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            Amount: {invoice.totalAmount.toLocaleString()} {po.currency}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(invoice.paymentStatus)}`}>
-                            {invoice.paymentStatus}
-                          </span>
-                          <div className="mt-2">
-                            <Link
-                              href={`/procurement/invoices/${invoice.id}`}
-                              className="text-wujha-primary hover:text-wujha-primary-hover text-sm"
-                            >
-                              View Invoice
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No invoices created yet.</p>
-              )}
-            </div>
-          )}
-
           {activeTab === 'documents' && (
             <DocumentManager
               documents={po.documents || []}
@@ -1205,7 +1215,7 @@ export default function PurchaseOrderDetailPage() {
                                 )}
                                 {item.details.previousStatus && item.details.newStatus && (
                                   <p className="mt-1">
-                                    Status: <span className="text-gray-500">{item.details.previousStatus}</span> → 
+                                    Status: <span className="text-gray-500">{item.details.previousStatus}</span> -&gt; 
                                     <span className="text-wujha-primary font-medium"> {item.details.newStatus}</span>
                                   </p>
                                 )}

@@ -21,8 +21,8 @@ export async function GET(
 
     return NextResponse.json(mapped);
   } catch (error) {
-    console.error('Error fetching PR documents:', error);
-    return NextResponse.json({ error: 'Failed to fetch PR documents' }, { status: 500 });
+    console.error('Error fetching requisition documents:', error);
+    return NextResponse.json({ error: 'Failed to fetch requisition documents' }, { status: 500 });
   }
 }
 
@@ -79,7 +79,7 @@ export async function POST(
 
     return NextResponse.json(savedDocument, { status: 201 });
   } catch (error) {
-    console.error('Error uploading PR document:', error);
-    return NextResponse.json({ error: 'Failed to upload PR document' }, { status: 500 });
+    console.error('Error uploading requisition document:', error);
+    return NextResponse.json({ error: 'Failed to upload requisition document' }, { status: 500 });
   }
 }

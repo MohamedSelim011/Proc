@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createContractVersion } from '@/lib/contract-version-service';
+import { Prisma } from '@prisma/client';
+import { createActivityLog } from '@/lib/activity-log';
 
 
 // POST /api/service-contracts - Create new service contract
@@ -12,10 +14,17 @@ export async function POST(request: NextRequest) {
     const count = await prisma.serviceContract.count();
     const contractNumber = `SC-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+    const servicePR = await prisma.servicePR.findUnique({
+      where: { id: body.servicePrId || body.prId },
+      select: { departmentId: true, projectId: true },
+    });
+
     const contract = await prisma.serviceContract.create({
       data: {
         contractNumber,
-        prId: body.prId,
+        servicePrId: body.servicePrId || body.prId,
+        departmentId: servicePR?.departmentId || null,
+        projectId: servicePR?.projectId || null,
         vendorId: body.vendorId,
         contractType: body.contractType,
         startDate: new Date(body.startDate),
@@ -35,27 +44,44 @@ export async function POST(request: NextRequest) {
       },
       include: {
         vendor: true,
-        pr: true
+        servicePR: true
       }
     });
 
+    const legacyPr = contract.servicePR
+      ? {
+          id: contract.servicePR.id,
+          prNumber: contract.servicePR.prNumber,
+          estimatedCost: contract.servicePR.estimatedCost,
+          servicePR: contract.servicePR,
+        }
+      : null;
+
     // Create initial version snapshot
-    if (body.createdBy) {
-      try {
-        await createContractVersion({
-          contractId: contract.id,
-          changeReason: 'Initial contract creation',
-          changeDescription: 'First version of the contract',
-          createdBy: body.createdBy,
-          createdByName: body.createdByName
-        });
-      } catch (versionError) {
-        console.error('Error creating initial version:', versionError);
-        // Continue even if version creation fails
-      }
+    try {
+      await createContractVersion({
+        contractId: contract.id,
+        createdBy: body.createdBy || 'system',
+        createdByName: body.createdByName || body.createdBy || 'system',
+      });
+    } catch (versionError) {
+      console.error('Error creating initial version:', versionError);
+      // Continue even if version creation fails
     }
 
-    return NextResponse.json(contract, { status: 201 });
+    await createActivityLog({
+      type: 'SERVICE_CONTRACT',
+      entityType: 'ServiceContract',
+      entityId: contract.id,
+      title: `Service Contract ${contract.contractNumber} created`,
+      status: contract.status,
+      amount: Number(contract.totalValue || 0),
+      currency: contract.currency || 'OMR',
+      createdBy: contract.createdBy || null,
+      createdByName: body.createdByName || undefined,
+    });
+
+    return NextResponse.json({ ...contract, pr: legacyPr }, { status: 201 });
   } catch (error) {
     console.error('Error creating service contract:', error);
     return NextResponse.json(
@@ -79,16 +105,14 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    const andConditions: any[] = [];
+    const statsWhere: Prisma.ServiceContractWhereInput = {};
+    const statsAndConditions: Prisma.ServiceContractWhereInput[] = [];
+    const where: Prisma.ServiceContractWhereInput = {};
+    const andConditions: Prisma.ServiceContractWhereInput[] = [];
     
-    if (status) {
-      andConditions.push({ status });
-    }
-
     // Exclude contracts that already have performance reports
     if (excludeEvaluated) {
-      andConditions.push({
+      statsAndConditions.push({
         performances: {
           none: {}
         }
@@ -96,7 +120,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (contractType) {
-      andConditions.push({ contractType });
+      statsAndConditions.push({ contractType });
     }
 
     if (vendor) {
@@ -107,17 +131,17 @@ export async function GET(request: NextRequest) {
       if (isVendorId) {
         // If it looks like an ID or vendor code, search by vendorId or vendorCode
         if (vendor.startsWith('VEN-')) {
-          andConditions.push({
+          statsAndConditions.push({
             vendor: {
               vendorCode: vendor
             }
           });
         } else {
-          andConditions.push({ vendorId: vendor });
+          statsAndConditions.push({ vendorId: vendor });
         }
       } else {
         // Otherwise search by vendor name (case-insensitive)
-        andConditions.push({
+        statsAndConditions.push({
           vendor: {
             OR: [
               { nameEn: { contains: vendor, mode: 'insensitive' } },
@@ -131,15 +155,25 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       // Search across contract number, vendor name, and PR number
-      andConditions.push({
+      statsAndConditions.push({
         OR: [
           { contractNumber: { contains: search, mode: 'insensitive' } },
           { vendor: { nameEn: { contains: search, mode: 'insensitive' } } },
           { vendor: { nameAr: { contains: search, mode: 'insensitive' } } },
           { vendor: { vendorCode: { contains: search, mode: 'insensitive' } } },
-          { pr: { prNumber: { contains: search, mode: 'insensitive' } } }
+          { servicePR: { prNumber: { contains: search, mode: 'insensitive' } } }
         ]
       });
+    }
+
+    if (statsAndConditions.length > 0) {
+      statsWhere.AND = [...statsAndConditions];
+    }
+
+    andConditions.push(...statsAndConditions);
+
+    if (status) {
+      andConditions.push({ status });
     }
 
     // Combine all conditions with AND
@@ -147,14 +181,14 @@ export async function GET(request: NextRequest) {
       where.AND = andConditions;
     }
 
-    const [contracts, total] = await Promise.all([
+    const [contracts, total, totalContracts, activeContracts, signedContracts, completedContracts, terminatedContracts, aggregateValues, vendorGroups] = await Promise.all([
       prisma.serviceContract.findMany({
         where,
         skip,
         take: limit,
         include: {
           vendor: true,
-          pr: true,
+          servicePR: true,
           approval: {
             include: {
               approvalHistory: true
@@ -171,16 +205,81 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         }
       }),
-      prisma.serviceContract.count({ where })
+      prisma.serviceContract.count({ where }),
+      prisma.serviceContract.count({ where: statsWhere }),
+      prisma.serviceContract.count({
+        where: {
+          ...statsWhere,
+          status: 'ACTIVE'
+        }
+      }),
+      prisma.serviceContract.count({
+        where: {
+          ...statsWhere,
+          status: 'SIGNED'
+        }
+      }),
+      prisma.serviceContract.count({
+        where: {
+          ...statsWhere,
+          status: 'COMPLETED'
+        }
+      }),
+      prisma.serviceContract.count({
+        where: {
+          ...statsWhere,
+          status: 'TERMINATED'
+        }
+      }),
+      prisma.serviceContract.aggregate({
+        where: statsWhere,
+        _sum: {
+          totalValue: true
+        },
+        _avg: {
+          totalValue: true
+        }
+      }),
+      prisma.serviceContract.groupBy({
+        by: ['vendorId'],
+        where: statsWhere
+      })
     ]);
 
+    const totalValue = aggregateValues._sum.totalValue ? Number(aggregateValues._sum.totalValue) : 0;
+    const averageValue = aggregateValues._avg.totalValue ? Number(aggregateValues._avg.totalValue) : 0;
+
+    const contractsWithLegacyPr = contracts.map((contract) => {
+      const servicePR = contract.servicePR;
+      const pr = servicePR
+        ? {
+            id: servicePR.id,
+            prNumber: servicePR.prNumber,
+            estimatedCost: servicePR.estimatedCost,
+            servicePR,
+          }
+        : null;
+
+      return { ...contract, pr };
+    });
+
     return NextResponse.json({
-      contracts,
+      contracts: contractsWithLegacyPr,
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit)
+      },
+      stats: {
+        totalContracts,
+        activeContracts,
+        signedContracts,
+        completedContracts,
+        terminatedContracts,
+        totalValue,
+        averageValue,
+        vendorsEngaged: vendorGroups.length
       }
     });
   } catch (error) {

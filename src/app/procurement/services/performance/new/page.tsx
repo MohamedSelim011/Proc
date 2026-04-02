@@ -16,6 +16,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceContract {
   id: string;
@@ -313,7 +314,7 @@ function NewPerformanceReportContent() {
               <label className="block text-sm font-medium text-gray-700">
                 Service Contract <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
                 value={formData.contractId}
                 onChange={(e) => handleContractChange(e.target.value)}
                 disabled={contracts.length === 0}
@@ -331,7 +332,7 @@ function NewPerformanceReportContent() {
                     {contract.contractNumber} - {contract.vendor.nameEn}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
               {errors.contractId && (
                 <p className="mt-1 text-sm text-red-600">{errors.contractId}</p>
               )}

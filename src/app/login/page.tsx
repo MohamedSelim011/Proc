@@ -19,19 +19,11 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    remember: false,
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { showToast } = useToast()
-
-  useEffect(() => {
-    const rememberedEmail = localStorage.getItem('wujha-remembered-email')
-    if (rememberedEmail) {
-      setFormData((prev) => ({ ...prev, email: rememberedEmail, remember: true }))
-    }
-  }, [])
 
   // Preserve existing behavior: if token exists, go to dashboard
   useEffect(() => {
@@ -43,12 +35,6 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (formData.remember) {
-      localStorage.setItem('wujha-remembered-email', formData.email)
-    } else {
-      localStorage.removeItem('wujha-remembered-email')
-    }
 
     setIsLoading(true)
     try {
@@ -194,20 +180,6 @@ export default function LoginPage() {
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      id="remember"
-                      type="checkbox"
-                      checked={formData.remember}
-                      onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-wujha-primary focus:ring-wujha-primary"
-                      disabled={isLoading}
-                    />
-                    <label htmlFor="remember" className="ml-2 text-sm text-slate-600">
-                      Remember my email
-                    </label>
                   </div>
 
                   <button

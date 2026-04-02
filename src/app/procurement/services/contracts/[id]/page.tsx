@@ -48,6 +48,16 @@ interface ServiceContract {
   createdAt: string;
   updatedAt: string;
   versionNumber?: number;
+  department?: {
+    id: string;
+    name?: string;
+    code?: string;
+  } | null;
+  project?: {
+    id: string;
+    projectName?: string;
+    projectCode?: string;
+  } | null;
   vendor: {
     id: string;
     vendorCode: string;
@@ -91,6 +101,16 @@ interface ServiceContract {
         };
       }>;
     };
+    department?: {
+      id: string;
+      name?: string;
+      code?: string;
+    } | null;
+    project?: {
+      id: string;
+      projectName?: string;
+      projectCode?: string;
+    } | null;
     items?: Array<{
       id: string;
       quantity: number;
@@ -148,6 +168,14 @@ interface ServiceContract {
     createdBy: string;
     createdByName?: string | null;
     createdAt: string;
+    approvalNotes?: Array<{
+      id: string;
+      level: number;
+      action: string;
+      approverName?: string | null;
+      comments?: string | null;
+      timestamp?: string | null;
+    }>;
   }>;
   documents?: Array<{
     id: string;
@@ -158,6 +186,14 @@ interface ServiceContract {
     fileType: string;
     uploadedBy?: string | null;
     uploadedAt: string;
+  }>;
+  milestones?: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    targetDate: string;
+    amount: string;
+    paymentPercentage?: string | null;
   }>;
 }
 
@@ -189,19 +225,71 @@ export default function ServiceContractDetail() {
   const [success, setSuccess] = useState('');
   const [activating, setActivating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingToVendor, setSendingToVendor] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | 'request-edit' | null>(null);
   const [approvalComments, setApprovalComments] = useState('');
   const [processingApproval, setProcessingApproval] = useState(false);
   const [canApprove, setCanApprove] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'service-details' | 'approvals' | 'vendor-responses' | 'versions' | 'documents'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'service-details' | 'approvals' | 'vendors' | 'vendor-responses' | 'versions' | 'milestones' | 'documents'>('general');
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
 
-  const formatCurrency = (amount: number) => {
+  const handleDownloadVersion = async (versionId: string) => {
+    if (!contract?.id) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      showToast('error', 'Authentication token missing. Please sign in again.');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/service-contracts/${contract.id}/versions/${versionId}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        showToast('error', errorData?.error || 'Failed to download contract version');
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      link.href = url;
+      link.download = match ? match[1] : `Service_Contract_Version_${versionId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading contract version:', error);
+      showToast('error', 'Failed to download contract version');
+    }
+  };
+  const [milestones, setMilestones] = useState<Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    targetDate: string;
+    amount: string;
+    paymentPercentage?: string | null;
+  }>>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [milestonesLoaded, setMilestonesLoaded] = useState(false);
+
+  const formatCurrency = (amount: number, currencyCode?: string) => {
     return new Intl.NumberFormat('en-OM', {
       style: 'currency',
-      currency: 'OMR',
+      currency: currencyCode || contract?.currency || 'OMR',
       minimumFractionDigits: 3
     }).format(amount);
   };
@@ -243,25 +331,19 @@ export default function ServiceContractDetail() {
     }
   }, [params.id]);
 
-  // Auto-refresh contract data every 30 seconds when in PENDING_APPROVAL status
-  useEffect(() => {
-    if (contract?.status === 'PENDING_APPROVAL') {
-      const interval = setInterval(() => {
-        fetchContract();
-      }, 30000); // Refresh every 30 seconds
-
-      return () => clearInterval(interval);
-    }
-  }, [contract?.status]);
+  // Auto-refresh removed to prevent unexpected refresh loops
 
   useEffect(() => {
     // Check if current user can approve
     const user = getUserData();
     setCurrentUser(user);
-    
+
     if (user && contract && contract.status === 'PENDING_APPROVAL' && contract.approval) {
       checkApprovalPermission(user);
+      return;
     }
+
+    setCanApprove(false);
   }, [contract]);
 
   const checkApprovalPermission = async (user: any) => {
@@ -274,10 +356,12 @@ export default function ServiceContractDetail() {
       const userRole = user.role;
 
       // Check if user's role matches the required role for the current level
-      // Level 1: HEAD_OF_PROCUREMENT, Level 2: BILLING_ENGINEER
+      // Level 1: PROCUREMENT_MANAGER (or ADMIN/SUPER_ADMIN), Level 2: BILLING_ENGINEER (or ADMIN/SUPER_ADMIN)
+      const levelOneRoles = ['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_MANAGER'];
+      const levelTwoRoles = ['SUPER_ADMIN', 'ADMIN', 'BILLING_ENGINEER'];
       const canUserApproveThisLevel = 
-        (levelWaitingForApproval === 1 && userRole === 'HEAD_OF_PROCUREMENT') ||
-        (levelWaitingForApproval === 2 && userRole === 'BILLING_ENGINEER' || userRole === 'SUPER_ADMIN' || userRole === 'ADMIN');
+        (levelWaitingForApproval === 1 && levelOneRoles.includes(userRole)) ||
+        (levelWaitingForApproval === 2 && levelTwoRoles.includes(userRole));
 
       // Check if this level has already been approved (shouldn't happen, but double-check)
       const levelAlreadyApproved = contract.approval.approvalHistory?.some(
@@ -309,6 +393,7 @@ export default function ServiceContractDetail() {
       if (response.ok) {
         const data = await response.json();
         setContract(data);
+        void fetchMilestones(data?.id);
       } else {
         setError('Failed to fetch service contract');
       }
@@ -424,7 +509,75 @@ export default function ServiceContractDetail() {
     }
   };
 
+  const fetchMilestones = async (contractId?: string) => {
+    const id = contractId || contract?.id;
+    if (!id) return;
+    try {
+      setMilestonesLoading(true);
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/service-milestones?contractId=${id}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        setMilestones(data.milestones || []);
+        setMilestonesLoaded(true);
+      } else {
+        setMilestones([]);
+        setMilestonesLoaded(true);
+      }
+    } catch (error) {
+      console.error('Error fetching milestones:', error);
+      setMilestones([]);
+      setMilestonesLoaded(true);
+    } finally {
+      setMilestonesLoading(false);
+    }
+  };
+
+  const handleSendToVendor = async () => {
+    if (!contract) return;
+
+    try {
+      setSendingToVendor(true);
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/service-contracts/${contract.id}/send-to-vendor`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showToast('success', data.message || 'Contract sent to vendor');
+        await fetchContract();
+      } else {
+        showToast('error', data.error || 'Failed to send contract to vendor');
+      }
+    } catch (error) {
+      console.error('Error sending contract to vendor:', error);
+      showToast('error', 'Failed to send contract to vendor');
+    } finally {
+      setSendingToVendor(false);
+    }
+  };
+
   const handleApprovalAction = async (action: 'approve' | 'reject' | 'request-edit') => {
+    if (action === 'approve' && !approvalComments.trim()) {
+      showToast('error', 'Comments are required when approving a contract');
+      return;
+    }
     if (action === 'reject' && !approvalComments.trim()) {
       showToast('error', 'Comments are required when rejecting a contract');
       return;
@@ -458,6 +611,7 @@ export default function ServiceContractDetail() {
         endpoint = `/api/service-contracts/${params.id}/reject`;
       } else if (action === 'request-edit') {
         endpoint = `/api/service-contracts/${params.id}/request-edit`;
+        body = { comments: approvalComments };
       }
 
       const response = await fetch(endpoint, {
@@ -772,7 +926,7 @@ export default function ServiceContractDetail() {
             </div>
             <div class="info-item">
               <div class="info-label">Total Contract Value</div>
-              <div class="info-value large">${formatCurrency(contract.totalValue)} ${contract.currency}</div>
+              <div class="info-value large">${formatCurrency(contract.totalValue, contract.currency)}</div>
             </div>
           </div>
         </div>
@@ -836,13 +990,13 @@ export default function ServiceContractDetail() {
             ${contract.performanceBond ? `
               <div class="info-item">
                 <div class="info-label">Performance Bond</div>
-                <div class="info-value">${formatCurrency(contract.performanceBond)} ${contract.currency}</div>
+                <div class="info-value">${formatCurrency(contract.performanceBond, contract.currency)}</div>
               </div>
             ` : ''}
             ${contract.retentionAmount ? `
               <div class="info-item">
                 <div class="info-label">Retention Amount</div>
-                <div class="info-value">${formatCurrency(contract.retentionAmount)} ${contract.currency}</div>
+                <div class="info-value">${formatCurrency(contract.retentionAmount, contract.currency)}</div>
               </div>
             ` : ''}
           </div>
@@ -955,6 +1109,109 @@ export default function ServiceContractDetail() {
           </button>
         </div>
         <div className="flex items-center space-x-3">
+          {contract.status === 'DRAFT' && (
+            <button 
+              onClick={handleSubmitForApproval}
+              disabled={submitting}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Submit contract for approval"
+            >
+              {submitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <SendHorizontal className="h-4 w-4 mr-2" />
+                  Submit for Approval
+                </>
+              )}
+            </button>
+          )}
+          {contract.status === 'APPROVED' && (
+            <button
+              onClick={handleSendToVendor}
+              disabled={sendingToVendor}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendingToVendor ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <SendHorizontal className="h-4 w-4 mr-2" />
+                  Send to Vendor
+                </>
+              )}
+            </button>
+          )}
+          {contract.status === 'SIGNED' && milestonesLoaded && milestones.length === 0 && (
+            <button
+              onClick={() => router.push(`/procurement/services/milestones/new?contractId=${contract.id}`)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Create Milestones
+            </button>
+          )}
+          {contract.status === 'SIGNED' && milestonesLoaded && milestones.length > 0 && (
+            <button
+              onClick={handleActivateContract}
+              disabled={activating}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {activating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Activating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Activate Contract
+                </>
+              )}
+            </button>
+          )}
+          {contract.status === 'PENDING_APPROVAL' && canApprove && (
+            <>
+              <button
+                onClick={() => setApprovalAction('approve')}
+                className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Approve
+              </button>
+
+              <button
+                onClick={() => setApprovalAction('request-edit')}
+                className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-secondary hover:bg-wujha-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-secondary"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Request Edit
+              </button>
+
+              <button
+                onClick={() => setApprovalAction('reject')}
+                className="inline-flex items-center px-3 py-2 border border-wujha-primary shadow-sm text-sm leading-4 font-medium rounded-md text-wujha-primary bg-white hover:bg-wujha-primary/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-primary"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Reject
+              </button>
+            </>
+          )}
+          {contract.status === 'REJECTED' && (
+            <button
+              onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-wujha-secondary hover:bg-wujha-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wujha-secondary"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Request Edit
+            </button>
+          )}
           <button
             onClick={handleExportPDF}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -1000,8 +1257,10 @@ export default function ServiceContractDetail() {
               { id: 'general', name: 'General Info', icon: Building },
               { id: 'service-details', name: 'Service Details', icon: Shield },
               { id: 'approvals', name: 'Approvals', icon: CheckCheck },
-              { id: 'vendor-responses', name: 'Vendor Responses', icon: User },
+              { id: 'vendors', name: 'Vendors', icon: User },
+              { id: 'vendor-responses', name: 'Vendor Responses', icon: Award },
               { id: 'versions', name: 'Versions', icon: Clock },
+              { id: 'milestones', name: 'Milestones', icon: Clock },
               { id: 'documents', name: 'Documents', icon: FileText },
             ].map((tab) => (
               <button
@@ -1044,6 +1303,26 @@ export default function ServiceContractDetail() {
 
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">
+                <Building className="h-4 w-4 mr-2" />
+                Department
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {contract.department?.name || contract.pr.department?.name || contract.pr.departmentId || 'N/A'}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-sm font-medium text-gray-500 flex items-center">
+                <Building className="h-4 w-4 mr-2" />
+                Project
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {contract.project?.projectName || contract.pr.project?.projectName || contract.pr.projectId || 'N/A'}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-sm font-medium text-gray-500 flex items-center">
                 <Calendar className="h-4 w-4 mr-2" />
                 Contract Period
               </dt>
@@ -1058,21 +1337,21 @@ export default function ServiceContractDetail() {
                 Total Value
               </dt>
               <dd className="mt-1 text-lg font-bold text-gray-900">
-                {formatCurrency(contract.totalValue)} {contract.currency}
+                {formatCurrency(contract.totalValue, contract.currency)}
               </dd>
             </div>
 
             <div>
               <dt className="text-sm font-medium text-gray-500">Service Amount</dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {formatCurrency(contract.serviceAmount ?? contract.totalValue)} {contract.currency}
+                {formatCurrency(contract.serviceAmount ?? contract.totalValue, contract.currency)}
               </dd>
             </div>
 
             <div>
               <dt className="text-sm font-medium text-gray-500">Material Amount</dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {formatCurrency(getMaterialAmount())} {contract.currency}
+                {formatCurrency(getMaterialAmount(), contract.currency)}
               </dd>
             </div>
 
@@ -1091,7 +1370,7 @@ export default function ServiceContractDetail() {
                   Performance Bond
                 </dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {formatCurrency(contract.performanceBond)} {contract.currency}
+                  {formatCurrency(contract.performanceBond, contract.currency)}
                 </dd>
               </div>
             )}
@@ -1103,7 +1382,7 @@ export default function ServiceContractDetail() {
                   Retention Amount
                 </dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {formatCurrency(contract.retentionAmount)} {contract.currency}
+                  {formatCurrency(contract.retentionAmount, contract.currency)}
                 </dd>
               </div>
             )}
@@ -1337,6 +1616,45 @@ export default function ServiceContractDetail() {
         </div>
       )}
 
+      {activeTab === 'vendors' && contract.vendor && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Contract Vendor</h3>
+              <p className="text-sm text-gray-500">Primary vendor linked to this service contract.</p>
+            </div>
+            <button
+              onClick={() => router.push(`/procurement/services/vendors/${contract.vendor.id}`)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              View Vendor Profile
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Vendor Name</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">{contract.vendor.nameEn}</p>
+              {contract.vendor.nameAr && (
+                <p className="text-xs text-gray-500">{contract.vendor.nameAr}</p>
+              )}
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Vendor Code</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">{contract.vendor.vendorCode}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Primary Email</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">{contract.vendor.email}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Primary Phone</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">{contract.vendor.mobile || 'Not specified'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Vendor Responses */}
       {activeTab === 'vendor-responses' && contract.vendorResponses && contract.vendorResponses.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
@@ -1420,98 +1738,7 @@ export default function ServiceContractDetail() {
         </div>
       )}
 
-      {/* Action Buttons */}
-      {activeTab === 'approvals' && contract.status === 'DRAFT' && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-blue-900">Contract Approval Workflow</h4>
-                  <p className="mt-1 text-sm text-blue-700">
-                    Submit this contract for approval. It will go through the following approval sequence:
-                  </p>
-                  <ol className="mt-2 ml-4 text-sm text-blue-700 list-decimal">
-                    <li>Head of Procurement</li>
-                    <li>Billing Engineer</li>
-                  </ol>
-                  <p className="mt-2 text-sm text-blue-700">
-                    After approval, the contract will be sent to the vendor for acceptance.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-3">
-              <button 
-                onClick={handleSubmitForApproval}
-                disabled={submitting}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <SendHorizontal className="h-4 w-4 mr-2" />
-                    Submit for Approval
-                  </>
-                )}
-              </button>
-              
-              <button 
-                onClick={() => router.push(`/procurement/services/contracts/${contract.id}/edit`)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Contract
-              </button>
-
-              {/* Only show "Activate Directly" button to HEAD_OF_PROCUREMENT and SYSTEM_ADMIN */}
-              {currentUser && (currentUser.role === 'HEAD_OF_PROCUREMENT' || currentUser.role === 'SYSTEM_ADMIN') && (
-                <>
-                  <div className="text-gray-400 flex items-center px-2">
-                    <span className="text-sm">or</span>
-                  </div>
-
-                  <button 
-                    onClick={handleActivateContract}
-                    disabled={activating}
-                    className="inline-flex items-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-yellow-50 hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Skip approval and activate directly (not recommended)"
-                  >
-                    {activating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-700 mr-2"></div>
-                        Activating...
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="h-4 w-4 mr-2" />
-                        Activate Directly (Skip Approval)
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Only show the warning note if user can see the activate button */}
-            {currentUser && (currentUser.role === 'HEAD_OF_PROCUREMENT' || currentUser.role === 'SYSTEM_ADMIN') && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs text-yellow-700">
-                  <strong>Note:</strong> Direct activation bypasses the approval workflow and vendor negotiation. 
-                  This should only be used for testing or emergency situations.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Actions removed from the approval tab (moved to header) */}
 
       {/* Pending Approval Status with Progress */}
       {activeTab === 'approvals' && contract.status === 'PENDING_APPROVAL' && contract.approval && (
@@ -1536,7 +1763,7 @@ export default function ServiceContractDetail() {
 
           {/* Approval Levels */}
           <div className="space-y-3">
-            {/* Level 1 - Head of Procurement */}
+            {/* Level 1 - Procurement Manager */}
             <div className={`flex items-start space-x-3 p-4 rounded-lg border-2 ${
               contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED')
                 ? 'bg-green-50 border-green-200'
@@ -1555,7 +1782,7 @@ export default function ServiceContractDetail() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900">Level 1: Head of Procurement</p>
+                  <p className="text-sm font-semibold text-gray-900">Level 1: Procurement Manager</p>
                   {contract.approval.approvalHistory?.some(h => h.level === 1 && h.action === 'APPROVED') && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Approved
@@ -1623,37 +1850,6 @@ export default function ServiceContractDetail() {
             </p>
           </div>
 
-          {/* Approval Action Buttons (Only show if user can approve) */}
-          {canApprove && (
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <h4 className="text-sm font-medium text-gray-900 mb-4">Take Action</h4>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => setApprovalAction('approve')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  <CheckCheck className="h-4 w-4 mr-2" />
-                  Approve
-                </button>
-
-                <button
-                  onClick={() => setApprovalAction('request-edit')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Request Edit
-                </button>
-
-                <button
-                  onClick={() => setApprovalAction('reject')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1700,10 +1896,20 @@ export default function ServiceContractDetail() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{version.createdByName || version.createdBy}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(version.createdAt).toLocaleString('en-OM')}</td>
                       </tr>
-                      {isExpanded && (
-                        <tr className="bg-gray-50/60">
-                          <td colSpan={4} className="px-6 py-5">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {isExpanded && (
+                          <tr className="bg-gray-50/60">
+                            <td colSpan={4} className="px-6 py-5">
+                              <div className="mb-4 flex items-center justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadVersion(version.id)}
+                                  className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Download PDF
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                               <div className="rounded-lg border border-gray-200 bg-white p-4">
                                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Contract Number</p>
                                 <p className="mt-1 text-sm font-semibold text-gray-900">{version.contractNumber}</p>
@@ -1724,12 +1930,12 @@ export default function ServiceContractDetail() {
                               </div>
                               <div className="rounded-lg border border-gray-200 bg-white p-4">
                                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Value</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(Number(version.totalValue))} {version.currency}</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(Number(version.totalValue), version.currency)}</p>
                               </div>
                               <div className="rounded-lg border border-gray-200 bg-white p-4">
                                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Service Amount</p>
                                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                                  {formatCurrency(Number(version.serviceAmount ?? version.totalValue))} {version.currency}
+                                  {formatCurrency(Number(version.serviceAmount ?? version.totalValue), version.currency)}
                                 </p>
                               </div>
                               <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
@@ -1740,6 +1946,27 @@ export default function ServiceContractDetail() {
                                 <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
                                   <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Change Description</p>
                                   <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{version.changeDescription}</p>
+                                </div>
+                              )}
+                              {version.approvalNotes && version.approvalNotes.length > 0 && (
+                                <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-2 xl:col-span-3">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Approval Notes</p>
+                                  <div className="mt-3 space-y-3">
+                                    {version.approvalNotes.map((note) => (
+                                      <div key={note.id} className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
+                                        <div className="flex flex-wrap items-center justify-between text-xs text-gray-500">
+                                          <span className="font-medium text-gray-700">{note.action} (Level {note.level})</span>
+                                          <span>
+                                            {note.timestamp ? new Date(note.timestamp).toLocaleString('en-OM') : 'N/A'}
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 text-sm text-gray-700">
+                                          <span className="font-medium text-gray-900">{note.approverName || 'Unknown'}</span>
+                                          {note.comments ? ` — ${note.comments}` : ''}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                               {version.slaTerms && (
@@ -1781,6 +2008,71 @@ export default function ServiceContractDetail() {
         <div className="bg-white shadow rounded-lg p-10 text-center">
           <Clock className="mx-auto h-8 w-8 text-gray-400" />
           <p className="mt-2 text-sm text-gray-600">No version history records found.</p>
+        </div>
+      )}
+
+      {activeTab === 'milestones' && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Service Milestones</h3>
+              <p className="text-sm text-gray-500">Track delivery and payment milestones for this contract.</p>
+            </div>
+            {contract.status === 'SIGNED' && (
+              <button
+                onClick={() => router.push(`/procurement/services/milestones/new?contractId=${contract.id}&mode=edit`)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Milestones
+              </button>
+            )}
+          </div>
+
+          {milestonesLoading ? (
+            <div className="py-10 text-center text-sm text-gray-500">Loading milestones...</div>
+          ) : milestones.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
+              No milestones have been defined yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {milestones.map((milestone, index) => (
+                <div key={milestone.id} className="rounded-lg border border-gray-200 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {milestone.name || `Milestone ${index + 1}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Target: {new Date(milestone.targetDate).toLocaleDateString('en-OM')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs text-gray-500">Amount</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(Number(milestone.amount || 0), contract.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Percentage</p>
+                      <p className="text-sm text-gray-900">
+                        {Number(milestone.paymentPercentage || 0).toFixed(2)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Details</p>
+                      <p className="text-sm text-gray-900">
+                        {milestone.description || 'No description provided.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1827,7 +2119,7 @@ export default function ServiceContractDetail() {
                 </p>
 
                 <label htmlFor="approval-comments" className="block text-sm font-medium text-gray-700 mb-2">
-                  {approvalAction === 'approve' ? 'Comments (Optional)' : 'Comments (Required)'}
+                  Comments (Required)
                 </label>
                 <textarea
                   id="approval-comments"
@@ -1842,7 +2134,7 @@ export default function ServiceContractDetail() {
                   }
                   value={approvalComments}
                   onChange={(e) => setApprovalComments(e.target.value)}
-                  required={approvalAction !== 'approve'}
+                  required
                 />
               </div>
             </div>
@@ -1863,10 +2155,10 @@ export default function ServiceContractDetail() {
                 disabled={processingApproval}
                 className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                   approvalAction === 'approve' 
-                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                    ? 'bg-wujha-primary hover:bg-wujha-primary-hover focus:ring-wujha-primary'
                     : approvalAction === 'reject'
-                    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                    : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                    ? 'bg-wujha-primary-hover hover:bg-wujha-primary focus:ring-wujha-primary'
+                    : 'bg-wujha-secondary hover:bg-wujha-secondary-hover focus:ring-wujha-secondary'
                 }`}
               >
                 {processingApproval ? (
@@ -1924,7 +2216,7 @@ export default function ServiceContractDetail() {
           <button 
             onClick={handleActivateContract}
             disabled={activating}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {activating ? (
               <>
@@ -1938,29 +2230,6 @@ export default function ServiceContractDetail() {
               </>
             )}
           </button>
-        </div>
-      )}
-
-      {/* Next Steps */}
-      {activeTab === 'general' && contract.status === 'ACTIVE' && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Next Steps</h3>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => router.push(`/procurement/services/milestones/new?contractId=${contract.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover"
-            >
-              <Clock className="h-4 w-4 mr-2" />
-              Create Milestones
-            </button>
-            <button
-              onClick={() => router.push(`/procurement/services/receipts/new?contractId=${contract.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Create Receipt
-            </button>
-          </div>
         </div>
       )}
 

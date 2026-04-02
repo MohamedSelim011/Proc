@@ -75,11 +75,6 @@ export default function ProcurementLayout({
           </div>
 
           <div className="flex items-center gap-x-4 lg:gap-x-6">
-            {/* Dark Mode Toggle */}
-            <button className="p-2 text-gray-400 hover:text-gray-500">
-              <div className="w-5 h-5 rounded-full border-2 border-current"></div>
-            </button>
-            
             {/* Notifications */}
             <NotificationBell />
             

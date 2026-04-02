@@ -1,6 +1,6 @@
 const BASE_URL_ENV_KEYS = [
-  'APP_BASE_URL',
   'NEXT_PUBLIC_BASE_URL',
+  'APP_BASE_URL',
   'NEXT_PUBLIC_URL',
   'NEXTAUTH_URL',
 ] as const;
@@ -11,6 +11,11 @@ const BASE_URL_ENV_KEYS = [
  * across local and deployed environments.
  */
 export function getAppBaseUrl(): string {
+  const preferred = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (preferred) {
+    return preferred.replace(/\/$/, '');
+  }
+
   for (const key of BASE_URL_ENV_KEYS) {
     const value = process.env[key]?.trim();
     if (value) {

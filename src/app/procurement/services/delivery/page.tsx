@@ -18,6 +18,7 @@ import {
   Timer
 } from 'lucide-react';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceDelivery {
   id: string;
@@ -291,7 +292,7 @@ export default function ServiceDeliveryPage() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -302,7 +303,7 @@ export default function ServiceDeliveryPage() {
             <option value="DELIVERED">Delivered</option>
             <option value="DELAYED">Delayed</option>
             <option value="CANCELLED">Cancelled</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

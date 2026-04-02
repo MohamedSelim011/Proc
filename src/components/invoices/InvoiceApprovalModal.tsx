@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface InvoiceApprovalModalProps {
   isOpen: boolean;
@@ -123,7 +124,7 @@ export default function InvoiceApprovalModal({
             <label className="block text-sm font-medium text-gray-900 mb-2">
           New Status
             </label>
-            <select
+            <SearchableSelect
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           className="w-full px-3 py-2 border border-wujha-primary rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
@@ -132,7 +133,7 @@ export default function InvoiceApprovalModal({
             >
           <option value="APPROVED" style={{ color: '#111827' }}>Approve</option>
           <option value="REJECTED" style={{ color: '#111827' }}>Reject</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           {/* Comments */}

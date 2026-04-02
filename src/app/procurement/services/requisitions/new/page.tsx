@@ -11,14 +11,12 @@ import {
   CheckCircle,
   Calculator,
   FileText,
-  Users,
-  Calendar,
-  DollarSign,
   X,
   ChevronDown,
   Search
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceItem {
   id: string;
@@ -80,11 +78,8 @@ interface ServicePRFormData {
   paymentSchedule: 'LUMPSUM' | 'MILESTONE' | 'MONTHLY' | 'TIME_MATERIAL';
   preferredVendors: string[];
 
-  // Step 4: Compliance & Budget
-  budgetCode: string;
-  costCenter?: string;
+  // Step 4: Compliance
   requiredByDate: string;
-  insuranceRequired: boolean;
   safetyRequirements?: string;
   qualityStandards?: string;
   justification: string;
@@ -104,6 +99,12 @@ interface DepartmentOption {
   code?: string | null;
 }
 
+interface ProjectOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 function NewServiceRequisitionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -117,7 +118,10 @@ function NewServiceRequisitionContent() {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [requestBasis, setRequestBasis] = useState<'DEPARTMENT' | 'PROJECT'>('DEPARTMENT');
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
 
@@ -125,6 +129,7 @@ function NewServiceRequisitionContent() {
     serviceCategory: '',
     serviceType: '',
     departmentId: '',
+    projectId: '',
     priority: 'NORMAL',
     requestor: '',
     detailedScope: '',
@@ -135,9 +140,7 @@ function NewServiceRequisitionContent() {
     paymentTerms: 'NET_30',
     paymentSchedule: 'MILESTONE',
     preferredVendors: [],
-    budgetCode: '',
     requiredByDate: '',
-    insuranceRequired: false,
     justification: ''
   });
 
@@ -145,7 +148,7 @@ function NewServiceRequisitionContent() {
     { id: 1, name: 'Service Details', description: 'Basic service information' },
     { id: 2, name: 'Scope Definition', description: 'Detailed requirements' },
     { id: 3, name: 'Commercial Details', description: 'Pricing and terms' },
-    { id: 4, name: 'Compliance & Budget', description: 'Budget validation' },
+    { id: 4, name: 'Compliance', description: 'Compliance and timeline' },
     { id: 5, name: 'Review & Submit', description: 'Final review' }
   ];
 
@@ -201,6 +204,20 @@ function NewServiceRequisitionContent() {
       currency: 'OMR',
       minimumFractionDigits: 3
     }).format(amount);
+  };
+
+  const getDepartmentLabel = (departmentId?: string) => {
+    if (!departmentId) return 'N/A';
+    const dept = departments.find((row) => row.id === departmentId);
+    if (!dept) return departmentId;
+    return `${dept.name}${dept.code ? ` (${dept.code})` : ''}`;
+  };
+
+  const getProjectLabel = (projectId?: string) => {
+    if (!projectId) return 'N/A';
+    const project = projects.find((row) => row.id === projectId);
+    if (!project) return projectId;
+    return `${project.code ? `${project.code} - ` : ''}${project.name}`;
   };
 
   const addServiceItem = () => {
@@ -357,7 +374,11 @@ function NewServiceRequisitionContent() {
       case 1:
         if (!formData.serviceCategory) newErrors.serviceCategory = 'Service category is required';
         if (!formData.serviceType) newErrors.serviceType = 'Service type is required';
-        if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+        if (requestBasis === 'DEPARTMENT') {
+          if (!formData.departmentId || !formData.departmentId.trim()) newErrors.departmentId = 'Department is required';
+        } else {
+          if (!formData.projectId || !formData.projectId.trim()) newErrors.projectId = 'Project is required';
+        }
         if (!formData.requestor || !formData.requestor.trim()) newErrors.requestor = 'Requestor is required';
         break;
       case 2:
@@ -402,7 +423,6 @@ function NewServiceRequisitionContent() {
         if (!formData.paymentTerms) newErrors.paymentTerms = 'Payment terms are required';
         break;
       case 4:
-        if (!formData.budgetCode || !formData.budgetCode.trim()) newErrors.budgetCode = 'Budget code is required';
         if (!formData.requiredByDate) {
           newErrors.requiredByDate = 'Required by date is required';
         } else {
@@ -459,15 +479,15 @@ function NewServiceRequisitionContent() {
 
     try {
       setLoading(true);
+      const selectedDepartmentId = requestBasis === 'DEPARTMENT' ? (formData.departmentId || '').trim() : '';
+      const selectedProjectId = requestBasis === 'PROJECT' ? (formData.projectId || '').trim() : '';
 
       // Create proper service requisition using service-specific API
       const serviceData = {
-        departmentId: formData.departmentId,
-        projectId: formData.projectId,
-        requesterId: 'current-user-id', // In real app, get from auth
+        requestBasis,
+        departmentId: selectedDepartmentId || null,
+        projectId: selectedProjectId || null,
         priority: formData.priority,
-        budgetCode: formData.budgetCode,
-        costCenter: formData.costCenter,
         justification: formData.justification,
         requestedDeliveryDate: formData.requiredByDate,
         serviceScope: formData.detailedScope,
@@ -480,17 +500,9 @@ function NewServiceRequisitionContent() {
         durationUnit: 'DAYS',
         deliverables: formData.items.flatMap(item => item.deliverables.filter(d => d && d.trim())),
         performanceMetrics: formData.items.flatMap(item => item.performanceMetrics.filter(m => m && m.trim())),
-        slaRequirements: {
-          responseTime: '4 hours',
-          availability: '99.9%',
-          support: '8x5 business hours'
-        },
-        insuranceRequired: formData.insuranceRequired,
-        certificationRequired: true,
         safetyRequirements: formData.safetyRequirements,
         paymentSchedule: formData.paymentSchedule,
         paymentTerms: formData.paymentTerms,
-        retentionPercentage: 10,
         preferredVendors: formData.preferredVendors,
         milestones: formData.milestones,
         isMixed: isMixedMode,
@@ -540,6 +552,7 @@ function NewServiceRequisitionContent() {
   useEffect(() => {
     fetchVendors();
     fetchDepartments();
+    fetchProjects();
     if (isMixedMode) {
       fetchInventoryItems();
     }
@@ -569,10 +582,18 @@ function NewServiceRequisitionContent() {
   const fetchDepartments = async () => {
     try {
       setLoadingDepartments(true);
-      const response = await apiFetch('/api/hr/departments');
+      const response = await apiFetch('/api/organization/departments?limit=1000');
       const data = await response.json();
       if (response.ok) {
-        setDepartments(Array.isArray(data?.data) ? data.data : []);
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const mapped = rows
+          .map((row: Record<string, unknown>) => ({
+            id: String(row.id ?? ''),
+            name: String(row.name ?? ''),
+            code: row.code == null ? null : String(row.code),
+          }))
+          .filter((row: DepartmentOption) => Boolean(row.id) && Boolean(row.name));
+        setDepartments(mapped);
       } else {
         setDepartments([]);
       }
@@ -581,6 +602,32 @@ function NewServiceRequisitionContent() {
       setDepartments([]);
     } finally {
       setLoadingDepartments(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await apiFetch('/api/organization/projects?limit=1000');
+      const data = await response.json();
+      if (response.ok) {
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const mapped = rows
+          .map((row: Record<string, unknown>) => ({
+            id: String(row.id ?? ''),
+            code: String(row.projectCode ?? row.code ?? ''),
+            name: String(row.projectName ?? row.name ?? ''),
+          }))
+          .filter((row: ProjectOption) => Boolean(row.id));
+        setProjects(mapped);
+      } else {
+        setProjects([]);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
     }
   };
 
@@ -670,7 +717,7 @@ function NewServiceRequisitionContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Service Category *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceCategory}
                   onChange={(e) => setFormData(prev => ({ 
@@ -683,7 +730,7 @@ function NewServiceRequisitionContent() {
                   {serviceCategories.map(category => (
                     <option key={category} value={category}>{category}</option>
                   ))}
-                </select>
+                </SearchableSelect>
                 {errors.serviceCategory && (
                   <p className="mt-1 text-sm text-red-600">{errors.serviceCategory}</p>
                 )}
@@ -693,7 +740,7 @@ function NewServiceRequisitionContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Service Type *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.serviceType}
                   onChange={(e) => setFormData(prev => ({ ...prev, serviceType: e.target.value }))}
@@ -703,7 +750,7 @@ function NewServiceRequisitionContent() {
                   {formData.serviceCategory && serviceTypes[formData.serviceCategory as keyof typeof serviceTypes]?.map(type => (
                     <option key={type} value={type}>{type}</option>
                   ))}
-                </select>
+                </SearchableSelect>
                 {errors.serviceType && (
                   <p className="mt-1 text-sm text-red-600">{errors.serviceType}</p>
                 )}
@@ -711,43 +758,95 @@ function NewServiceRequisitionContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Department *
+                  Request Basis *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                  value={formData.departmentId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
+                  value={requestBasis}
+                  onChange={(e) => {
+                    const basis = e.target.value as 'DEPARTMENT' | 'PROJECT';
+                    setRequestBasis(basis);
+                    setFormData(prev => ({
+                      ...prev,
+                      departmentId: basis === 'DEPARTMENT' ? prev.departmentId : '',
+                      projectId: basis === 'PROJECT' ? prev.projectId : '',
+                    }));
+                    setErrors(prev => {
+                      const next = { ...prev };
+                      delete next.departmentId;
+                      delete next.projectId;
+                      return next;
+                    });
+                  }}
                 >
-                  <option value="">{loadingDepartments ? 'Loading departments...' : 'Select department'}</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}{dept.code ? ` (${dept.code})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {errors.departmentId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
-                )}
+                  <option value="DEPARTMENT">Department Based</option>
+                  <option value="PROJECT">Project Based</option>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Project ID
+                  {requestBasis === 'DEPARTMENT' ? 'Department *' : 'Project *'}
                 </label>
-                <input
-                  type="text"
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                  value={formData.projectId || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
-                  placeholder="Optional project reference"
-                />
+                  value={requestBasis === 'DEPARTMENT' ? formData.departmentId : (formData.projectId || '')}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (requestBasis === 'DEPARTMENT') {
+                      setFormData(prev => ({ ...prev, departmentId: value, projectId: '' }));
+                      if (errors.departmentId) {
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          delete next.departmentId;
+                          return next;
+                        });
+                      }
+                    } else {
+                      setFormData(prev => ({ ...prev, projectId: value, departmentId: '' }));
+                      if (errors.projectId) {
+                        setErrors(prev => {
+                          const next = { ...prev };
+                          delete next.projectId;
+                          return next;
+                        });
+                      }
+                    }
+                  }}
+                >
+                  {requestBasis === 'DEPARTMENT' ? (
+                    <>
+                      <option value="">{loadingDepartments ? 'Loading departments...' : 'Select department'}</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}{dept.code ? ` (${dept.code})` : ''}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="">{loadingProjects ? 'Loading projects...' : 'Select project'}</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.code ? `${project.code} - ` : ''}{project.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </SearchableSelect>
+                {requestBasis === 'DEPARTMENT' && errors.departmentId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
+                )}
+                {requestBasis === 'PROJECT' && errors.projectId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Priority *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.priority}
                   onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
@@ -756,7 +855,7 @@ function NewServiceRequisitionContent() {
                   <option value="NORMAL">Normal</option>
                   <option value="HIGH">High</option>
                   <option value="URGENT">Urgent</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -878,7 +977,7 @@ function NewServiceRequisitionContent() {
                           value={item.quantity}
                           onChange={(e) => updateServiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         />
-                        <select
+                        <SearchableSelect
                           className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                           value={item.unit}
                           onChange={(e) => updateServiceItem(index, 'unit', e.target.value)}
@@ -888,7 +987,7 @@ function NewServiceRequisitionContent() {
                               {option.label}
                             </option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
                         Select the billable scope unit.
@@ -899,7 +998,7 @@ function NewServiceRequisitionContent() {
                       <label className="block text-sm font-medium text-gray-700">
                         Pricing Model *
                       </label>
-                      <select
+                      <SearchableSelect
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                         value={item.pricingModel}
                         onChange={(e) => {
@@ -913,7 +1012,7 @@ function NewServiceRequisitionContent() {
                       >
                         <option value="ONE_TIME">One-time</option>
                         <option value="RECURRING">Recurring</option>
-                      </select>
+                      </SearchableSelect>
                     </div>
 
                     {item.pricingModel === 'RECURRING' ? (
@@ -929,7 +1028,7 @@ function NewServiceRequisitionContent() {
                             value={item.duration}
                             onChange={(e) => updateServiceItem(index, 'duration', parseInt(e.target.value) || 1)}
                           />
-                          <select
+                          <SearchableSelect
                             className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                             value={item.durationUnit}
                             onChange={(e) => updateServiceItem(index, 'durationUnit', e.target.value)}
@@ -937,7 +1036,7 @@ function NewServiceRequisitionContent() {
                             <option value="Days">Days</option>
                             <option value="Weeks">Weeks</option>
                             <option value="Months">Months</option>
-                          </select>
+                          </SearchableSelect>
                         </div>
                       </div>
                     ) : (
@@ -1128,7 +1227,7 @@ function NewServiceRequisitionContent() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">Item *</label>
-                        <select
+                        <SearchableSelect
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                           value={material.itemId}
                           onChange={(e) => updateMaterialItem(index, 'itemId', e.target.value)}
@@ -1140,7 +1239,7 @@ function NewServiceRequisitionContent() {
                               {item.itemCode} - {item.nameEn} ({item.unitOfMeasure})
                             </option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                       </div>
 
                       <div>
@@ -1246,7 +1345,7 @@ function NewServiceRequisitionContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Terms *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
@@ -1257,7 +1356,7 @@ function NewServiceRequisitionContent() {
                   <option value="NET_60">Net 60 Days</option>
                   <option value="ADVANCE">Advance Payment</option>
                   <option value="COD">Cash on Delivery</option>
-                </select>
+                </SearchableSelect>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
                 )}
@@ -1267,7 +1366,7 @@ function NewServiceRequisitionContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Schedule *
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentSchedule}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentSchedule: e.target.value as any }))}
@@ -1275,7 +1374,7 @@ function NewServiceRequisitionContent() {
                   <option value="LUMPSUM">Lump Sum</option>
                   <option value="MILESTONE">Milestone-based</option>
                   <option value="MONTHLY">Monthly</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -1403,41 +1502,12 @@ function NewServiceRequisitionContent() {
           </div>
         )}
 
-        {/* Step 4: Compliance & Budget */}
+        {/* Step 4: Compliance */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">Compliance & Budget</h3>
+            <h3 className="text-lg font-medium text-gray-900">Compliance</h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Budget Code *
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                  value={formData.budgetCode}
-                  onChange={(e) => setFormData(prev => ({ ...prev, budgetCode: e.target.value }))}
-                  placeholder="Enter budget code"
-                />
-                {errors.budgetCode && (
-                  <p className="mt-1 text-sm text-red-600">{errors.budgetCode}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Cost Center
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-                  value={formData.costCenter || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
-                  placeholder="Optional cost center"
-                />
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Required By Date *
@@ -1516,18 +1586,6 @@ function NewServiceRequisitionContent() {
                   <p className="mt-1 text-sm text-red-600">{errors.requiredByDate}</p>
                 )}
               </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                      className="h-4 w-4 text-wujha-primary focus:outline-none focus:ring-wujha-primary border-gray-300 rounded"
-                  checked={formData.insuranceRequired}
-                  onChange={(e) => setFormData(prev => ({ ...prev, insuranceRequired: e.target.checked }))}
-                />
-                <label className="ml-2 block text-sm text-gray-900">
-                  Insurance Required
-                </label>
-              </div>
             </div>
 
             <div>
@@ -1593,8 +1651,20 @@ function NewServiceRequisitionContent() {
                   <dd className="mt-1 text-sm text-gray-900">{formData.serviceType}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Department</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formData.departmentId}</dd>
+                  <dt className="text-sm font-medium text-gray-500">Request Basis</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {requestBasis === 'DEPARTMENT' ? 'Department Based' : 'Project Based'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">
+                    {requestBasis === 'DEPARTMENT' ? 'Department' : 'Project'}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {requestBasis === 'DEPARTMENT'
+                      ? getDepartmentLabel(formData.departmentId)
+                      : getProjectLabel(formData.projectId)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Priority</dt>
@@ -1690,5 +1760,3 @@ export default function NewServiceRequisition() {
     </Suspense>
   );
 }
-
-

@@ -19,6 +19,7 @@ import {
   Banknote
 } from 'lucide-react';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Invoice {
   id: string;
@@ -471,7 +472,7 @@ function PaymentsPageContent() {
               />
             </ListFilterField>
             <ListFilterField label="Currency">
-              <select
+              <SearchableSelect
                 className="erp-input"
                 value={filters.currency}
                 onChange={(e) => setFilters(prev => ({ ...prev, currency: e.target.value }))}
@@ -480,7 +481,7 @@ function PaymentsPageContent() {
                 <option value="OMR">OMR</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
-              </select>
+              </SearchableSelect>
             </ListFilterField>
             <ListFilterField label="Vendor">
               <input
@@ -921,7 +922,7 @@ function PaymentsPageContent() {
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Payment Method *
                       </label>
-                      <select
+                      <SearchableSelect
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:border-wujha-primary focus:ring-1 focus:ring-wujha-primary/20 transition-all duration-200 appearance-none bg-white text-sm"
                         value={paymentForm.paymentMethod}
                         onChange={(e) => setPaymentForm(prev => ({ 
@@ -933,7 +934,7 @@ function PaymentsPageContent() {
                         <option value="CHECK">Check</option>
                         <option value="WIRE">Wire Transfer</option>
                         <option value="CASH">Cash</option>
-                      </select>
+                      </SearchableSelect>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

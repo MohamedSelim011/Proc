@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
           { vendor: { nameEn: { contains: search, mode: 'insensitive' } } },
           { vendor: { nameAr: { contains: search, mode: 'insensitive' } } },
           { vendor: { vendorCode: { contains: search, mode: 'insensitive' } } },
-          { pr: { prNumber: { contains: search, mode: 'insensitive' } } },
+          { servicePR: { prNumber: { contains: search, mode: 'insensitive' } } },
         ],
       });
     }
@@ -104,20 +104,16 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           vendor: true,
-          pr: {
+          servicePR: {
             include: {
-              items: { include: { item: true } },
-              servicePR: {
+              items: {
                 include: {
-                  items: {
-                    include: {
-                      serviceItem: {
-                        include: { serviceCategory: true },
-                      },
-                    },
+                  serviceItem: {
+                    include: { serviceCategory: true },
                   },
                 },
               },
+              materialItems: { include: { item: true } },
             },
           },
           approval: {
@@ -142,8 +138,22 @@ export async function GET(request: NextRequest) {
       totalPages,
       durationMs: Date.now() - startedAt,
     });
+    const contractsWithLegacyPr = contracts.map((contract) => {
+      const servicePR = contract.servicePR;
+      const pr = servicePR
+        ? {
+            id: servicePR.id,
+            prNumber: servicePR.prNumber,
+            estimatedCost: servicePR.estimatedCost,
+            servicePR,
+          }
+        : null;
+
+      return { ...contract, pr };
+    });
+
     return financeSuccess(
-      { contracts },
+      { contracts: contractsWithLegacyPr },
       { page, limit, total, totalPages },
       requestId
     );

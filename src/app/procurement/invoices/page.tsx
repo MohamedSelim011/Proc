@@ -23,6 +23,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Invoice {
   id: string;
@@ -509,7 +510,7 @@ export default function InvoicesPage() {
           />
         </ListFilterField>
         <ListFilterField label="Invoice Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -521,10 +522,10 @@ export default function InvoicesPage() {
             <option value="PAID">Paid</option>
             <option value="REJECTED">Rejected</option>
             <option value="OVERDUE">Overdue</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Payment Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.paymentStatus}
             onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
@@ -534,7 +535,7 @@ export default function InvoicesPage() {
             <option value="PARTIAL">Partial</option>
             <option value="PAID">Paid</option>
             <option value="OVERDUE">Overdue</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

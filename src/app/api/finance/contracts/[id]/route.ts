@@ -50,20 +50,16 @@ export async function GET(
       where: { id },
       include: {
         vendor: true,
-        pr: {
+        servicePR: {
           include: {
-            items: { include: { item: true } },
-            servicePR: {
+            items: {
               include: {
-                items: {
-                  include: {
-                    serviceItem: {
-                      include: { serviceCategory: true },
-                    },
-                  },
+                serviceItem: {
+                  include: { serviceCategory: true },
                 },
               },
             },
+            materialItems: { include: { item: true } },
           },
         },
         approval: {
@@ -100,7 +96,16 @@ export async function GET(
       contractNumber: contract.contractNumber,
       durationMs: Date.now() - startedAt,
     });
-    return financeSuccess(contract, undefined, requestId);
+    const legacyPr = contract.servicePR
+      ? {
+          id: contract.servicePR.id,
+          prNumber: contract.servicePR.prNumber,
+          estimatedCost: contract.servicePR.estimatedCost,
+          servicePR: contract.servicePR,
+        }
+      : null;
+
+    return financeSuccess({ ...contract, pr: legacyPr }, undefined, requestId);
   } catch (error) {
     console.error('[finance/contracts/[id]][GET] Failed', {
       requestId,

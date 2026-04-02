@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { isExternalIntegrationEnabled } from '@/integration/router/integration-switch';
+
+const toQuantity = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.max(0, num) : 0;
+};
 
 
 // GET /api/goods-receipts - Get all goods receipts
@@ -158,6 +164,13 @@ export async function GET(request: NextRequest) {
 // POST /api/goods-receipts - Create new goods receipt
 export async function POST(request: NextRequest) {
   try {
+    if (isExternalIntegrationEnabled('goodsReceipts')) {
+      return NextResponse.json(
+        { error: 'Goods receipts integration is enabled. Manual create is disabled.' },
+        { status: 403 },
+      );
+    }
+
     const body = await request.json();
     
     // Generate GR number
@@ -165,14 +178,18 @@ export async function POST(request: NextRequest) {
     const grNumber = `GR-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
     // Check if all items are fully received
-    const allFullyReceived = body.items.every((item: any) => 
-      item.receivedQuantity === item.orderedQuantity
+    const allFullyReceived = body.items.every(
+      (item: any) => toQuantity(item.receivedQuantity) >= toQuantity(item.orderedQuantity),
     );
 
     // Check if all items are accepted (no rejections)
-    const allItemsAccepted = body.items.every((item: any) => 
-      (item.rejectedQuantity || 0) === 0
-    );
+    const allItemsAccepted = body.items.every((item: any) => toQuantity(item.rejectedQuantity) === 0);
+
+    // Get PO header and items
+    const purchaseOrder = await prisma.purchaseOrder.findUnique({
+      where: { id: body.poId },
+      select: { vendorId: true }
+    });
 
     // Get PO items to map poItemId to itemId
     const poItems = await prisma.pOItem.findMany({
@@ -182,17 +199,27 @@ export async function POST(request: NextRequest) {
     const receipt = await prisma.goodsReceipt.create({
       data: {
         grNumber,
+        grnNumber: grNumber,
         poId: body.poId,
+        purchaseOrderId: body.poId || null,
+        supplierId: purchaseOrder?.vendorId || null,
         receivedDate: body.receivedDate ? new Date(body.receivedDate) : new Date(),
+        receiptDate: body.receivedDate ? new Date(body.receivedDate) : new Date(),
         receivedBy: body.receivedBy,
+        receivedById: body.receivedBy || null,
         deliveryNote: body.deliveryNote || null,
         transportDetails: body.transportDetails || null,
+        vehicleNumber: body.transportDetails || null,
+        driverName: body.driverName || null,
         storageLocation: body.storageLocation || null,
         specialHandling: body.specialHandling || null,
-        status: allFullyReceived ? 'COMPLETED' : 'PARTIAL',
+        remarks: body.specialHandling || null,
+        status: allFullyReceived ? 'COMPLETED' : 'PARTIALLY_ACCEPTED',
         qualityChecked: body.qualityChecked || allItemsAccepted,
         qualityComments: body.qualityComments || null,
         qualityInspector: body.qualityInspector || null,
+        inspectedBy: body.qualityInspector || null,
+        inspectedAt: body.qualityChecked ? new Date() : null,
         items: {
           create: body.items.map((item: any) => {
             const poItem = poItems.find(poi => poi.id === item.poItemId);
@@ -201,11 +228,13 @@ export async function POST(request: NextRequest) {
             }
             return {
               itemId: poItem.itemId,
-              orderedQuantity: item.orderedQuantity,
-              receivedQuantity: item.receivedQuantity,
-              acceptedQuantity: item.acceptedQuantity || item.receivedQuantity,
-              rejectedQuantity: item.rejectedQuantity || 0,
-              rejectionReason: item.rejectionReason || null
+              orderedQuantity: toQuantity(item.orderedQuantity),
+              deliveredQuantity: toQuantity(item.receivedQuantity),
+              receivedQuantity: toQuantity(item.receivedQuantity),
+              acceptedQuantity: toQuantity(item.acceptedQuantity ?? item.receivedQuantity),
+              rejectedQuantity: toQuantity(item.rejectedQuantity),
+              rejectionReason: item.rejectionReason || null,
+              remarks: item.inspectionNotes || null,
             };
           })
         }

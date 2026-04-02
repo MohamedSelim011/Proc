@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/toast';
 import { getUserRole, getUserData } from '@/lib/jwt';
 import * as XLSX from 'xlsx';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface PurchaseOrder {
   id: string;
@@ -290,31 +291,34 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleQuickApprove = async (poId: string) => {
-    if (window.confirm('Are you sure you want to approve this purchase order?')) {
-      try {
-        const response = await fetch(`/api/purchase-orders/${poId}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: 'APPROVED',
-            updatedBy: userEmployeeId || userId || 'current-user',
-            comments: 'Quick approved from list view'
-          }),
-        });
+    const comment = window.prompt('Approval comment');
+    if (comment === null) return;
+    if (!comment.trim()) {
+      showToast('error', 'Approval comment is required.');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/purchase-orders/${poId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'APPROVED',
+          updatedBy: userEmployeeId || userId || 'current-user',
+          comments: comment.trim(),
+        }),
+      });
 
-        if (response.ok) {
-          // Refresh the orders list
-          fetchOrders();
-          showToast('success', 'Purchase order approved successfully!');
-        } else {
-          const error = await response.json();
-          showToast('error', error.error || 'Failed to approve purchase order.');
-        }
-      } catch (error) {
-        showToast('error', 'An error occurred while approving the purchase order.');
+      if (response.ok) {
+        fetchOrders();
+        showToast('success', 'Purchase order approved successfully!');
+      } else {
+        const error = await response.json();
+        showToast('error', error.error || 'Failed to approve purchase order.');
       }
+    } catch (error) {
+      showToast('error', 'An error occurred while approving the purchase order.');
     }
   };
 
@@ -343,41 +347,40 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleQuickReject = async (poId: string) => {
-    if (window.confirm('Are you sure you want to reject this purchase order?')) {
-      try {
-        const response = await fetch(`/api/purchase-orders/${poId}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: 'CANCELLED',
-            updatedBy: userEmployeeId || userId || 'current-user',
-            comments: 'Quick rejected from list view'
-          }),
-        });
+    const comment = window.prompt('Rejection comment');
+    if (comment === null) return;
+    if (!comment.trim()) {
+      showToast('error', 'Rejection comment is required.');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/purchase-orders/${poId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'REJECTED',
+          updatedBy: userEmployeeId || userId || 'current-user',
+          comments: comment.trim(),
+        }),
+      });
 
-        if (response.ok) {
-          // Refresh the orders list
-          fetchOrders();
-          showToast('success', 'Purchase order rejected successfully!');
-        } else {
-          const error = await response.json();
-          showToast('error', error.error || 'Failed to reject purchase order.');
-        }
-      } catch (error) {
-        showToast('error', 'An error occurred while rejecting the purchase order.');
+      if (response.ok) {
+        fetchOrders();
+        showToast('success', 'Purchase order rejected successfully!');
+      } else {
+        const error = await response.json();
+        showToast('error', error.error || 'Failed to reject purchase order.');
       }
+    } catch (error) {
+      showToast('error', 'An error occurred while rejecting the purchase order.');
     }
   };
 
   // Check permissions
   const roleUpper = userRole?.toUpperCase() || '';
-  const isSuperAdmin = roleUpper === 'SUPER_ADMIN';
-  const hasApprovalRole = ['DEPARTMENT_MANAGER', 'PROCUREMENT_MANAGER', 'FINANCE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
-  
-  // Super Admin can always approve, others need approval role
-  const canApprove = hasApprovalRole;
+  const canApprove = ['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_MANAGER'].includes(roleUpper);
   const canSubmit = ['BUYER', 'REQUESTOR', 'PROCUREMENT_OFFICER', 'PROCUREMENT_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(roleUpper);
   
   // Debug logging
@@ -385,8 +388,6 @@ export default function PurchaseOrdersPage() {
     console.log('PO List - Permissions Check:', {
       userRole,
       roleUpper,
-      isSuperAdmin,
-      hasApprovalRole,
       canApprove,
       canSubmit
     });
@@ -611,7 +612,7 @@ export default function PurchaseOrdersPage() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -626,7 +627,7 @@ export default function PurchaseOrdersPage() {
             <option value="COMPLETED">Completed</option>
             <option value="REJECTED">Rejected</option>
             <option value="CANCELLED">Cancelled</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Vendor">
           <input
@@ -757,14 +758,23 @@ export default function PurchaseOrdersPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
-                          {(po.status === 'PENDING_APPROVAL' || po.status === 'DRAFT') && canApprove && (
-                            <Link
-                              href={`/procurement/purchase-orders/${po.id}/approve`}
-                              className="text-green-600 hover:text-green-900"
-                              title="Review & Approve"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Link>
+                          {(['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL'].includes(po.status)) && canApprove && (
+                            <>
+                              <button
+                                onClick={() => handleQuickApprove(po.id)}
+                                className="text-green-600 hover:text-green-900"
+                                title="Approve"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleQuickReject(po.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Reject"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </>
                           )}
                           {po.status === 'DRAFT' && canSubmit && (
                             <button

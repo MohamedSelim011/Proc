@@ -7,9 +7,23 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const row = await prisma.inventoryMaterialRequisition.findFirst({
+    const row = await prisma.purchaseRequisition.findFirst({
       where: {
-        OR: [{ id }, { externalId: id }],
+        OR: [{ id }, { externalId: id }, { prNumber: id }],
+      },
+      include: {
+        items: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                itemCode: true,
+                nameEn: true,
+                unitOfMeasure: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -17,47 +31,53 @@ export async function GET(
       return NextResponse.json({ error: 'Material requisition not found' }, { status: 404 });
     }
 
-    const raw = (row.rawPayload && typeof row.rawPayload === 'object'
-      ? (row.rawPayload as Record<string, unknown>)
-      : {}) as Record<string, unknown>;
-    const project =
-      raw.project && typeof raw.project === 'object'
-        ? (raw.project as Record<string, unknown>)
+    const basePayload =
+      row.rawPayload && typeof row.rawPayload === 'object'
+        ? (row.rawPayload as Record<string, unknown>)
         : {};
-    const department =
-      raw.department && typeof raw.department === 'object'
-        ? (raw.department as Record<string, unknown>)
-        : {};
+
+    const normalizedPayload = {
+      ...basePayload,
+      items:
+        Array.isArray(basePayload.items) && basePayload.items.length > 0
+          ? basePayload.items
+          : row.items.map((line) => ({
+              itemId: line.itemId,
+              itemCode: line.item?.itemCode || null,
+              itemName: line.item?.nameEn || null,
+              quantity: Number(line.quantity || 0),
+              unit: line.item?.unitOfMeasure || null,
+            })),
+    };
 
     return NextResponse.json({
       success: true,
       data: {
-        ...row,
+        id: row.id,
+        externalId: row.externalId || row.id,
+        requisitionNumber: row.mrNumber || row.prNumber,
+        status: row.externalStatus || row.status,
+        priority: row.externalPriority || row.priority,
         projectExternalId:
           row.projectExternalId ||
-          (typeof raw.requestedProjectId === 'string' ? raw.requestedProjectId : null) ||
-          (typeof raw.projectId === 'string' ? raw.projectId : null) ||
-          (typeof project.id === 'string' ? project.id : null),
-        projectCode:
-          row.projectCode ||
-          (typeof project.code === 'string' ? project.code : null),
-        projectName:
-          row.projectName ||
-          (typeof raw.requestedProjectName === 'string' ? raw.requestedProjectName : null) ||
-          (typeof project.name === 'string' ? project.name : null),
+          row.requestedProjectId ||
+          row.projectId,
+        projectName: row.projectName || row.requestedProjectName,
+        requesterName: row.requesterName || row.requesterId,
+        requesterEmail: row.requesterEmail,
         departmentExternalId:
-          row.departmentExternalId ||
-          (typeof raw.requestedDepartmentId === 'string' ? raw.requestedDepartmentId : null) ||
-          (typeof raw.departmentId === 'string' ? raw.departmentId : null) ||
-          (typeof department.id === 'string' ? department.id : null),
-        departmentName:
-          row.departmentName ||
-          (typeof raw.requestedDepartmentName === 'string' ? raw.requestedDepartmentName : null) ||
-          (typeof department.name === 'string' ? department.name : null),
+          row.departmentExternalId || row.requestedDepartmentId,
+        departmentName: row.departmentName || row.requestedDepartmentName,
+        requiredDate: row.requiredDate || row.requiredByDate,
+        purpose: row.purpose,
+        justification: row.justification,
+        externalCreatedAt: row.externalCreatedAt || row.createdAt,
+        externalUpdatedAt: row.externalUpdatedAt || row.updatedAt,
+        rawPayload: normalizedPayload,
       },
     });
   } catch (error) {
-    console.error('[Inventory Material Requisitions][DETAIL] Failed:', error);
+    console.error('[Material Requisitions][DETAIL] Failed:', error);
     return NextResponse.json({ error: 'Failed to fetch material requisition details' }, { status: 500 });
   }
 }

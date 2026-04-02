@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { mapInventoryMaterialRequisitionRecord } from '@/lib/inventory-material-requisitions';
+import { fetchMaterialRequisitionsFromIntegration } from '@/integration/contracts/material-requisitions.client';
+import { isExternalIntegrationEnabled } from '@/integration/router/integration-switch';
 
 const extractList = (payload: unknown): unknown[] => {
   if (!payload || typeof payload !== 'object') return [];
@@ -29,188 +32,158 @@ const extractList = (payload: unknown): unknown[] => {
   return [];
 };
 
-const extractTotalPages = (payload: unknown): number | null => {
+const extractErrorMessage = (payload: unknown): string | null => {
   if (!payload || typeof payload !== 'object') return null;
   const data = payload as Record<string, unknown>;
-
-  const direct = data.pagination as Record<string, unknown> | undefined;
-  if (direct && typeof direct.totalPages === 'number' && direct.totalPages > 0) {
-    return direct.totalPages;
-  }
-
-  const nested = data.data as Record<string, unknown> | undefined;
-  if (nested && typeof nested === 'object') {
-    const nestedPagination = nested.pagination as Record<string, unknown> | undefined;
-    if (nestedPagination && typeof nestedPagination.totalPages === 'number' && nestedPagination.totalPages > 0) {
-      return nestedPagination.totalPages;
+  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim();
+  if (typeof data.error === 'string' && data.error.trim()) return data.error.trim();
+  if (data.error && typeof data.error === 'object') {
+    const errorObject = data.error as Record<string, unknown>;
+    if (typeof errorObject.message === 'string' && errorObject.message.trim()) {
+      return errorObject.message.trim();
     }
   }
-
   return null;
+};
+
+const ensureUniquePrNumber = async (basePrNumber: string, externalId: string) => {
+  const normalizedBase = (basePrNumber || `EXT-${externalId}`).trim() || `EXT-${externalId}`;
+  let candidate = normalizedBase;
+  let attempt = 0;
+
+  while (attempt < 1000) {
+    const conflict = await prisma.purchaseRequisition.findFirst({
+      where: { prNumber: candidate },
+      select: { externalId: true },
+    });
+
+    if (!conflict || conflict.externalId === externalId) {
+      return candidate;
+    }
+
+    attempt += 1;
+    candidate = `${normalizedBase}-${attempt}`;
+  }
+
+  return `${normalizedBase}-${Date.now()}`;
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const baseUrlRaw = process.env.INVENTORY_SYSTEM_BASE_URL?.trim();
-    const apiKey = process.env.INVENTORY_SYSTEM_API_KEY?.trim();
-    const bearerToken = request.headers.get('authorization')?.trim() || '';
-    if (!baseUrlRaw) {
-      return NextResponse.json({ error: 'INVENTORY_SYSTEM_BASE_URL is not configured' }, { status: 500 });
+    if (!isExternalIntegrationEnabled('materialRequisitions')) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'MATERIAL_REQUISITIONS_INTEGRATION is disabled.',
+      });
     }
-    if (!bearerToken && !apiKey) {
+
+    const authHeader = request.headers.get('authorization');
+    const cookieToken = request.cookies.get('token')?.value;
+    const forwardedAuthHeader =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader
+        : cookieToken
+          ? `Bearer ${cookieToken}`
+          : undefined;
+
+    if (!forwardedAuthHeader) {
       return NextResponse.json(
-        { error: 'Neither Authorization bearer token nor INVENTORY_SYSTEM_API_KEY is available for Inventory sync.' },
-        { status: 500 }
+        { error: 'Authorization bearer token is required to sync material requisitions.' },
+        { status: 401 },
       );
     }
-
-    const baseUrl = baseUrlRaw.replace(/\/$/, '');
-    const endpointBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-    const authHeaders: Record<string, string> = {
-      Accept: 'application/json',
-    };
-    const hasBearer = bearerToken.toLowerCase().startsWith('bearer ');
-    if (hasBearer) {
-      // Prefer user token explicitly when provided.
-      authHeaders.Authorization = bearerToken;
-    } else if (apiKey) {
-      // Fallback only when no bearer token exists.
-      authHeaders['X-API-Key'] = apiKey;
-    }
-
-    console.log('[Inventory Material Requisitions][SYNC] Starting sync', {
-      endpointBase,
-      authMode: authHeaders.Authorization ? 'bearer-only' : 'api-key-only',
-    });
 
     let synced = 0;
     let failedRecords = 0;
     let pagesSynced = 0;
-    let sourceEndpoint: string | null = null;
-    const limit = 100;
     const upstreamErrors: string[] = [];
+    let payload: unknown;
+    try {
+      payload = await fetchMaterialRequisitionsFromIntegration({}, forwardedAuthHeader);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch material requisitions from integration middleware.';
+      upstreamErrors.push(message);
+      return NextResponse.json({ error: message, upstreamErrors }, { status: 502 });
+    }
 
-    const endpointCandidates = ['/requisitions', '/material-requisitions'];
+    const payloadObject = payload as Record<string, unknown>;
+    if (payloadObject && payloadObject.success === false) {
+      const reason = extractErrorMessage(payload) || 'Integration middleware returned an unsuccessful response.';
+      upstreamErrors.push(reason);
+      return NextResponse.json({ error: reason, upstreamErrors }, { status: 502 });
+    }
 
-    for (const endpoint of endpointCandidates) {
-      let page = 1;
-      let totalPages: number | null = null;
-      let gotAtLeastOnePage = false;
-      let endpointFailed = false;
+    const list = extractList(payload);
+    pagesSynced = 1;
 
-      while (totalPages === null || page <= totalPages) {
-        const response = await fetch(`${endpointBase}${endpoint}?page=${page}&limit=${limit}`, {
-          method: 'GET',
-          headers: authHeaders,
-          cache: 'no-store',
+    for (const entry of list) {
+      try {
+        const mapped = mapInventoryMaterialRequisitionRecord(entry);
+        const externalId = mapped.externalId;
+        if (!externalId) continue;
+
+        const existing = await prisma.purchaseRequisition.findUnique({
+          where: { externalId },
+          select: { id: true, prNumber: true, externalUpdatedAt: true },
         });
 
-        const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-        const payloadSuccess =
-          typeof payload.success === 'boolean' ? payload.success : undefined;
+        const incomingUpdatedAt = mapped.data.externalUpdatedAt;
+        const shouldUpdate =
+          !existing ||
+          !existing.externalUpdatedAt ||
+          !incomingUpdatedAt ||
+          incomingUpdatedAt.getTime() >= existing.externalUpdatedAt.getTime();
 
-        if (!response.ok || payloadSuccess === false) {
-          const reason =
-            (typeof payload?.message === 'string' ? payload.message : null) ||
-            (typeof payload?.error === 'string' ? payload.error : null) ||
-            `Inventory API ${response.status} for ${endpoint}`;
-          upstreamErrors.push(reason);
-          console.warn('[Inventory Material Requisitions][SYNC] Upstream request failed', {
-            endpoint,
-            page,
-            status: response.status,
-            reason,
+        if (!shouldUpdate) continue;
+
+        const persistenceData = {
+          ...mapped.data,
+          rawPayload: mapped.data.rawPayload
+            ? (mapped.data.rawPayload as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        };
+
+        if (existing) {
+          await prisma.purchaseRequisition.update({
+            where: { id: existing.id },
+            data: {
+              ...persistenceData,
+              externalId,
+              prNumber: existing.prNumber,
+            },
           });
-          endpointFailed = true;
-          break;
+        } else {
+          const prNumber = await ensureUniquePrNumber(mapped.data.prNumber, externalId);
+          await prisma.purchaseRequisition.create({
+            data: {
+              ...persistenceData,
+              externalId,
+              prNumber,
+            },
+          });
         }
-
-        const list = extractList(payload);
-
-        gotAtLeastOnePage = true;
-        sourceEndpoint = endpoint;
-        pagesSynced += 1;
-        console.log('[Inventory Material Requisitions][SYNC] Upstream page fetched', {
-          endpoint,
-          page,
-          count: list.length,
-        });
-
-        const upstreamTotalPages = extractTotalPages(payload);
-        if (upstreamTotalPages) {
-          totalPages = upstreamTotalPages;
-        }
-
-        for (const entry of list) {
-          try {
-            const mapped = mapInventoryMaterialRequisitionRecord(entry);
-            const externalId = mapped.externalId;
-            if (!externalId) continue;
-
-            const existing = await prisma.inventoryMaterialRequisition.findUnique({
-              where: { externalId },
-              select: { externalUpdatedAt: true },
-            });
-
-            const incomingUpdatedAt = mapped.data.externalUpdatedAt;
-            const shouldUpdate =
-              !existing ||
-              !existing.externalUpdatedAt ||
-              !incomingUpdatedAt ||
-              incomingUpdatedAt.getTime() >= existing.externalUpdatedAt.getTime();
-
-            if (!shouldUpdate) continue;
-
-            await prisma.inventoryMaterialRequisition.upsert({
-              where: { externalId },
-              update: { ...mapped.data },
-              create: { externalId, ...mapped.data },
-            });
-            synced += 1;
-          } catch (recordError) {
-            failedRecords += 1;
-            console.error('[Inventory Material Requisitions][SYNC] Failed record:', recordError);
-          }
-        }
-
-        if (totalPages === null && list.length < limit) break;
-        if (list.length === 0) break;
-
-        page += 1;
-      }
-
-      if (gotAtLeastOnePage && !endpointFailed) {
-        break;
+        synced += 1;
+      } catch (recordError) {
+        failedRecords += 1;
+        console.error('[Inventory Material Requisitions][SYNC] Failed record:', recordError);
       }
     }
 
-    if (!sourceEndpoint) {
-      return NextResponse.json({
-        success: false,
-        synced: 0,
-        failedRecords: 0,
-        pagesSynced: 0,
-        warning: 'Inventory API is currently unavailable. Local synced data is still accessible.',
-        upstreamErrors,
-      });
-    }
-
-    const totalLocalRows = await prisma.inventoryMaterialRequisition.count();
-    console.log('[Inventory Material Requisitions][SYNC] Completed', {
-      sourceEndpoint,
-      pagesSynced,
-      synced,
-      failedRecords,
-      totalLocalRows,
+    const totalLocalRows = await prisma.purchaseRequisition.count({
+      where: { externalId: { not: null } },
     });
-
     return NextResponse.json({
       success: true,
       synced,
       failedRecords,
       pagesSynced,
-      sourceEndpoint,
+      sourceEndpoint: '/material-requisitions',
       totalLocalRows,
+      upstreamErrors,
     });
   } catch (error) {
     console.error('[Inventory Material Requisitions][SYNC] Failed:', error);

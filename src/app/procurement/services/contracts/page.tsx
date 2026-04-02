@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { 
   Plus, 
-  Search, 
   Filter, 
   Eye, 
   Edit, 
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select';
 
 interface ServiceContract {
   id: string;
@@ -32,7 +32,6 @@ interface ServiceContract {
   startDate: string;
   endDate: string;
   status: string;
-  autoRenewal: boolean;
   createdAt: string;
   daysUntilExpiry: number;
 }
@@ -42,7 +41,33 @@ interface Filters {
   status: string;
   contractType: string;
   vendor: string;
-  expiringOnly: boolean;
+}
+
+interface ContractStats {
+  totalContracts: number;
+  activeContracts: number;
+  signedContracts: number;
+  completedContracts: number;
+  terminatedContracts: number;
+  totalValue: number;
+  averageValue: number;
+  vendorsEngaged: number;
+}
+
+interface RawServiceContract {
+  id: string;
+  contractNumber: string;
+  contractType: string;
+  vendor: {
+    id: string;
+    nameEn: string;
+    email: string;
+  };
+  totalValue: string | number;
+  startDate: string;
+  endDate: string;
+  status: string;
+  createdAt: string;
 }
 
 export default function ServiceContracts() {
@@ -51,12 +76,21 @@ export default function ServiceContracts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<ContractStats>({
+    totalContracts: 0,
+    activeContracts: 0,
+    signedContracts: 0,
+    completedContracts: 0,
+    terminatedContracts: 0,
+    totalValue: 0,
+    averageValue: 0,
+    vendorsEngaged: 0
+  });
   const [filters, setFilters] = useState<Filters>({
     search: '',
     status: '',
     contractType: '',
-    vendor: '',
-    expiringOnly: false
+    vendor: ''
   });
 
   const formatCurrency = (amount: number) => {
@@ -98,7 +132,8 @@ export default function ServiceContracts() {
       const data = await response.json();
 
       if (response.ok) {
-        const contractsWithMetrics = (data.contracts || []).map((contract: any) => {
+        const rawContracts: RawServiceContract[] = Array.isArray(data.contracts) ? data.contracts : [];
+        const contractsWithMetrics = rawContracts.map((contract) => {
           const startDate = new Date(contract.startDate);
           const endDate = new Date(contract.endDate);
           
@@ -115,22 +150,24 @@ export default function ServiceContracts() {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
             status: contract.status,
-            autoRenewal: false, // Default for now
             createdAt: contract.createdAt,
             daysUntilExpiry
           };
         });
 
-        // Apply expiring filter
-        const filteredContracts = filters.expiringOnly 
-          ? contractsWithMetrics.filter((contract: ServiceContract) => 
-              contract.daysUntilExpiry <= 90 && contract.daysUntilExpiry > 0
-            )
-          : contractsWithMetrics;
-
-        setContracts(filteredContracts);
-        setTotal(data.pagination?.total || filteredContracts.length);
-        setTotalPages(data.pagination?.totalPages || Math.ceil(filteredContracts.length / 10));
+        setContracts(contractsWithMetrics);
+        setTotal(data.pagination?.total || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setStats({
+          totalContracts: Number(data.stats?.totalContracts || 0),
+          activeContracts: Number(data.stats?.activeContracts || 0),
+          signedContracts: Number(data.stats?.signedContracts || 0),
+          completedContracts: Number(data.stats?.completedContracts || 0),
+          terminatedContracts: Number(data.stats?.terminatedContracts || 0),
+          totalValue: Number(data.stats?.totalValue || 0),
+          averageValue: Number(data.stats?.averageValue || 0),
+          vendorsEngaged: Number(data.stats?.vendorsEngaged || 0)
+        });
       }
     } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -139,7 +176,7 @@ export default function ServiceContracts() {
     }
   };
 
-  const handleFilterChange = (key: keyof Filters, value: string | boolean) => {
+  const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
@@ -203,15 +240,15 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircle className="h-6 w-6 text-wujha-primary" />
+                <FileText className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Active Contracts
+                    Total Contracts
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {contracts.filter(c => c.status === 'ACTIVE').length}
+                    {stats.totalContracts}
                   </dd>
                 </dl>
               </div>
@@ -223,15 +260,15 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <AlertTriangle className="h-6 w-6 text-yellow-400" />
+                <CheckCircle className="h-6 w-6 text-green-500" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Expiring (90 days)
+                    Active Contracts
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {contracts.filter(c => c.daysUntilExpiry <= 90 && c.daysUntilExpiry > 0).length}
+                    {stats.activeContracts}
                   </dd>
                 </dl>
               </div>
@@ -248,10 +285,10 @@ export default function ServiceContracts() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Value
+                    Portfolio Value
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {formatCurrency(contracts.reduce((sum, c) => sum + c.contractValue, 0))}
+                    {formatCurrency(stats.totalValue)}
                   </dd>
                 </dl>
               </div>
@@ -263,15 +300,15 @@ export default function ServiceContracts() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FileText className="h-6 w-6 text-wujha-primary" />
+                <Building className="h-6 w-6 text-wujha-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Auto-Renewal
+                    Vendors Engaged
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {contracts.filter(c => c.autoRenewal).length}
+                    {stats.vendorsEngaged}
                   </dd>
                 </dl>
               </div>
@@ -283,10 +320,10 @@ export default function ServiceContracts() {
       {/* Filters */}
       <ListFiltersCard
         onClear={() =>
-          setFilters({ search: '', status: '', contractType: '', vendor: '', expiringOnly: false })
+          setFilters({ search: '', status: '', contractType: '', vendor: '' })
         }
         className="mb-6"
-        columnsClassName="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        columnsClassName="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <ListFilterField label="Search">
           <input
@@ -298,7 +335,7 @@ export default function ServiceContracts() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -312,10 +349,10 @@ export default function ServiceContracts() {
             <option value="COMPLETED">Completed</option>
             <option value="TERMINATED">Terminated</option>
             <option value="CANCELLED">Cancelled</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Contract Type">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.contractType}
             onChange={(e) => handleFilterChange('contractType', e.target.value)}
@@ -325,7 +362,7 @@ export default function ServiceContracts() {
             <option value="CONSULTING_CONTRACT">Consulting Contract</option>
             <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
             <option value="SUPPORT_CONTRACT">Support Contract</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Vendor">
           <input
@@ -335,17 +372,6 @@ export default function ServiceContracts() {
             value={filters.vendor}
             onChange={(e) => handleFilterChange('vendor', e.target.value)}
           />
-        </ListFilterField>
-        <ListFilterField label="Expiring Only" className="flex items-end">
-          <label className="flex h-10 items-center gap-2">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-wujha-primary focus:ring-wujha-primary"
-              checked={filters.expiringOnly}
-              onChange={(e) => handleFilterChange('expiringOnly', e.target.checked)}
-            />
-            <span className="text-sm text-gray-700">Include only expiring contracts</span>
-          </label>
         </ListFilterField>
       </ListFiltersCard>
 
@@ -454,16 +480,9 @@ export default function ServiceContracts() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap min-w-[140px]">
-                      <div className="flex flex-col space-y-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
-                          {contract.status}
-                        </span>
-                        {contract.autoRenewal && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-wujha-primary/10 text-wujha-primary">
-                            Auto-Renewal
-                          </span>
-                        )}
-                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
+                        {contract.status}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-3 min-w-[120px]">

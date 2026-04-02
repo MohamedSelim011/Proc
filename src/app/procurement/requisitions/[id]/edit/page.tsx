@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { SearchableSelect } from '@/components/common/searchable-select'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -493,7 +494,7 @@ export default function EditPurchaseRequisition() {
                     <label className="block text-sm font-semibold text-gray-800">
                       Item Type <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.itemType}
                       onChange={(e) => setFormData(prev => ({ ...prev, itemType: e.target.value as any }))}
@@ -501,7 +502,7 @@ export default function EditPurchaseRequisition() {
                       <option value="STOCK">Stock Items</option>
                       <option value="NON_STOCK">Non-Stock Items</option>
                       <option value="SERVICE">Services</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   <div className="space-y-2">
@@ -585,7 +586,7 @@ export default function EditPurchaseRequisition() {
                     <label className="block text-sm font-semibold text-gray-800">
                       Priority <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary text-gray-900 py-3 px-4 text-base transition-colors duration-200"
                       value={formData.priority}
                       onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
@@ -594,7 +595,7 @@ export default function EditPurchaseRequisition() {
                       <option value="NORMAL">🟡 Normal Priority</option>
                       <option value="HIGH">🟠 High Priority</option>
                       <option value="URGENT">🔴 Urgent Priority</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   <div className="space-y-2">

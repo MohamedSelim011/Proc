@@ -30,6 +30,84 @@ interface EmailOptions {
   text?: string;
 }
 
+type EmailThemePalette = {
+  primaryColor: string;
+  primaryHoverColor: string;
+  secondaryColor: string;
+  secondaryHoverColor: string;
+  companyName: string;
+  supportEmail: string;
+};
+
+function resolveColor(value: string | undefined, fallback: string): string {
+  const raw = (value || '').trim();
+  if (!raw) return fallback;
+
+  if (/^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(raw)) {
+    return raw;
+  }
+
+  const rgbMatch = raw.match(/^(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})$/);
+  if (!rgbMatch) return fallback;
+
+  const toChannel = (v: string) => Math.max(0, Math.min(255, Number(v)));
+  return `rgb(${toChannel(rgbMatch[1])}, ${toChannel(rgbMatch[2])}, ${toChannel(rgbMatch[3])})`;
+}
+
+function getEmailThemePalette(): EmailThemePalette {
+  return {
+    primaryColor: resolveColor(process.env.THEME_PRIMARY_COLOR, '#FF5722'),
+    primaryHoverColor: resolveColor(process.env.THEME_PRIMARY_HOVER_COLOR, '#E64A19'),
+    secondaryColor: resolveColor(process.env.THEME_SECONDARY_COLOR, '#FA6335'),
+    secondaryHoverColor: resolveColor(process.env.THEME_SECONDARY_HOVER_COLOR, '#E85A2F'),
+    companyName: process.env.SMTP_FROM_NAME || 'Wujha Procurement System',
+    supportEmail: process.env.SMTP_FROM_EMAIL || 'procurement@wujha.local',
+  };
+}
+
+function formatDeliveryAddressForEmail(value: unknown): string {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || 'Not specified';
+  }
+
+  if (!value || typeof value !== 'object') {
+    return 'Not specified';
+  }
+
+  const address = value as Record<string, unknown>;
+  const parts = [
+    address.building,
+    address.street,
+    address.line1,
+    address.line2,
+    address.district,
+    address.city,
+    address.state,
+    address.governorate,
+    address.postalCode,
+    address.zipCode,
+    address.country,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .map((part) => String(part).trim());
+
+  const note = typeof address.note === 'string' ? address.note.trim() : '';
+  const type = typeof address.type === 'string' ? address.type.trim().toUpperCase() : '';
+
+  if (parts.length === 0) {
+    if (note) return note;
+    return 'Not specified';
+  }
+
+  const joined = parts.join(', ');
+  if (note && type === 'AUTO_FROM_CONTRACT') {
+    return `${joined} (${note})`;
+  }
+
+  return joined;
+}
+
 // Send email
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; error?: string }> {
   try {
@@ -81,25 +159,7 @@ export function generateRFQInvitationEmail(data: {
   termsAndConditions?: string;
   submissionLink: string;
 }): { html: string; text: string } {
-  const resolveColor = (value: string | undefined, fallback: string): string => {
-    const raw = (value || '').trim();
-    if (!raw) return fallback;
-
-    if (/^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(raw)) {
-      return raw;
-    }
-
-    const rgbMatch = raw.match(/^(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})$/);
-    if (!rgbMatch) return fallback;
-
-    const toChannel = (v: string) => Math.max(0, Math.min(255, Number(v)));
-    return `rgb(${toChannel(rgbMatch[1])}, ${toChannel(rgbMatch[2])}, ${toChannel(rgbMatch[3])})`;
-  };
-
-  const primaryColor = resolveColor(process.env.THEME_PRIMARY_COLOR, '#FF5722');
-  const secondaryColor = resolveColor(process.env.THEME_SECONDARY_COLOR, '#FA6335');
-  const companyName = process.env.SMTP_FROM_NAME || 'Wujha Procurement System';
-  const supportEmail = process.env.SMTP_FROM_EMAIL || 'procurement@wujha.local';
+  const { primaryColor, secondaryColor, companyName, supportEmail } = getEmailThemePalette();
 
   const closingDateFormatted = new Date(data.closingDate).toLocaleString('en-US', {
     weekday: 'long',
@@ -317,10 +377,10 @@ export function generateServiceRFPInvitationEmail(data: {
   description: string;
   closingDate: Date;
   scopeOfWork: string;
-  evaluationCriteria: Array<{ name: string; weight: number }>;
   termsAndConditions?: string;
   submissionLink: string;
 }): { html: string; text: string } {
+  const { primaryColor, primaryHoverColor, secondaryColor, companyName, supportEmail } = getEmailThemePalette();
   const closingDateFormatted = new Date(data.closingDate).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -331,110 +391,104 @@ export function generateServiceRFPInvitationEmail(data: {
   });
 
   const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-          .section { background: white; padding: 20px; margin: 20px 0; border-radius: 6px; border: 1px solid #e5e7eb; }
-          .button { display: inline-block; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
-          .button:hover { background: linear-gradient(135deg, #F7931E 0%, #FF6B35 100%); }
-          .deadline { background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; }
-          .criteria { margin: 10px 0; padding: 10px; background: #f3f4f6; border-radius: 4px; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-          th { background: #f9fafb; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin: 0;">Request for Proposal Invitation</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">${data.rfpNumber}</p>
-          </div>
-          
-          <div class="content">
-            <p>Dear ${data.vendorName},</p>
-            
-            <p>You are cordially invited to submit a proposal for the following service requirement:</p>
-            
-            <div class="section">
-              <h2 style="color: #FF6B35; margin-top: 0;">${data.title}</h2>
-              <p><strong>Description:</strong><br/>${data.description}</p>
-            </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="max-width:680px;width:100%;">
+          <tr>
+            <td style="background:linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%);padding:28px 30px;border-radius:14px 14px 0 0;color:#ffffff;">
+              <p style="margin:0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.9;">${companyName}</p>
+              <h1 style="margin:10px 0 6px 0;font-size:26px;line-height:1.2;">Service RFP Invitation</h1>
+              <p style="margin:0;font-size:14px;opacity:0.9;">Reference: ${data.rfpNumber}</p>
+            </td>
+          </tr>
 
-            <div class="section">
-              <h3 style="color: #FF6B35;">Scope of Work</h3>
-              <p style="white-space: pre-wrap;">${data.scopeOfWork}</p>
-            </div>
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;padding:26px 30px 10px 30px;">
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.7;">Dear <strong>${data.vendorName}</strong>,</p>
+              <p style="margin:0 0 18px 0;font-size:15px;line-height:1.7;">
+                You are invited to submit a proposal for the service requirement below.
+              </p>
 
-            <div class="section">
-              <h3 style="color: #FF6B35;">Evaluation Criteria</h3>
-              <p>Your proposal will be evaluated based on the following criteria:</p>
-              ${data.evaluationCriteria.map(criteria => `
-                <div class="criteria">
-                  <strong>${criteria.name}</strong> - ${criteria.weight}%
-                </div>
-              `).join('')}
-            </div>
-
-            ${data.termsAndConditions ? `
-              <div class="section">
-                <h3 style="color: #FF6B35;">Terms & Conditions</h3>
-                <p style="white-space: pre-wrap;">${data.termsAndConditions}</p>
+              <div style="border:1px solid #e2e8f0;border-radius:12px;padding:18px 18px 14px 18px;background:#f8fafc;margin-bottom:18px;">
+                <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">RFP Title</p>
+                <p style="margin:6px 0 12px 0;font-size:20px;font-weight:700;color:#0f172a;">${data.title}</p>
+                <p style="margin:0;font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;">${data.description || 'No additional description provided.'}</p>
               </div>
-            ` : ''}
 
-            <div class="deadline">
-              <strong>Submission Deadline:</strong><br/>
-              ${closingDateFormatted}
-            </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fff8f4;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:#9a3412;">Submission Deadline</p>
+                    <p style="margin:6px 0 0 0;font-size:18px;font-weight:700;color:${primaryHoverColor};">${closingDateFormatted}</p>
+                  </td>
+                </tr>
+              </table>
 
-            <div style="text-align: center;">
-              <a href="${data.submissionLink}" class="button">Submit Your Proposal</a>
-            </div>
+              <div style="margin-bottom:18px;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;background:#ffffff;">
+                <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:${primaryColor};">Scope of Work</p>
+                <p style="margin:0;font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;">${data.scopeOfWork || 'Not provided.'}</p>
+              </div>
 
-            <p style="margin-top: 30px;"><strong>Important Notes:</strong></p>
-            <ul>
-              <li>Please ensure your proposal addresses all requirements in the scope of work</li>
-              <li>Include detailed pricing breakdown and timeline</li>
-              <li>Provide relevant experience and references</li>
-              <li>Submit all required documentation before the deadline</li>
-              <li>Late submissions will not be accepted</li>
-            </ul>
+              ${data.termsAndConditions ? `
+                <div style="margin-bottom:18px;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;background:#ffffff;">
+                  <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:${primaryColor};">Commercial & Legal Terms</p>
+                  <p style="margin:0;font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;">${data.termsAndConditions}</p>
+                </div>
+              ` : ''}
 
-            <p>If you have any questions or need clarification, please contact our procurement team.</p>
-            
-            <p>We look forward to receiving your proposal.</p>
-            
-            <p style="margin-top: 30px;">
-              Best regards,<br/>
-              <strong>WUJHA Procurement Team</strong>
-            </p>
-          </div>
+              <div style="text-align:center;padding:10px 0 18px 0;">
+                <a
+                  href="${data.submissionLink}"
+                  style="display:inline-block;background:${primaryColor};color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700;font-size:15px;"
+                >
+                  Submit Proposal
+                </a>
+              </div>
 
-          <div class="footer">
-            <p>This is an automated message from the WUJHA Procurement System.</p>
-            <p>Please do not reply to this email.</p>
-          </div>
-        </div>
-      </body>
-    </html>
+              <div style="border-top:1px solid #e2e8f0;padding-top:16px;">
+                <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;">
+                  If the button does not open, use this link directly:
+                </p>
+                <p style="margin:0;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:12px;word-break:break-all;color:#475569;">
+                  ${data.submissionLink}
+                </p>
+                <p style="margin:12px 0 0 0;font-size:13px;color:#64748b;">
+                  For assistance, contact <a href="mailto:${supportEmail}" style="color:${primaryColor};text-decoration:none;">${supportEmail}</a>.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 14px 14px;padding:16px 30px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#64748b;">This is an automated message from ${companyName}. Please do not reply to this email.</p>
+              <p style="margin:8px 0 0 0;font-size:12px;color:#94a3b8;">(c) ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
   `;
 
   const text = `
-WUJHA Procurement System
-Request for Proposal Invitation
+${companyName}
+Service Request for Proposal Invitation
 ${data.rfpNumber}
 
 Dear ${data.vendorName},
 
-You are cordially invited to submit a proposal for the following service requirement:
+You are invited to submit a proposal for the following service requirement:
 
 ${data.title}
 
@@ -443,9 +497,6 @@ ${data.description}
 
 Scope of Work:
 ${data.scopeOfWork}
-
-Evaluation Criteria:
-${data.evaluationCriteria.map(criteria => `- ${criteria.name}: ${criteria.weight}%`).join('\n')}
 
 ${data.termsAndConditions ? `Terms & Conditions:\n${data.termsAndConditions}\n\n` : ''}
 
@@ -461,15 +512,15 @@ Important Notes:
 - Submit all required documentation before the deadline
 - Late submissions will not be accepted
 
-If you have any questions or need clarification, please contact our procurement team.
+For assistance, contact: ${supportEmail}
 
 We look forward to receiving your proposal.
 
 Best regards,
-WUJHA Procurement Team
+${companyName}
 
 ---
-This is an automated message from the WUJHA Procurement System.
+This is an automated message from ${companyName}.
 Please do not reply to this email.
   `;
 
@@ -484,7 +535,6 @@ export async function sendServiceRFPInvitationToVendors(data: {
   description: string;
   closingDate: Date;
   scopeOfWork: string;
-  evaluationCriteria: Array<{ name: string; weight: number }>;
   termsAndConditions?: string;
   vendors: Array<{ email: string; name: string; submissionToken: string }>;
   baseUrl: string;
@@ -504,7 +554,6 @@ export async function sendServiceRFPInvitationToVendors(data: {
         description: data.description,
         closingDate: data.closingDate,
         scopeOfWork: data.scopeOfWork,
-        evaluationCriteria: data.evaluationCriteria,
         termsAndConditions: data.termsAndConditions,
         submissionLink,
       });
@@ -545,7 +594,7 @@ export function generatePOEmail(data: {
   totalAmount: number;
   currency: string;
   paymentTerms: string;
-  deliveryAddress: string;
+  deliveryAddress: unknown;
   items: Array<{
     itemCode: string;
     name: string;
@@ -558,6 +607,16 @@ export function generatePOEmail(data: {
   notes?: string;
   acknowledgmentLink?: string; // Link for vendor to acknowledge the PO
 }): { html: string; text: string } {
+  const {
+    primaryColor,
+    primaryHoverColor,
+    secondaryColor,
+    companyName,
+    supportEmail,
+  } = getEmailThemePalette();
+  const deliveryAddressText = formatDeliveryAddressForEmail(data.deliveryAddress);
+  const deliveryAddressHtml = deliveryAddressText.replace(/\n/g, '<br/>');
+
   const orderDateFormatted = new Date(data.orderDate).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -596,9 +655,9 @@ export function generatePOEmail(data: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #C7253E 0%, #821131 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
     <h1 style="margin: 0; font-size: 28px;">Purchase Order</h1>
-    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
+    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">${companyName}</p>
   </div>
   
   <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
@@ -606,37 +665,37 @@ export function generatePOEmail(data: {
     
     <p style="font-size: 16px;">We are pleased to issue the following Purchase Order for your review and confirmation:</p>
     
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C7253E;">
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${primaryColor};">
       <p style="margin: 5px 0;"><strong>PO Number:</strong> ${data.poNumber}</p>
       <p style="margin: 5px 0;"><strong>Order Date:</strong> ${orderDateFormatted}</p>
-      <p style="margin: 5px 0;"><strong>Delivery Date:</strong> <span style="color: #C7253E; font-weight: bold;">${deliveryDateFormatted}</span></p>
+      <p style="margin: 5px 0;"><strong>Delivery Date:</strong> <span style="color: ${primaryColor}; font-weight: bold;">${deliveryDateFormatted}</span></p>
       ${data.prNumber ? `<p style="margin: 5px 0;"><strong>PR Reference:</strong> ${data.prNumber}</p>` : ''}
       <p style="margin: 5px 0;"><strong>Payment Terms:</strong> ${data.paymentTerms}</p>
-      <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #C7253E; font-size: 18px; font-weight: bold;">${data.currency} ${data.totalAmount.toFixed(2)}</span></p>
+      <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: ${primaryColor}; font-size: 18px; font-weight: bold;">${data.currency} ${data.totalAmount.toFixed(2)}</span></p>
     </div>
     
     <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 15px;">Delivery Address</h3>
-      <p style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 6px;">${data.deliveryAddress}</p>
+      <h3 style="color: ${primaryColor}; margin-bottom: 15px;">Delivery Address</h3>
+      <p style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 6px;">${deliveryAddressHtml}</p>
     </div>
     
     <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 15px;">Items Ordered</h3>
+      <h3 style="color: ${primaryColor}; margin-bottom: 15px;">Items Ordered</h3>
       <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e0e0e0;">
         <thead>
           <tr style="background: #f8f9fa;">
-            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #C7253E;">#</th>
-            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #C7253E;">Item</th>
-            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #C7253E;">Quantity</th>
-            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #C7253E;">Unit Price</th>
-            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #C7253E;">Total</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${primaryColor};">#</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${primaryColor};">Item</th>
+            <th style="padding: 12px; text-align: center; border-bottom: 2px solid ${primaryColor};">Quantity</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid ${primaryColor};">Unit Price</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid ${primaryColor};">Total</th>
           </tr>
         </thead>
         <tbody>
           ${itemsList}
           <tr style="background: #f8f9fa; font-weight: bold;">
-            <td colspan="4" style="padding: 12px; text-align: right; border-top: 2px solid #C7253E;">Grand Total:</td>
-            <td style="padding: 12px; text-align: right; border-top: 2px solid #C7253E; color: #C7253E; font-size: 18px;">
+            <td colspan="4" style="padding: 12px; text-align: right; border-top: 2px solid ${primaryColor};">Grand Total:</td>
+            <td style="padding: 12px; text-align: right; border-top: 2px solid ${primaryColor}; color: ${primaryColor}; font-size: 18px;">
               ${data.currency} ${data.totalAmount.toFixed(2)}
             </td>
           </tr>
@@ -646,26 +705,21 @@ export function generatePOEmail(data: {
     
     ${data.notes ? `
     <div style="margin: 20px 0;">
-      <h3 style="color: #C7253E; margin-bottom: 10px;">Additional Notes</h3>
+      <h3 style="color: ${primaryColor}; margin-bottom: 10px;">Additional Notes</h3>
       <p style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 6px; white-space: pre-wrap;">${data.notes}</p>
     </div>
     ` : ''}
     
-    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
-      <p style="margin: 0; font-size: 14px; color: #856404;">
-        <strong>Important:</strong> Please review this Purchase Order and confirm acceptance. If you have any questions or concerns, please contact us immediately.
-      </p>
-    </div>
     
     ${data.acknowledgmentLink ? `
     <div style="text-align: center; margin: 30px 0;">
       <a href="${data.acknowledgmentLink}" 
-         style="display: inline-block; background: #28a745; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);">
+         style="display: inline-block; background: ${primaryColor}; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: bold;">
         Acknowledge Purchase Order
       </a>
     </div>
-    <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #28a745;">
-      <p style="margin: 0; font-size: 14px; color: #155724;">
+    <div style="background: #fff7ed; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid ${secondaryColor};">
+      <p style="margin: 0; font-size: 14px; color: ${primaryHoverColor};">
         <strong>Action Required:</strong> Please click the button above to acknowledge receipt and acceptance of this Purchase Order. This confirms that you have received and reviewed the order details.
       </p>
     </div>
@@ -673,7 +727,7 @@ export function generatePOEmail(data: {
     
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
       <p style="font-size: 14px; color: #666; margin: 5px 0;">
-        If you have any questions, please contact us at <a href="mailto:${process.env.SMTP_FROM_EMAIL}" style="color: #C7253E;">${process.env.SMTP_FROM_EMAIL}</a>
+        If you have any questions, please contact us at <a href="mailto:${supportEmail}" style="color: ${primaryColor};">${supportEmail}</a>
       </p>
       <p style="font-size: 14px; color: #666; margin: 5px 0;">
         We look forward to your prompt confirmation and delivery.
@@ -683,7 +737,7 @@ export function generatePOEmail(data: {
   
   <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
+      (c) ${new Date().getFullYear()} ${companyName}. All rights reserved.
     </p>
   </div>
 </body>
@@ -704,7 +758,7 @@ ${data.prNumber ? `PR Reference: ${data.prNumber}\n` : ''}Payment Terms: ${data.
 Total Amount: ${data.currency} ${data.totalAmount.toFixed(2)}
 
 Delivery Address:
-${data.deliveryAddress}
+${deliveryAddressText}
 
 Items Ordered:
 ${data.items.map((item, index) => `${index + 1}. ${item.itemCode} - ${item.name}\n   Quantity: ${item.quantity} | Unit Price: ${data.currency} ${item.unitPrice.toFixed(2)} | Total: ${data.currency} ${item.totalPrice.toFixed(2)}`).join('\n')}
@@ -720,12 +774,12 @@ ${data.acknowledgmentLink}
 This confirms that you have received and reviewed the order details.
 ` : ''}
 
-Please review this Purchase Order and confirm acceptance. If you have any questions or concerns, please contact us immediately at ${process.env.SMTP_FROM_EMAIL}
+Please review this Purchase Order and confirm acceptance. If you have any questions or concerns, please contact us immediately at ${supportEmail}
 
 We look forward to your prompt confirmation and delivery.
 
 Best regards,
-Wujha Procurement Team
+${companyName}
   `;
 
   return { html, text };
@@ -742,7 +796,7 @@ export async function sendPOToVendor(data: {
   totalAmount: number;
   currency: string;
   paymentTerms: string;
-  deliveryAddress: string;
+  deliveryAddress: unknown;
   items: Array<{
     itemCode: string;
     name: string;
@@ -804,6 +858,8 @@ export function generateContractReviewEmail(data: {
   rejectLink: string;
   expiryDate: Date;
 }): { html: string; text: string } {
+  const { primaryColor, primaryHoverColor, secondaryColor, companyName, supportEmail } =
+    getEmailThemePalette();
   const startDateFormatted = new Date(data.startDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -825,6 +881,12 @@ export function generateContractReviewEmail(data: {
     minute: '2-digit',
   });
 
+  const amountFormatted = new Intl.NumberFormat('en-OM', {
+    style: 'currency',
+    currency: data.currency,
+    minimumFractionDigits: 3,
+  }).format(data.totalValue);
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -832,73 +894,80 @@ export function generateContractReviewEmail(data: {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">Service Contract Review</h1>
-    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Wujha Procurement System</p>
-  </div>
-  
-  <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-    <p style="font-size: 16px; margin-top: 0;">Dear <strong>${data.vendorName}</strong>,</p>
-    
-    <p style="font-size: 16px;">We are pleased to share the following Service Contract for your review and acceptance:</p>
-    
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e3a8a;">
-      <p style="margin: 5px 0;"><strong>Contract Number:</strong> ${data.contractNumber}</p>
-      <p style="margin: 5px 0;"><strong>Contract Type:</strong> ${data.contractType}</p>
-      <p style="margin: 5px 0;"><strong>Total Value:</strong> <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${data.currency} ${data.totalValue.toLocaleString()}</span></p>
-      <p style="margin: 5px 0;"><strong>Contract Period:</strong> ${startDateFormatted} to ${endDateFormatted}</p>
-      <p style="margin: 5px 0;"><strong>Payment Terms:</strong> ${data.paymentTerms}</p>
-    </div>
-    
-    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
-      <p style="margin: 0; font-size: 14px; color: #856404;">
-        <strong>Response Required:</strong> Please review and respond by <strong>${expiryDateFormatted}</strong>
-      </p>
-    </div>
-    
-    <div style="margin: 30px 0;">
-      <h3 style="color: #1e3a8a; margin-bottom: 15px;">Action Required</h3>
-      <p style="margin: 0 0 20px 0;">Click the button below to review the contract and submit your response:</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${data.acceptLink}" 
-           style="display: inline-block; background: #1e3a8a; color: white; padding: 18px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);">
-          Review Contract & Respond
-        </a>
-      </div>
-      
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666; font-weight: bold;">If the button doesn't work, copy and paste this link into your browser:</p>
-        <p style="margin: 0; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px; color: #1e3a8a; word-break: break-all;">
-          ${data.acceptLink}
-        </p>
-      </div>
-    </div>
-    
-    <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e3a8a;">
-      <h4 style="margin: 0 0 10px 0; color: #1e3a8a;">Important Notes:</h4>
-      <ul style="margin: 0; padding-left: 20px;">
-        <li>The link will take you to a secure page where you can review all contract details</li>
-        <li>You can choose to <strong>Accept</strong> the contract or <strong>Request Changes</strong></li>
-        <li>If you request changes, you'll be able to provide detailed comments</li>
-        <li>This link is unique and secure - do not share it with others</li>
-        <li>After the expiry date, this link will no longer be valid</li>
-      </ul>
-    </div>
-    
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-      <p style="font-size: 14px; color: #666; margin: 5px 0;">
-        If you have any questions, please contact our procurement team at <a href="mailto:${process.env.SMTP_FROM_EMAIL}" style="color: #1e3a8a;">${process.env.SMTP_FROM_EMAIL}</a>
-      </p>
-    </div>
-  </div>
-  
-  <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; text-align: center;">
-    <p style="margin: 0; font-size: 12px; color: #666;">
-      (c) ${new Date().getFullYear()} Wujha Procurement System. All rights reserved.
-    </p>
-  </div>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI, Tahoma, Arial, sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#f1f5f9;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="max-width:680px;width:100%;border-collapse:separate;border-spacing:0;">
+          <tr>
+            <td style="background:linear-gradient(130deg, ${primaryColor} 0%, ${secondaryColor} 100%);padding:28px 30px;border-radius:16px 16px 0 0;color:#ffffff;">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;">Contract Review</div>
+              <h1 style="margin:10px 0 6px 0;font-size:28px;line-height:1.2;">Service Contract Invitation</h1>
+              <p style="margin:0;font-size:14px;opacity:0.9;">${companyName}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;padding:26px 30px;">
+              <p style="margin:0 0 14px 0;font-size:15px;color:#334155;">Dear <strong>${data.vendorName}</strong>,</p>
+              <p style="margin:0 0 18px 0;font-size:15px;color:#334155;">
+                Please review the service contract below and confirm your response by the stated deadline.
+              </p>
+
+              <div style="border:1px solid #e2e8f0;border-radius:12px;padding:18px;background:#f8fafc;margin-bottom:18px;">
+                <p style="margin:0 0 6px 0;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Contract Summary</p>
+                <p style="margin:0 0 8px 0;font-size:20px;font-weight:700;color:#0f172a;">${data.contractNumber}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:4px 0;font-size:14px;color:#334155;"><strong>Type:</strong> ${data.contractType.replaceAll('_', ' ')}</td>
+                    <td style="padding:4px 0;font-size:14px;color:#334155;"><strong>Total Value:</strong> <span style="font-weight:700;color:${primaryColor};">${amountFormatted}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;font-size:14px;color:#334155;"><strong>Period:</strong> ${startDateFormatted} to ${endDateFormatted}</td>
+                    <td style="padding:4px 0;font-size:14px;color:#334155;"><strong>Payment Terms:</strong> ${data.paymentTerms}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 18px;">
+                    <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:#9a3412;">Response Required By</p>
+                    <p style="margin:6px 0 0 0;font-size:18px;font-weight:700;color:${primaryHoverColor};">${expiryDateFormatted}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="text-align:center;margin:26px 0 10px 0;">
+                <a href="${data.acceptLink}" style="display:inline-block;background:${primaryColor};color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:10px;font-weight:700;font-size:15px;">
+                  Review Contract & Respond
+                </a>
+              </div>
+
+              <div style="text-align:center;margin-bottom:18px;">
+                <a href="${data.rejectLink}" style="display:inline-block;color:${primaryColor};text-decoration:none;font-size:13px;font-weight:600;">
+                  Request Changes to the Contract
+                </a>
+              </div>
+
+              <div style="background:#f8fafc;padding:14px;border-radius:10px;border:1px solid #e2e8f0;">
+                <p style="margin:0 0 6px 0;font-size:12px;color:#64748b;">If the button does not open, use this URL:</p>
+                <p style="margin:0;font-size:12px;color:#475569;word-break:break-all;">${data.acceptLink}</p>
+              </div>
+
+              <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+                <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;">Need help? Contact procurement support at <a href="mailto:${supportEmail}" style="color:${primaryColor};text-decoration:none;">${supportEmail}</a>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 16px 16px;padding:16px 24px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#64748b;">(c) ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
   `;
@@ -912,7 +981,7 @@ We are pleased to share the following Service Contract for your review and accep
 
 Contract Number: ${data.contractNumber}
 Contract Type: ${data.contractType}
-Total Value: ${data.currency} ${data.totalValue.toLocaleString()}
+Total Value: ${amountFormatted}
 Contract Period: ${startDateFormatted} to ${endDateFormatted}
 Payment Terms: ${data.paymentTerms}
 
@@ -923,6 +992,9 @@ Click the link below to review the contract and submit your response:
 
 Review Contract & Respond:
 ${data.acceptLink}
+
+Request Changes:
+${data.rejectLink}
 
 (Copy and paste the link above into your browser if it doesn't open automatically)
 
@@ -935,10 +1007,10 @@ Important Notes:
 - This link is unique and secure - do not share it with others
 - After the expiry date, this link will no longer be valid
 
-If you have any questions, please contact our procurement team at ${process.env.SMTP_FROM_EMAIL}
+If you have any questions, please contact our procurement team at ${supportEmail}
 
 Best regards,
-Wujha Procurement Team
+${companyName}
   `;
 
   return { html, text };

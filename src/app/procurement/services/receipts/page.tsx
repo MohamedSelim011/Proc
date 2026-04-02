@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceReceipt {
   id: string;
@@ -286,7 +287,7 @@ export default function ServiceReceipts() {
             />
           </ListFilterField>
           <ListFilterField label="Status">
-            <select
+            <SearchableSelect
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
               className="erp-input"
@@ -296,7 +297,7 @@ export default function ServiceReceipts() {
               <option value="ACCEPTED">Accepted</option>
               <option value="REJECTED">Rejected</option>
               <option value="CONDITIONAL">Conditional</option>
-            </select>
+            </SearchableSelect>
           </ListFilterField>
           <ListFilterField label="Vendor">
             <input

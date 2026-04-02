@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { SearchableSelect } from '@/components/common/searchable-select'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -911,7 +912,7 @@ function NewInvoiceContent() {
                   <label className="block text-sm font-medium text-gray-700">
                     Currency
                   </label>
-                  <select
+                  <SearchableSelect
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
@@ -920,7 +921,7 @@ function NewInvoiceContent() {
                     <option value="OMR" style={{ color: '#111827' }}>Omani Rial (OMR)</option>
                     <option value="USD" style={{ color: '#111827' }}>US Dollar (USD)</option>
                     <option value="EUR" style={{ color: '#111827' }}>Euro (EUR)</option>
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div>
@@ -978,7 +979,7 @@ function NewInvoiceContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Terms
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.paymentTerms}
                   onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
@@ -989,7 +990,7 @@ function NewInvoiceContent() {
                   <option value="Net 60 days" style={{ color: '#111827' }}>Net 60 days</option>
                   <option value="Cash on Delivery" style={{ color: '#111827' }}>Cash on Delivery</option>
                   <option value="Advance Payment" style={{ color: '#111827' }}>Advance Payment</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>

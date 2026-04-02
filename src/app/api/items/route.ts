@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         { nameEn: { contains: search, mode: 'insensitive' } },
         { nameAr: { contains: search, mode: 'insensitive' } },
         { itemCode: { contains: search, mode: 'insensitive' } },
+        { externalId: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       itemCode,
+      externalId,
       nameEn,
       nameAr,
       description,
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
     const item = await prisma.item.create({
       data: {
         itemCode,
+        externalId: externalId ? String(externalId).trim() : null,
         nameEn,
         nameAr,
         description,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getInventoryItemById, isInventoryConfigured } from '@/lib/inventory-client';
+import { createActivityLog } from '@/lib/activity-log';
 
 const INVENTORY_SYNC_CATEGORY_CODE = 'INVENTORY';
 
@@ -68,9 +68,7 @@ export async function GET(request: NextRequest) {
         searchConditions.push(
           { prNumber: { contains: searchTerm, mode: 'insensitive' } },
           { requesterId: { contains: searchTerm, mode: 'insensitive' } },
-          { departmentId: { contains: searchTerm, mode: 'insensitive' } },
-          { budgetCode: { contains: searchTerm, mode: 'insensitive' } },
-          { costCenter: { contains: searchTerm, mode: 'insensitive' } }
+          { departmentId: { contains: searchTerm, mode: 'insensitive' } }
         );
       }
       
@@ -261,32 +259,20 @@ export async function POST(request: NextRequest) {
     // Second fallback: for unresolved lines with an external/inventory itemId and no code,
     // fetch inventory item details and create local catalog entries on the fly.
     const unresolvedBeforeFallback = resolvedItems.filter((item) => !item.resolvedItemId);
-    if (unresolvedBeforeFallback.length > 0 && isInventoryConfigured()) {
-      const categoryId = await getOrCreateInventorySyncCategory();
+    if (unresolvedBeforeFallback.length > 0) {
       for (const unresolvedItem of unresolvedBeforeFallback) {
         const originalLine = body.items[unresolvedItem.index];
         const externalId = typeof originalLine?.itemId === 'string' ? originalLine.itemId.trim() : '';
         if (!externalId) continue;
-
-        const inv = await getInventoryItemById(externalId);
-        if (!inv.success) continue;
-
-        const code = inv.data.code?.trim() || externalId;
-        const upserted = await prisma.item.upsert({
-          where: { itemCode: code },
-          create: {
-            itemCode: code,
-            nameEn: inv.data.name?.trim() || code,
-            nameAr: inv.data.arabicName?.trim() || inv.data.name?.trim() || code,
-            description: inv.data.description?.trim() || null,
-            categoryId,
-            unitOfMeasure: inv.data.baseUom?.abbreviation?.trim() || inv.data.baseUom?.name?.trim() || 'EA',
+        const localItem = await prisma.item.findFirst({
+          where: {
+            OR: [{ externalId }, { id: externalId }, { itemCode: externalId }],
           },
-          update: {},
-          select: { id: true, itemCode: true },
+          select: { id: true },
         });
-
-        resolvedItems[unresolvedItem.index].resolvedItemId = upserted.id;
+        if (localItem) {
+          resolvedItems[unresolvedItem.index].resolvedItemId = localItem.id;
+        }
       }
     }
 
@@ -340,13 +326,12 @@ export async function POST(request: NextRequest) {
         priority: body.priority,
         status: 'DRAFT',
         estimatedCost,
-        budgetCode: typeof body.budgetCode === 'string' && body.budgetCode.trim() ? body.budgetCode.trim() : 'AUTO',
         justification: body.justification,
         requiredByDate: body.requiredByDate ? new Date(body.requiredByDate) : null,
         projectId: body.projectId || null,
-        costCenter: null,
         sourceMaterialRequestId,
         createdBy: requesterId,
+        integrationSource: 'INTERNAL',
         items: {
           create: resolvedItems.map((item: any) => ({
             itemId: item.resolvedItemId,
@@ -373,6 +358,18 @@ export async function POST(request: NextRequest) {
         data: { status: 'PENDING_APPROVAL' }
       });
     }
+
+    await createActivityLog({
+      type: 'PURCHASE_REQUISITION',
+      entityType: 'PurchaseRequisition',
+      entityId: requisition.id,
+      title: `Purchase Requisition ${requisition.prNumber} created`,
+      status: requisition.status,
+      amount: Number(requisition.estimatedCost || 0),
+      currency: 'OMR',
+      createdBy: requisition.createdBy || requisition.requesterId || null,
+      createdByName: requisition.requesterName || requisition.requesterEmail || undefined,
+    });
 
     return NextResponse.json(requisition, { status: 201 });
   } catch (error) {

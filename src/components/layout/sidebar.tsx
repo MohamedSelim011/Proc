@@ -20,7 +20,11 @@ import {
   Briefcase,
   ClipboardList,
   Send,
-  TrendingUp
+  TrendingUp,
+  Boxes,
+  Building2,
+  FolderKanban,
+  Ruler
 } from 'lucide-react';
 
 export interface NavigationItem {
@@ -71,17 +75,12 @@ const navigation: NavigationItem[] = [
 //     description: 'Consultation requests'
 //   },
   {
-    name: 'Requisitions',
-    href: '/procurement/requisitions',
-    icon: FileText,
-    description: 'All requisitions'
-  },
-  {
     name: 'Materials',
     href: '#',
     icon: FileText,
     description: 'Materials procurement workflows',
     subItems: [
+      { name: 'Items', href: '/procurement/services/items', icon: Boxes },
       { name: 'HR Requests', href: '/procurement/requests', icon: ClipboardList },
       { name: 'Material Requisitions', href: '/procurement/services/material-requests', icon: FileText },
       { name: 'RFQ', href: '/procurement/rfq', icon: Send },
@@ -109,7 +108,6 @@ const navigation: NavigationItem[] = [
     description: 'Service procurement',
     subItems: [
       { name: 'Service Requests', href: '/procurement/services/dashboard', icon: ClipboardList },
-      { name: 'Requisitions', href: '/procurement/services/requisitions', icon: FileText },
       { name: 'RFPs', href: '/procurement/services/rfp', icon: Send },
       { name: 'Contracts', href: '/procurement/services/contracts', icon: CreditCard },
       // { name: 'Receipts', href: '/procurement/services/receipts', icon: Receipt },
@@ -121,6 +119,18 @@ const navigation: NavigationItem[] = [
     //   { name: 'Analytics', href: '/procurement/services/analytics', icon: BarChart3 }
     ],
     expandable: true // Mark as expandable
+  },
+  {
+    name: 'Organization',
+    href: '#',
+    icon: Building2,
+    description: 'Department and project master data',
+    subItems: [
+      { name: 'Departments', href: '/procurement/organization/departments', icon: Building2 },
+      { name: 'Projects', href: '/procurement/organization/projects', icon: FolderKanban },
+      { name: 'Units Of Measurement', href: '/procurement/organization/uom', icon: Ruler },
+    ],
+    expandable: true,
   },
   {
     name: 'KPIs',

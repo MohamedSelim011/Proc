@@ -94,19 +94,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Log successful login
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: 'USER_LOGIN',
-        module: 'authentication',
-        resourceType: 'User',
-        resourceId: user.id,
-        ipAddress: null,
-        userAgent: request.headers.get('user-agent'),
-      },
-    });
-
     // Create JWT token (JWT_SECRET is primary, NEXTAUTH_SECRET kept as fallback for compatibility)
     const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
     if (!jwtSecret) {

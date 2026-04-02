@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServicePerformance {
   id: string;
@@ -349,7 +350,7 @@ export default function ServicePerformance() {
           />
         </ListFilterField>
         <ListFilterField label="Deliverable Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -359,7 +360,7 @@ export default function ServicePerformance() {
             <option value="DELAYED">Delayed</option>
             <option value="COMPLETED">Completed</option>
             <option value="AT_RISK">At Risk</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Vendor">
           <input
@@ -371,7 +372,7 @@ export default function ServicePerformance() {
           />
         </ListFilterField>
         <ListFilterField label="Performance Range">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.performanceRange}
             onChange={(e) => handleFilterChange('performanceRange', e.target.value)}
@@ -381,7 +382,7 @@ export default function ServicePerformance() {
             <option value="good">Good (4.0-4.4)</option>
             <option value="average">Average (3.5-3.9)</option>
             <option value="poor">Poor (&lt;3.5)</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

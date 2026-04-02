@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import * as XLSX from 'xlsx';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceRFP {
   id: string;
@@ -380,7 +381,7 @@ export default function ServiceRFPListPage() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -395,7 +396,7 @@ export default function ServiceRFPListPage() {
             <option value="EVALUATED">Evaluated</option>
             <option value="AWARDED">Awarded</option>
             <option value="REJECTED">Rejected</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

@@ -9,10 +9,19 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
     const { responseId, vendorId } = body;
+    const justification =
+      typeof body.justification === 'string' ? body.justification.trim() : '';
 
     if (!responseId || !vendorId) {
       return NextResponse.json(
         { error: 'Response ID and vendor ID are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!justification) {
+      return NextResponse.json(
+        { error: 'Winner selection justification is required' },
         { status: 400 }
       );
     }
@@ -48,6 +57,13 @@ export async function POST(
       );
     }
 
+    if (selectedResponse.vendorId !== vendorId) {
+      return NextResponse.json(
+        { error: 'Selected response does not belong to the provided vendor' },
+        { status: 400 }
+      );
+    }
+
     if (!selectedResponse.overallScore) {
       return NextResponse.json(
         { error: 'Response must be scored before selecting as winner' },
@@ -58,7 +74,10 @@ export async function POST(
     // Update the selected response to SELECTED
     await prisma.serviceRFPResponse.update({
       where: { id: responseId },
-      data: { status: 'SELECTED' }
+      data: {
+        status: 'SELECTED',
+        awardJustification: justification
+      }
     });
 
     // Update other responses to REJECTED
@@ -86,7 +105,8 @@ export async function POST(
         performedBy: 'SYSTEM',
         details: JSON.stringify({
           vendorId,
-          responseId
+          responseId,
+          justification
         })
       }
     });
@@ -94,7 +114,8 @@ export async function POST(
     return NextResponse.json({ 
       message: 'Winner selected successfully',
       vendorId,
-      responseId
+      responseId,
+      justification
     });
 
   } catch (error) {

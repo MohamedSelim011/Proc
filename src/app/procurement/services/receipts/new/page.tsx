@@ -14,6 +14,7 @@ import {
   Upload
 } from 'lucide-react';
 import Link from 'next/link';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceReceipt {
   id?: string;
@@ -306,7 +307,7 @@ function NewServiceReceiptContent() {
               <label className="block text-sm font-semibold text-gray-700">
                 Select Milestone *
               </label>
-              <select
+              <SearchableSelect
                 value={selectedMilestone}
                 onChange={(e) => handleMilestoneChange(e.target.value)}
                 className="block w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 text-sm"
@@ -318,7 +319,7 @@ function NewServiceReceiptContent() {
                     {milestone?.name} - OMR {parseFloat(milestone?.amount || '0').toFixed(3)}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
               {milestones.length === 0 && (
                 <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
                   <p className="text-sm text-yellow-800">

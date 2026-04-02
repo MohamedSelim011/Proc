@@ -10,14 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const unreadCount = await prisma.approvalNotification.count({
-      where: {
-        userId: user.id,
-        isRead: false,
-      },
-    })
-
-    return NextResponse.json({ count: unreadCount })
+    return NextResponse.json({ count: 0 })
   } catch (error) {
     console.error('Error fetching unread notification count:', error)
     return NextResponse.json(

@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/jwt';
+import { createActivityLog } from '@/lib/activity-log';
+
+const normalizeString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+const toNumber = (value: unknown) => {
+  const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 // GET /api/services/requisitions - Get service requisitions
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const status = searchParams.get('status') || '';
-    const priority = searchParams.get('priority') || '';
-    const departmentId = searchParams.get('departmentId') || searchParams.get('department') || '';
-    const serviceType = searchParams.get('serviceType') || '';
-    const search = searchParams.get('search') || '';
-    const itemType = searchParams.get('itemType') || '';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const status = normalizeString(searchParams.get('status'));
+    const priority = normalizeString(searchParams.get('priority'));
+    const departmentId = normalizeString(searchParams.get('departmentId') || searchParams.get('department'));
+    const serviceType = normalizeString(searchParams.get('serviceType'));
+    const search = normalizeString(searchParams.get('search'));
 
     const skip = (page - 1) * limit;
 
-    // Default behavior keeps both item types for the Service Requisitions screen.
-    // Optional filter allows callers (e.g., services dashboard) to request SERVICE only.
-    const where: any = {
-      itemType:
-        itemType === 'SERVICE' || itemType === 'NON_STOCK'
-          ? itemType
-          : { in: ['SERVICE', 'NON_STOCK'] }
-    };
-    
+    const where: any = {};
+
     if (status) {
       where.status = status;
     }
@@ -37,13 +37,8 @@ export async function GET(request: NextRequest) {
       where.departmentId = departmentId;
     }
 
-    // Filter by servicePR.serviceType when serviceType filter is provided
-    // The serviceType values are specific service types like "Construction", "Installation", etc.
     if (serviceType) {
-      // Filter by servicePR.serviceType (e.g., "Construction", "Installation", "Fabrication", etc.)
-      where.servicePR = {
-        serviceType: serviceType
-      };
+      where.serviceType = serviceType;
     }
 
     if (search) {
@@ -51,80 +46,109 @@ export async function GET(request: NextRequest) {
         { prNumber: { contains: search, mode: 'insensitive' } },
         { departmentId: { contains: search, mode: 'insensitive' } },
         { requesterId: { contains: search, mode: 'insensitive' } },
+        { serviceScope: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const [prs, total] = await Promise.all([
-      prisma.purchaseRequisition.findMany({
+    const [serviceRequisitions, total] = await Promise.all([
+      prisma.servicePR.findMany({
         where,
         skip,
         take: limit,
         include: {
           items: {
             include: {
+              serviceItem: {
+                include: { serviceCategory: true },
+              },
+            },
+          },
+          materialItems: {
+            include: {
               item: true,
             },
           },
-          servicePR: {
-            include: {
-              items: {
-                include: {
-                  serviceItem: {
-                    include: {
-                      serviceCategory: true
-                    }
-                  }
-                }
-              }
-            }
-          },
           approvals: {
-            orderBy: {
-              createdAt: 'desc'
-            }
-          }
+            orderBy: { createdAt: 'desc' },
+          },
+          serviceRFP: {
+            select: { id: true, rfpNumber: true, status: true, createdAt: true },
+          },
         },
-        orderBy: {
-          createdAt: 'desc'
-        }
+        orderBy: { createdAt: 'desc' },
       }),
-      prisma.purchaseRequisition.count({ where })
+      prisma.servicePR.count({ where }),
     ]);
 
-    // Get distinct service types for the filter dropdown
     const distinctServiceTypes = await prisma.servicePR.findMany({
-      where: {
-        serviceType: {
-          not: null
-        }
-      },
-      select: {
-        serviceType: true
-      },
-      distinct: ['serviceType']
+      where: { serviceType: { not: null } },
+      select: { serviceType: true },
+      distinct: ['serviceType'],
     });
 
     const serviceTypes = distinctServiceTypes
-      .map(sp => sp.serviceType)
+      .map((sp) => sp.serviceType)
       .filter((type): type is string => type !== null)
       .sort();
 
+    const mapped = serviceRequisitions.map((sr) => ({
+      id: sr.id,
+      prNumber: sr.prNumber,
+      requesterId: sr.requesterId,
+      departmentId: sr.departmentId,
+      projectId: sr.projectId,
+      requestBasis: sr.requestBasis,
+      priority: sr.priority,
+      status: sr.status,
+      estimatedCost: sr.estimatedCost,
+      justification: sr.justification,
+      requiredByDate: sr.requiredByDate,
+      createdAt: sr.createdAt,
+      updatedAt: sr.updatedAt,
+      items: sr.materialItems.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        estimatedPrice: item.estimatedPrice,
+        item: item.item,
+      })),
+      servicePR: {
+        id: sr.id,
+        serviceScope: sr.serviceScope,
+        serviceCategory: sr.serviceCategory,
+        serviceType: sr.serviceType,
+        requestor: sr.requestor,
+        technicalSpecifications: sr.technicalSpecifications,
+        qualityStandards: sr.qualityStandards,
+        duration: sr.duration,
+        durationUnit: sr.durationUnit,
+        deliverables: sr.deliverables,
+        performanceMetrics: sr.performanceMetrics,
+        slaRequirements: sr.slaRequirements,
+        certificationRequired: sr.certificationRequired,
+        safetyRequirements: sr.safetyRequirements,
+        paymentSchedule: sr.paymentSchedule,
+        paymentTerms: sr.paymentTerms,
+        preferredVendors: sr.preferredVendors,
+        milestones: sr.milestones,
+        items: sr.items,
+      },
+      approvals: sr.approvals,
+      serviceRFP: sr.serviceRFP,
+    }));
+
     return NextResponse.json({
-      serviceRequisitions: prs,
+      serviceRequisitions: mapped,
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       },
-      serviceTypes
+      serviceTypes,
     });
   } catch (error) {
     console.error('Error fetching service requisitions:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch service requisitions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch service requisitions' }, { status: 500 });
   }
 }
 
@@ -132,14 +156,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const {
+      requestBasis,
       departmentId,
       projectId,
-      requesterId,
       priority,
-      budgetCode,
-      costCenter,
       justification,
       requestedDeliveryDate,
       serviceScope,
@@ -153,113 +175,111 @@ export async function POST(request: NextRequest) {
       deliverables,
       performanceMetrics,
       slaRequirements,
-      insuranceRequired,
       certificationRequired,
       safetyRequirements,
       paymentSchedule,
       paymentTerms,
-      retentionPercentage,
       preferredVendors,
       milestones,
       items,
       materialItems,
-      isMixed
+      isMixed,
     } = body;
 
-    if (!departmentId || !requesterId || !serviceScope || !items || items.length === 0) {
+    const normalizedRequestBasis = String(requestBasis || '').toUpperCase();
+    const resolvedRequestBasis: 'DEPARTMENT' | 'PROJECT' =
+      normalizedRequestBasis === 'PROJECT' || normalizedRequestBasis === 'DEPARTMENT'
+        ? (normalizedRequestBasis as 'DEPARTMENT' | 'PROJECT')
+        : (typeof projectId === 'string' && projectId.trim() ? 'PROJECT' : 'DEPARTMENT');
+
+    const normalizedDepartmentId = normalizeString(departmentId);
+    const normalizedProjectId = normalizeString(projectId);
+    const normalizedServiceScope = normalizeString(serviceScope);
+    const user = getAuthenticatedUser(request);
+    const creatorId = user?.employeeId || user?.id || '';
+
+    if (!creatorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!normalizedServiceScope || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Required fields missing' }, { status: 400 });
+    }
+
+    if (resolvedRequestBasis === 'DEPARTMENT' && !normalizedDepartmentId) {
       return NextResponse.json(
-        { error: 'Required fields missing' },
+        { error: 'Department is required for department-based requisitions' },
         { status: 400 }
       );
     }
 
-    // Mixed requisitions are valid only when both service and material lines exist
-    if (isMixed) {
-      if (!Array.isArray(materialItems) || materialItems.length === 0) {
-        return NextResponse.json(
-          { error: 'Mixed requisitions require at least one material line' },
-          { status: 400 }
-        );
-      }
+    if (resolvedRequestBasis === 'PROJECT' && !normalizedProjectId) {
+      return NextResponse.json({ error: 'Project is required for project-based requisitions' }, { status: 400 });
     }
 
-    // Validate requiredByDate if provided
+    if (isMixed && (!Array.isArray(materialItems) || materialItems.length === 0)) {
+      return NextResponse.json(
+        { error: 'Mixed requisitions require at least one material line' },
+        { status: 400 }
+      );
+    }
+
     if (requestedDeliveryDate) {
       const selectedDate = new Date(requestedDeliveryDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      if (isNaN(selectedDate.getTime())) {
-        return NextResponse.json(
-          { error: 'Invalid date format for required by date' },
-          { status: 400 }
-        );
+
+      if (Number.isNaN(selectedDate.getTime())) {
+        return NextResponse.json({ error: 'Invalid date format for required by date' }, { status: 400 });
       }
-      
+
       if (selectedDate < today) {
-        return NextResponse.json(
-          { error: 'Required by date must be today or in the future' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Required by date must be today or in the future' }, { status: 400 });
       }
-      
+
       if (selectedDate.getFullYear() < 1900) {
-        return NextResponse.json(
-          { error: 'Date cannot be before year 1900' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Date cannot be before year 1900' }, { status: 400 });
       }
-      
+
       const maxDate = new Date();
       maxDate.setFullYear(maxDate.getFullYear() + 10);
       if (selectedDate > maxDate) {
-        return NextResponse.json(
-          { error: 'Date cannot be more than 10 years in the future' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Date cannot be more than 10 years in the future' }, { status: 400 });
       }
     }
 
-    // Calculate service and material costs separately
     const serviceEstimatedCost = items.reduce(
-      (sum: number, item: any) => sum + (parseFloat(item.quantity) * parseFloat(item.estimatedRate)),
+      (sum: number, item: any) =>
+        sum + toNumber(item.quantity) * toNumber(item.estimatedRate) * Math.max(toNumber(item.duration || 1), 1),
       0
     );
     const materialEstimatedCost = Array.isArray(materialItems)
       ? materialItems.reduce(
-          (sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)),
+          (sum: number, item: any) => sum + toNumber(item.quantity) * toNumber(item.estimatedPrice),
           0
         )
       : 0;
     const totalEstimatedCost = serviceEstimatedCost + materialEstimatedCost;
 
-    // Generate PR number
-    const prCount = await prisma.purchaseRequisition.count();
-    const prNumber = `SPR-${String(prCount + 1).padStart(6, '0')}`;
+    const srCount = await prisma.servicePR.count();
+    const prNumber = `SPR-${String(srCount + 1).padStart(6, '0')}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create the main PR
-      const pr = await tx.purchaseRequisition.create({
-        data: {
-          prNumber,
-          requesterId,
-          departmentId,
-          projectId: projectId || null,
-          itemType: 'SERVICE',
-          priority: priority || 'NORMAL',
-          estimatedCost: totalEstimatedCost,
-          budgetCode,
-          costCenter: costCenter || null,
-          justification,
-          requiredByDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null
-        }
-      });
-
-      // Create the service PR
       const servicePR = await tx.servicePR.create({
         data: {
-          prId: pr.id,
-          serviceScope,
+          prNumber,
+          requesterId: creatorId,
+          requestBasis: resolvedRequestBasis,
+          departmentId: resolvedRequestBasis === 'DEPARTMENT' ? normalizedDepartmentId : null,
+          projectId: resolvedRequestBasis === 'PROJECT' ? normalizedProjectId : null,
+          priority: priority || 'NORMAL',
+          status: 'DRAFT',
+          estimatedCost: totalEstimatedCost,
+          justification,
+          requiredByDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null,
+          createdBy: creatorId,
+
+          serviceScope: normalizedServiceScope,
           serviceCategory: serviceCategory || null,
           serviceType: serviceType || null,
           requestor: requestor || null,
@@ -268,48 +288,40 @@ export async function POST(request: NextRequest) {
           duration: duration || 30,
           durationUnit: (durationUnit || 'DAYS').toUpperCase(),
           deliverables: deliverables && Array.isArray(deliverables) && deliverables.length > 0 ? deliverables : [],
-          performanceMetrics: performanceMetrics && Array.isArray(performanceMetrics) && performanceMetrics.length > 0 ? performanceMetrics : null,
+          performanceMetrics:
+            performanceMetrics && Array.isArray(performanceMetrics) && performanceMetrics.length > 0
+              ? performanceMetrics
+              : null,
           slaRequirements: slaRequirements || null,
-          insuranceRequired: insuranceRequired || false,
           certificationRequired: certificationRequired || false,
           safetyRequirements: safetyRequirements || null,
           paymentSchedule: paymentSchedule || 'MILESTONE',
           paymentTerms: paymentTerms || null,
-          retentionPercentage: retentionPercentage ? parseFloat(retentionPercentage) : 0,
-          preferredVendors: preferredVendors && Array.isArray(preferredVendors) && preferredVendors.length > 0 ? preferredVendors : null,
-          milestones: milestones && Array.isArray(milestones) && milestones.length > 0 ? milestones : null
-        }
+          preferredVendors:
+            preferredVendors && Array.isArray(preferredVendors) && preferredVendors.length > 0
+              ? preferredVendors
+              : null,
+          milestones: milestones && Array.isArray(milestones) && milestones.length > 0 ? milestones : null,
+        },
       });
 
-      // Create service PR items
       for (const item of items) {
-        // Try to find existing service item by service code, or create a new one
         let serviceItem;
-        
+
         if (item.serviceItemId && item.serviceItemId !== 'IT-001') {
-          // If a specific service item ID is provided, try to find it
-          serviceItem = await tx.serviceItem.findUnique({
-            where: { id: item.serviceItemId }
-          });
+          serviceItem = await tx.serviceItem.findUnique({ where: { id: item.serviceItemId } });
         }
-        
+
         if (!serviceItem) {
-          // Create a new service item based on the form data
-          // First, find or create a service category
           let serviceCategoryRecord = await tx.serviceCategory.findFirst({
-            where: { nameEn: serviceCategory || 'Custom Services' }
+            where: { nameEn: serviceCategory || 'Custom Services' },
           });
-          
+
           if (!serviceCategoryRecord) {
-            // Check if CUSTOM already exists
-            const existingCustom = await tx.serviceCategory.findFirst({
-              where: { code: 'CUSTOM' }
-            });
-            
+            const existingCustom = await tx.serviceCategory.findFirst({ where: { code: 'CUSTOM' } });
             if (existingCustom) {
               serviceCategoryRecord = existingCustom;
             } else {
-              // Create CUSTOM category only if it doesn't exist
               serviceCategoryRecord = await tx.serviceCategory.create({
                 data: {
                   code: 'CUSTOM',
@@ -318,16 +330,15 @@ export async function POST(request: NextRequest) {
                   description: 'Custom service items created during requisition',
                   requiresInsurance: false,
                   requiresCertification: false,
-                  requiresPerformanceBond: false
-                }
+                  requiresPerformanceBond: false,
+                },
               });
             }
           }
-          
-          // Generate a unique service code
+
           const serviceItemCount = await tx.serviceItem.count();
           const serviceCode = `CUSTOM-${String(serviceItemCount + 1).padStart(6, '0')}`;
-          
+
           serviceItem = await tx.serviceItem.create({
             data: {
               serviceCode,
@@ -336,11 +347,14 @@ export async function POST(request: NextRequest) {
               description: item.specifications || item.description || 'Custom service item',
               serviceCategoryId: serviceCategoryRecord.id,
               unitOfMeasure: item.unit || 'Hours',
-              standardRate: parseFloat(item.estimatedRate) || 0,
+              standardRate: toNumber(item.estimatedRate),
               currency: 'OMR',
               slaRequired: false,
-              performanceMetrics: item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0 ? item.performanceMetrics : null
-            }
+              performanceMetrics:
+                item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0
+                  ? item.performanceMetrics
+                  : null,
+            },
           });
         }
 
@@ -348,30 +362,35 @@ export async function POST(request: NextRequest) {
           data: {
             servicePRId: servicePR.id,
             serviceItemId: serviceItem.id,
-            quantity: parseFloat(item.quantity),
-            estimatedRate: parseFloat(item.estimatedRate),
+            quantity: toNumber(item.quantity),
+            estimatedRate: toNumber(item.estimatedRate),
             unit: item.unit || 'Hours',
-            duration: item.duration || 1,
+            duration: toNumber(item.duration || 1),
             durationUnit: (item.durationUnit || 'DAYS').toUpperCase(),
             specifications: item.specifications || null,
-            deliverables: item.deliverables && Array.isArray(item.deliverables) && item.deliverables.length > 0 ? item.deliverables : null,
-            performanceMetrics: item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0 ? item.performanceMetrics : null
-          }
+            deliverables:
+              item.deliverables && Array.isArray(item.deliverables) && item.deliverables.length > 0
+                ? item.deliverables
+                : null,
+            performanceMetrics:
+              item.performanceMetrics && Array.isArray(item.performanceMetrics) && item.performanceMetrics.length > 0
+                ? item.performanceMetrics
+                : null,
+          },
         });
       }
 
-      // Create material PR items for mixed requisitions
       if (Array.isArray(materialItems) && materialItems.length > 0) {
         for (const material of materialItems) {
-          if (!material.itemId || Number(material.quantity || 0) <= 0 || Number(material.estimatedPrice || 0) <= 0) {
+          if (!material.itemId || toNumber(material.quantity) <= 0 || toNumber(material.estimatedPrice) <= 0) {
             throw new Error('Invalid material line in mixed requisition');
           }
-          await tx.pRItem.create({
+          await tx.servicePRMaterialItem.create({
             data: {
-              prId: pr.id,
+              servicePrId: servicePR.id,
               itemId: material.itemId,
-              quantity: Number(material.quantity),
-              estimatedPrice: Number(material.estimatedPrice),
+              quantity: toNumber(material.quantity),
+              estimatedPrice: toNumber(material.estimatedPrice),
               specifications: material.specifications || null,
               requiredDate: material.requiredDate ? new Date(material.requiredDate) : null,
             },
@@ -379,18 +398,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return pr;
+      return servicePR;
+    });
+
+    await createActivityLog({
+      type: 'SERVICE_REQUISITION',
+      entityType: 'ServicePR',
+      entityId: result.id,
+      title: `Service Requisition ${result.prNumber} created`,
+      status: result.status,
+      amount: Number(result.estimatedCost || 0),
+      currency: 'OMR',
+      createdBy: creatorId,
+      createdByName: user?.name || user?.email || creatorId,
     });
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Error creating service requisition:', error);
-    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
-    return NextResponse.json(
-      { error: `Failed to create service requisition: ${errorMessage}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Failed to create service requisition: ${errorMessage}` }, { status: 500 });
   }
 }

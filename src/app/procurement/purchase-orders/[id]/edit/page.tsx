@@ -19,6 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Vendor {
   id: string;
@@ -671,7 +672,7 @@ function EditPurchaseOrderContent() {
                   <label className="block text-sm font-medium text-gray-700">
                     Currency
                   </label>
-                  <select
+                  <SearchableSelect
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
@@ -679,7 +680,7 @@ function EditPurchaseOrderContent() {
                     <option value="OMR">Omani Rial (OMR)</option>
                     <option value="USD">US Dollar (USD)</option>
                     <option value="EUR">Euro (EUR)</option>
-                  </select>
+                  </SearchableSelect>
                 </div>
               </div>
 
@@ -829,7 +830,7 @@ function EditPurchaseOrderContent() {
                     <label className="block text-sm font-medium text-gray-700">
                       Governorate
                     </label>
-                    <select
+                    <SearchableSelect
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       value={formData.deliveryAddress.governorate}
                       onChange={(e) => setFormData(prev => ({ 
@@ -848,7 +849,7 @@ function EditPurchaseOrderContent() {
                       <option value="Al Wusta">Al Wusta</option>
                       <option value="Musandam">Musandam</option>
                       <option value="Al Buraimi">Al Buraimi</option>
-                    </select>
+                    </SearchableSelect>
                   </div>
 
                   <div>
@@ -934,7 +935,7 @@ function EditPurchaseOrderContent() {
                   <CreditCard className="h-4 w-4 mr-2" />
                   Payment Terms *
                 </label>
-                <select
+                <SearchableSelect
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary ${
                     errors.paymentTerms ? 'border-red-300' : ''
                   }`}
@@ -947,7 +948,7 @@ function EditPurchaseOrderContent() {
                   <option value="Cash on Delivery">Cash on Delivery</option>
                   <option value="Advance Payment">Advance Payment</option>
                   <option value="Letter of Credit">Letter of Credit</option>
-                </select>
+                </SearchableSelect>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
                 )}

@@ -6,13 +6,10 @@ import {
   ArrowLeft, 
   CheckCircle, 
   AlertCircle,
-  User,
-  Calendar,
-  DollarSign,
-  FileText,
-  Clock
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceRequisition {
   id: string;
@@ -23,7 +20,6 @@ interface ServiceRequisition {
   priority: string;
   status: string;
   estimatedCost: string;
-  budgetCode: string;
   justification: string;
   createdAt: string;
   updatedAt: string;
@@ -80,6 +76,18 @@ interface Vendor {
   status: string;
 }
 
+interface ServiceRFPResponseSummary {
+  status: string;
+  totalAmount?: string | number | null;
+  vendor?: { id: string } | null;
+}
+
+interface ServiceRFPSummary {
+  status: string;
+  rfpNumber: string;
+  responses?: ServiceRFPResponseSummary[];
+}
+
 interface ContractFormData {
   prId: string;
   vendorId: string;
@@ -129,6 +137,10 @@ function NewServiceContractContent() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const baseInputClass =
+    'w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:outline-none focus:ring-2 focus:ring-wujha-primary/30 focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-500';
+  const errorInputClass =
+    'w-full px-3 py-2 border border-red-300 rounded-lg outline-none focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 text-gray-900 bg-white placeholder:text-gray-500';
 
   useEffect(() => {
     fetchVendors();
@@ -154,10 +166,12 @@ function NewServiceContractContent() {
   const fetchPRs = async () => {
     try {
       setLoadingPR(true);
-      const response = await fetch('/api/services/requisitions?status=APPROVED');
+      const response = await fetch('/api/services/service-requests?limit=300');
       const data = await response.json();
       if (response.ok) {
-        setPRs(data.serviceRequisitions || []);
+        const serviceRequests = Array.isArray(data.serviceRequests) ? data.serviceRequests : [];
+        const approvedRequests = serviceRequests.filter((request) => request.status === 'APPROVED');
+        setPRs(approvedRequests);
       }
     } catch (error) {
       console.error('Error fetching PRs:', error);
@@ -169,12 +183,22 @@ function NewServiceContractContent() {
   const fetchPRDetails = async (id: string) => {
     try {
       setLoadingPR(true);
-      const response = await fetch(`/api/services/requisitions/${id}`);
+      const response = await fetch(`/api/services/service-requests?prId=${id}&limit=1`);
       const data = await response.json();
       if (response.ok) {
-        const serviceAmount = calculateServiceAmount(data);
-        const totalAmount = parseFloat(data.estimatedCost) || 0;
-        setSelectedPR(data);
+        const serviceRequest = Array.isArray(data.serviceRequests) ? data.serviceRequests[0] : null;
+        if (!serviceRequest) {
+          showToast('error', 'Service request not found');
+          return;
+        }
+        if (serviceRequest.status !== 'APPROVED') {
+          showToast('error', 'Only approved service requests can be converted to contracts');
+          return;
+        }
+
+        const serviceAmount = calculateServiceAmount(serviceRequest);
+        const totalAmount = calculateRequisitionTotalAmount(serviceRequest);
+        setSelectedPR(serviceRequest);
         setContractFormData(prev => ({
           ...prev,
           prId: id,
@@ -193,14 +217,44 @@ function NewServiceContractContent() {
   };
 
   const calculateServiceAmount = (pr: ServiceRequisition): number => {
+    const toNumber = (value: unknown): number => {
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     const serviceItems = pr?.servicePR?.items || [];
     if (serviceItems.length === 0) return 0;
     return serviceItems.reduce((sum, item) => {
-      const qty = parseFloat(item.quantity || '0');
-      const rate = parseFloat(item.estimatedRate || '0');
-      const duration = item.duration || 1;
+      const qty = toNumber(item.quantity);
+      const rate = toNumber(item.estimatedRate);
+      const duration = Math.max(toNumber(item.duration), 1);
       return sum + qty * rate * duration;
     }, 0);
+  };
+
+  const calculateMaterialAmount = (pr: ServiceRequisition): number => {
+    const toNumber = (value: unknown): number => {
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const materialItems = pr?.items || [];
+    if (materialItems.length === 0) return 0;
+
+    return materialItems.reduce((sum, item) => {
+      return sum + (toNumber(item.quantity) * toNumber(item.estimatedPrice));
+    }, 0);
+  };
+
+  const calculateRequisitionTotalAmount = (pr: ServiceRequisition): number => {
+    const serviceAmount = calculateServiceAmount(pr);
+    const materialAmount = calculateMaterialAmount(pr);
+    const computedTotal = serviceAmount + materialAmount;
+
+    if (computedTotal > 0) return computedTotal;
+
+    const fallback = parseFloat(pr.estimatedCost || '0');
+    return Number.isFinite(fallback) ? fallback : 0;
   };
 
   const checkRFPForAwardedVendor = async (prId: string) => {
@@ -208,26 +262,30 @@ function NewServiceContractContent() {
       // Check for Service RFP with AWARDED status
       const response = await fetch(`/api/services/rfp?prId=${prId}`);
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { rfps?: ServiceRFPSummary[] };
         // Find RFP with AWARDED status and SELECTED response
-        const awardedRFP = data.rfps?.find((rfp: any) => 
+        const awardedRFP = data.rfps?.find((rfp) => 
           rfp.status === 'AWARDED' && 
-          rfp.responses?.some((r: any) => r.status === 'SELECTED')
+          rfp.responses?.some((r) => r.status === 'SELECTED')
         );
         
         if (awardedRFP) {
-          const winningResponse = awardedRFP.responses.find((r: any) => r.status === 'SELECTED');
+          const winningResponse = awardedRFP.responses?.find((r) => r.status === 'SELECTED');
           if (winningResponse && winningResponse.vendor) {
             const winnerId = winningResponse.vendor.id;
             setContractFormData(prev => ({ ...prev, vendorId: winnerId }));
             
-            // Update total value from winning response if available
+            // For awarded RFP, contract totals must follow the winning vendor submission.
             if (winningResponse.totalAmount) {
-              setContractFormData(prev => ({ 
-                ...prev, 
-                vendorId: winnerId,
-                totalValue: parseFloat(winningResponse.totalAmount.toString())
-              }));
+              const awardedAmount = parseFloat(winningResponse.totalAmount.toString());
+              if (Number.isFinite(awardedAmount) && awardedAmount > 0) {
+                setContractFormData(prev => ({ 
+                  ...prev, 
+                  vendorId: winnerId,
+                  totalValue: awardedAmount,
+                  serviceAmount: awardedAmount
+                }));
+              }
             }
             
             showToast('info', `Awarded vendor from RFP ${awardedRFP.rfpNumber} has been automatically selected`);
@@ -351,7 +409,7 @@ function NewServiceContractContent() {
             placeholder="Search requisitions..."
             value={searchPR}
             onChange={(e) => setSearchPR(e.target.value)}
-            className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4 text-gray-900 bg-white placeholder:text-gray-600"
+            className={`${baseInputClass} mb-4`}
           />
           
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -366,7 +424,7 @@ function NewServiceContractContent() {
                     <h4 className="text-sm font-medium text-gray-900">{pr.prNumber}</h4>
                     <p className="text-sm text-gray-500">{pr.servicePR?.serviceScope}</p>
                     <p className="text-sm text-gray-500">
-                      {formatCurrency(parseFloat(pr.estimatedCost))}
+                      {formatCurrency(calculateRequisitionTotalAmount(pr))}
                     </p>
                   </div>
                   <CheckCircle className="h-5 w-5 text-wujha-primary" />
@@ -375,7 +433,7 @@ function NewServiceContractContent() {
             ))}
             {filteredPRs.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-4">
-                No approved service requisitions found
+                No service requests found
               </p>
             )}
           </div>
@@ -387,7 +445,7 @@ function NewServiceContractContent() {
             <button
               onClick={() => {
                 setSelectedPR(null);
-                setContractFormData(prev => ({ ...prev, prId: '', totalValue: 0 }));
+                setContractFormData(prev => ({ ...prev, prId: '', totalValue: 0, serviceAmount: 0 }));
               }}
               className="text-sm text-wujha-primary hover:text-wujha-primary-hover"
             >
@@ -412,7 +470,7 @@ function NewServiceContractContent() {
             <div>
               <dt className="text-sm font-medium text-wujha-primary/80">Total Value</dt>
               <dd className="mt-1 text-lg font-bold text-wujha-primary">
-                {formatCurrency(parseFloat(selectedPR.estimatedCost))}
+                {formatCurrency(calculateRequisitionTotalAmount(selectedPR))}
               </dd>
             </div>
           </div>
@@ -434,7 +492,7 @@ function NewServiceContractContent() {
                 placeholder="Search vendors..."
                 value={searchVendor}
                 onChange={(e) => setSearchVendor(e.target.value)}
-                className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary mb-4 text-gray-900 bg-white placeholder:text-gray-600"
+                className={`${baseInputClass} mb-4`}
               />
               
               <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -472,8 +530,8 @@ function NewServiceContractContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Contract Type
                 </label>
-                <select
-                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                <SearchableSelect
+                  className={baseInputClass}
                   value={formData.contractType}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, contractType: e.target.value }))}
                 >
@@ -481,22 +539,22 @@ function NewServiceContractContent() {
                   <option value="CONSULTING_CONTRACT">Consulting Contract</option>
                   <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
                   <option value="SUPPORT_CONTRACT">Support Contract</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Currency
                 </label>
-                <select
-                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                <SearchableSelect
+                  className={baseInputClass}
                   value={formData.currency}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, currency: e.target.value }))}
                 >
                   <option value="OMR">Omani Rial (OMR)</option>
                   <option value="USD">US Dollar (USD)</option>
                   <option value="EUR">Euro (EUR)</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -505,9 +563,7 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
-                    errors.startDate ? 'border-red-300' : 'border-wujha-primary'
-                  }`}
+                  className={errors.startDate ? errorInputClass : baseInputClass}
                   value={formData.startDate}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, startDate: e.target.value }))}
                   min={new Date().toISOString().split('T')[0]}
@@ -523,9 +579,7 @@ function NewServiceContractContent() {
                 </label>
                 <input
                   type="date"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
-                    errors.endDate ? 'border-red-300' : 'border-wujha-primary'
-                  }`}
+                  className={errors.endDate ? errorInputClass : baseInputClass}
                   value={formData.endDate}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, endDate: e.target.value }))}
                   min={formData.startDate || new Date().toISOString().split('T')[0]}
@@ -543,9 +597,7 @@ function NewServiceContractContent() {
                   type="number"
                   step="0.01"
                   min="0"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
-                    errors.totalValue ? 'border-red-300' : 'border-wujha-primary'
-                  }`}
+                  className={errors.totalValue ? errorInputClass : baseInputClass}
                   value={formData.totalValue}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, totalValue: parseFloat(e.target.value) || 0 }))}
                 />
@@ -562,9 +614,7 @@ function NewServiceContractContent() {
                   type="number"
                   step="0.01"
                   min="0"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
-                    errors.serviceAmount ? 'border-red-300' : 'border-wujha-primary'
-                  }`}
+                  className={errors.serviceAmount ? errorInputClass : baseInputClass}
                   value={formData.serviceAmount}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, serviceAmount: parseFloat(e.target.value) || 0 }))}
                 />
@@ -577,19 +627,15 @@ function NewServiceContractContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Terms *
                 </label>
-                <select
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
-                    errors.paymentTerms ? 'border-red-300' : 'border-wujha-primary'
-                  }`}
+                <SearchableSelect
+                  className={errors.paymentTerms ? errorInputClass : baseInputClass}
                   value={formData.paymentTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
                 >
                   <option value="Net 30 days">Net 30 days</option>
                   <option value="Net 45 days">Net 45 days</option>
                   <option value="Net 60 days">Net 60 days</option>
-                  <option value="Advance Payment">Advance Payment</option>
-                  <option value="Milestone-based">Milestone-based</option>
-                </select>
+                </SearchableSelect>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
                 )}
@@ -604,7 +650,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
+                  className={baseInputClass}
                   placeholder="Service Level Agreement terms..."
                   value={formData.slaTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, slaTerms: e.target.value }))}
@@ -617,7 +663,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
+                  className={baseInputClass}
                   placeholder="Penalty terms for non-compliance..."
                   value={formData.penaltyClause}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, penaltyClause: e.target.value }))}
@@ -633,7 +679,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
+                    className={baseInputClass}
                     placeholder="0.00"
                     value={formData.performanceBond}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, performanceBond: parseFloat(e.target.value) || 0 }))}
@@ -648,7 +694,7 @@ function NewServiceContractContent() {
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
+                    className={baseInputClass}
                     placeholder="0.00"
                     value={formData.retentionAmount}
                     onChange={(e) => setContractFormData(prev => ({ ...prev, retentionAmount: parseFloat(e.target.value) || 0 }))}
@@ -662,7 +708,7 @@ function NewServiceContractContent() {
                 </label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white placeholder:text-gray-600"
+                  className={baseInputClass}
                   placeholder="Insurance requirements and coverage..."
                   value={formData.insuranceRequirements}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, insuranceRequirements: e.target.value }))}

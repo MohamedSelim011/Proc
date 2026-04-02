@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getInventoryItemById, isInventoryConfigured } from '@/lib/inventory-client';
+import { createActivityLog } from '@/lib/activity-log';
 
 const INVENTORY_SYNC_CATEGORY_CODE = 'INVENTORY';
 
@@ -185,30 +185,19 @@ export async function POST(request: NextRequest) {
     });
 
     const unresolvedBeforeFallback = resolvedItems.filter((item) => !item.resolvedItemId);
-    if (unresolvedBeforeFallback.length > 0 && isInventoryConfigured()) {
-      const categoryId = await getOrCreateInventorySyncCategory();
+    if (unresolvedBeforeFallback.length > 0) {
       for (const unresolved of unresolvedBeforeFallback) {
         const externalId = unresolved.externalInventoryItemId;
         if (!externalId) continue;
-        const inv = await getInventoryItemById(externalId);
-        if (!inv.success) continue;
-
-        const code = inv.data.code?.trim() || externalId;
-        const upserted = await prisma.item.upsert({
-          where: { itemCode: code },
-          create: {
-            itemCode: code,
-            nameEn: inv.data.name?.trim() || code,
-            nameAr: inv.data.arabicName?.trim() || inv.data.name?.trim() || code,
-            description: inv.data.description?.trim() || null,
-            categoryId,
-            unitOfMeasure: inv.data.baseUom?.abbreviation?.trim() || inv.data.baseUom?.name?.trim() || 'EA',
+        const localItem = await prisma.item.findFirst({
+          where: {
+            OR: [{ externalId: externalId }, { id: externalId }, { itemCode: externalId }],
           },
-          update: {},
           select: { id: true },
         });
-
-        resolvedItems[unresolved.index].resolvedItemId = upserted.id;
+        if (localItem) {
+          resolvedItems[unresolved.index].resolvedItemId = localItem.id;
+        }
       }
     }
 
@@ -243,24 +232,28 @@ export async function POST(request: NextRequest) {
         ? body.sourceMaterialRequisitionId.trim()
         : null;
     if (incomingSourceMr) {
-      const sourceMr = await prisma.inventoryMaterialRequisition.findFirst({
+      const sourceMr = await prisma.purchaseRequisition.findFirst({
         where: {
-          OR: [{ id: incomingSourceMr }, { externalId: incomingSourceMr }],
+          OR: [{ id: incomingSourceMr }, { externalId: incomingSourceMr }, { prNumber: incomingSourceMr }],
         },
         select: {
           id: true,
+          requestedDepartmentId: true,
           departmentExternalId: true,
           departmentName: true,
+          requestedDepartmentName: true,
+          requestedProjectId: true,
           projectExternalId: true,
           projectName: true,
+          requestedProjectName: true,
         },
       });
       if (sourceMr) {
         sourceMaterialRequisitionId = sourceMr.id;
-        sourceDepartmentId = sourceMr.departmentExternalId || null;
-        sourceDepartmentName = sourceMr.departmentName || null;
-        sourceProjectId = sourceMr.projectExternalId || null;
-        sourceProjectName = sourceMr.projectName || null;
+        sourceDepartmentId = sourceMr.departmentExternalId || sourceMr.requestedDepartmentId || null;
+        sourceDepartmentName = sourceMr.departmentName || sourceMr.requestedDepartmentName || null;
+        sourceProjectId = sourceMr.projectExternalId || sourceMr.requestedProjectId || null;
+        sourceProjectName = sourceMr.projectName || sourceMr.requestedProjectName || null;
       }
     }
 
@@ -333,6 +326,17 @@ export async function POST(request: NextRequest) {
         data: { status: 'CONVERTED' }
       });
     }
+
+    await createActivityLog({
+      type: 'PURCHASE_ORDER',
+      entityType: 'PurchaseOrder',
+      entityId: order.id,
+      title: `Purchase Order ${order.poNumber} created`,
+      status: order.status,
+      amount: Number(order.totalAmount || 0),
+      currency: order.currency || 'OMR',
+      createdBy: order.createdBy || null,
+    });
 
     return NextResponse.json(order, { status: 201 });
   } catch (error) {

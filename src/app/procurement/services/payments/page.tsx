@@ -21,6 +21,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServicePayment {
   id: string;
@@ -504,7 +505,7 @@ export default function ServicePaymentsPage() {
           />
         </ListFilterField>
         <ListFilterField label="Payment Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.paymentStatus}
             onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
@@ -514,10 +515,10 @@ export default function ServicePaymentsPage() {
             <option value="PARTIAL">Partial</option>
             <option value="PAID">Paid</option>
             <option value="OVERDUE">Overdue</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Approval Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.approvalStatus}
             onChange={(e) => setFilters(prev => ({ ...prev, approvalStatus: e.target.value }))}
@@ -526,10 +527,10 @@ export default function ServicePaymentsPage() {
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Service Type">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.serviceType}
             onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
@@ -539,7 +540,7 @@ export default function ServicePaymentsPage() {
             <option value="MAINTENANCE">Maintenance</option>
             <option value="TRAINING">Training</option>
             <option value="SUPPORT">Support</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Selection" className="flex items-end">
           <button

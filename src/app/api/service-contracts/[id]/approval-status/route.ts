@@ -51,7 +51,6 @@ export async function GET(
         id: contract.approval.id,
         level: contract.approval.level,
         status: contract.approval.status,
-        routingRuleId: contract.approval.routingRuleId,
         nextLevel,
         requiredRoleForNextLevel: eligibleForNextLevel?.requiredRole ?? null,
         eligibleApproversForNextLevel: eligibleForNextLevel?.eligibleApprovers ?? [],

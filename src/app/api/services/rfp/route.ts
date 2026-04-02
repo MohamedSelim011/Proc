@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RFPStatus } from '@prisma/client';
+import { Prisma, RFPStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
 const validRFPStatuses = new Set(Object.values(RFPStatus));
@@ -16,14 +16,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const prId = searchParams.get('prId');
+    const servicePrId = searchParams.get('servicePrId');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
     const where: Record<string, unknown> = {};
 
-    if (prId) {
-      where.prId = prId;
+    if (servicePrId || prId) {
+      where.servicePrId = servicePrId || prId;
     }
 
     const requestedStatus = toValidRFPStatus(status);
@@ -39,18 +40,15 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         include: {
-          pr: {
+          servicePR: {
             select: {
+              id: true,
               prNumber: true,
               estimatedCost: true,
-              servicePR: {
-                select: {
-                  serviceScope: true,
-                  duration: true,
-                  durationUnit: true,
-                }
-              }
-            }
+              serviceScope: true,
+              duration: true,
+              durationUnit: true,
+            },
           },
           invitedVendors: {
             include: {
@@ -101,8 +99,29 @@ export async function GET(request: NextRequest) {
       }))
     ]);
 
+    const rfpsWithLegacyPr = rfps.map((rfp) => {
+      const servicePR = rfp.servicePR;
+      const pr = servicePR
+        ? {
+            id: servicePR.id,
+            prNumber: servicePR.prNumber,
+            estimatedCost: servicePR.estimatedCost,
+            servicePR: {
+              serviceScope: servicePR.serviceScope,
+              duration: servicePR.duration,
+              durationUnit: servicePR.durationUnit,
+            },
+          }
+        : null;
+
+      return {
+        ...rfp,
+        pr,
+      };
+    });
+
     return NextResponse.json({ 
-      rfps,
+      rfps: rfpsWithLegacyPr,
       pagination: {
         page,
         limit,
@@ -125,6 +144,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       prId,
+      servicePrId,
       title,
       description,
       submissionDeadline,
@@ -134,7 +154,9 @@ export async function POST(request: NextRequest) {
       createdBy
     } = body;
 
-    if (!prId) {
+    const resolvedServicePrId = servicePrId || prId;
+
+    if (!resolvedServicePrId) {
       return NextResponse.json(
         { error: 'Service requisition is required' },
         { status: 400 }
@@ -155,12 +177,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if RFP already exists for this PR
-    const existingRFP = await prisma.serviceRFP.findFirst({
-      where: { prId }
+    const requisition = await prisma.servicePR.findUnique({
+      where: { id: resolvedServicePrId },
+      select: {
+        id: true,
+        serviceRFP: {
+          select: { id: true }
+        }
+      }
     });
 
-    if (existingRFP) {
+    if (!requisition) {
+      return NextResponse.json(
+        { error: 'Service requisition not found' },
+        { status: 404 }
+      );
+    }
+
+    if (requisition.serviceRFP) {
       return NextResponse.json(
         { error: 'An RFP already exists for this Service Requisition' },
         { status: 400 }
@@ -201,7 +235,7 @@ export async function POST(request: NextRequest) {
     const rfp = await prisma.serviceRFP.create({
       data: {
         rfpNumber,
-        prId,
+        servicePrId: resolvedServicePrId,
         title,
         description,
         closingDate,
@@ -229,6 +263,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(rfp, { status: 201 });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'An RFP already exists for this Service Requisition' },
+        { status: 400 }
+      );
+    }
+
     console.error('Error creating Service RFP:', error);
     return NextResponse.json(
       { error: 'Failed to create Service RFP' },

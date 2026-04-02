@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { SearchableSelect } from '@/components/common/searchable-select'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -360,7 +361,7 @@ function EditInvoiceContent() {
                 <label className="block text-sm font-medium text-gray-700">
                   Currency
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary"
                   value={formData.currency}
                   onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
@@ -368,7 +369,7 @@ function EditInvoiceContent() {
                   <option value="OMR">Omani Rial (OMR)</option>
                   <option value="USD">US Dollar (USD)</option>
                   <option value="EUR">Euro (EUR)</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -426,7 +427,7 @@ function EditInvoiceContent() {
               <label className="block text-sm font-medium text-gray-700">
                 Payment Terms
               </label>
-              <select
+              <SearchableSelect
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.paymentTerms}
                 onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
@@ -436,7 +437,7 @@ function EditInvoiceContent() {
                 <option value="Net 60 days">Net 60 days</option>
                 <option value="Cash on Delivery">Cash on Delivery</option>
                 <option value="Advance Payment">Advance Payment</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>

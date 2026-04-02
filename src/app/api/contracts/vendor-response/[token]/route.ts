@@ -46,6 +46,7 @@ export async function GET(
         success: true,
         action,
         contract: {
+          id: response.contract.id,
           contractNumber: response.contract.contractNumber,
           contractType: response.contract.contractType,
           vendorName: response.contract.vendor.nameEn || response.contract.vendor.nameAr,
@@ -63,6 +64,17 @@ export async function GET(
             ? Number(response.contract.retentionAmount)
             : null,
           insuranceRequirements: response.contract.insuranceRequirements,
+          serviceRequirements: response.contract.servicePR
+            ? {
+                serviceScope: response.contract.servicePR.serviceScope,
+                technicalSpecifications: response.contract.servicePR.technicalSpecifications,
+                duration: response.contract.servicePR.duration,
+                durationUnit: response.contract.servicePR.durationUnit,
+                items: response.contract.servicePR.items,
+                materialItems: response.contract.servicePR.materialItems,
+                justification: response.contract.servicePR.justification,
+              }
+            : null,
         },
         response: {
           versionNumber: response.versionNumber,
@@ -78,6 +90,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       contract: {
+        id: response.contract.id,
         contractNumber: response.contract.contractNumber,
         contractType: response.contract.contractType,
         vendorName: response.contract.vendor.nameEn || response.contract.vendor.nameAr,
@@ -95,6 +108,17 @@ export async function GET(
           ? Number(response.contract.retentionAmount)
           : null,
         insuranceRequirements: response.contract.insuranceRequirements,
+        serviceRequirements: response.contract.servicePR
+          ? {
+              serviceScope: response.contract.servicePR.serviceScope,
+              technicalSpecifications: response.contract.servicePR.technicalSpecifications,
+              duration: response.contract.servicePR.duration,
+              durationUnit: response.contract.servicePR.durationUnit,
+              items: response.contract.servicePR.items,
+              materialItems: response.contract.servicePR.materialItems,
+              justification: response.contract.servicePR.justification,
+            }
+          : null,
       },
       response: {
         versionNumber: response.versionNumber,

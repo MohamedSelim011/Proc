@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, CreditCard, Calendar, Building, FileText, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Invoice {
   id: string;
@@ -289,7 +290,7 @@ export default function NewServicePaymentPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Payment Method <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
                 name="paymentMethod"
                 value={formData.paymentMethod}
                 onChange={handleChange}
@@ -299,7 +300,7 @@ export default function NewServicePaymentPage() {
                 <option value="CHEQUE">Cheque</option>
                 <option value="CASH">Cash</option>
                 <option value="ONLINE">Online Payment</option>
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>

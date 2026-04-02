@@ -21,13 +21,13 @@ interface Milestone {
   dueDate: string;
   amount: number;
   percentage: number;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 }
 
 interface ServiceContract {
   id: string;
   contractNumber: string;
   totalValue: string;
+  serviceAmount?: string | number | null;
   startDate: string;
   endDate: string;
   vendor: {
@@ -44,6 +44,7 @@ function NewMilestoneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const contractId = searchParams.get('contractId');
+  const mode = searchParams.get('mode');
   
   const [contract, setContract] = useState<ServiceContract | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([
@@ -52,13 +53,17 @@ function NewMilestoneContent() {
       description: '',
       dueDate: '',
       amount: 0,
-      percentage: 0,
-      status: 'PENDING'
+      percentage: 0
     }
   ]);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const paymentSchedule = contract?.pr?.servicePR?.paymentSchedule || '';
+  const maxServiceAmount = contract
+    ? parseFloat((contract.serviceAmount ?? contract.totalValue) as string) || 0
+    : 0;
 
   useEffect(() => {
     if (contractId) {
@@ -68,30 +73,63 @@ function NewMilestoneContent() {
 
   const fetchContract = async () => {
     try {
+      setLoadingData(true);
       const response = await fetch(`/api/service-contracts/${contractId}`);
       if (response.ok) {
         const data = await response.json();
         setContract(data);
         
-        // Check payment schedule and show error if not MILESTONE
-        const paymentSchedule = data.pr?.servicePR?.paymentSchedule;
-        if (paymentSchedule && paymentSchedule !== 'MILESTONE') {
-          setError(`Cannot create milestones. Payment schedule is set to ${paymentSchedule}. Milestones can only be created when payment schedule is MILESTONE.`);
+        const schedule = data.pr?.servicePR?.paymentSchedule || '';
+        if (mode === 'edit') {
+          const milestoneResponse = await fetch(`/api/service-milestones?contractId=${contractId}`);
+          if (milestoneResponse.ok) {
+            const milestoneData = await milestoneResponse.json();
+            if (Array.isArray(milestoneData.milestones) && milestoneData.milestones.length > 0) {
+              setMilestones(
+                milestoneData.milestones.map((ms: any) => ({
+                  title: ms.name || '',
+                  description: ms.description || '',
+                  dueDate: ms.targetDate ? new Date(ms.targetDate).toISOString().split('T')[0] : '',
+                  amount: Number(ms.amount || 0),
+                  percentage: Number(ms.paymentPercentage || 0)
+                }))
+              );
+              return;
+            }
+          }
+        }
+
+        if (schedule && schedule !== 'MILESTONE') {
+          const totalValue = parseFloat((data.serviceAmount ?? data.totalValue) as string) || 0;
+          setMilestones([
+            {
+              title: 'Contract Delivery',
+              description: 'Single milestone covering service amount.',
+              dueDate: '',
+              amount: totalValue,
+              percentage: 100
+            }
+          ]);
         }
       }
     } catch (error) {
       console.error('Error fetching contract:', error);
+      setError('Failed to load milestones data');
+    } finally {
+      setLoadingData(false);
     }
   };
 
+  const isSingleMilestoneMode = Boolean(paymentSchedule && paymentSchedule !== 'MILESTONE');
+
   const addMilestone = () => {
+    if (isSingleMilestoneMode) return;
     setMilestones([...milestones, {
       title: '',
       description: '',
       dueDate: '',
       amount: 0,
-      percentage: 0,
-      status: 'PENDING'
+      percentage: 0
     }]);
   };
 
@@ -107,7 +145,7 @@ function NewMilestoneContent() {
     
     // Auto-calculate percentage based on amount
     if (field === 'amount' && contract) {
-      const totalValue = parseFloat(contract.totalValue);
+      const totalValue = maxServiceAmount;
       const percentage = totalValue > 0 ? (value / totalValue) * 100 : 0;
       updated[index].percentage = Math.round(percentage * 100) / 100;
     }
@@ -124,6 +162,25 @@ function NewMilestoneContent() {
     const totalPercentage = milestones.reduce((sum, m) => sum + m.percentage, 0);
     if (Math.abs(totalPercentage - 100) > 0.01) {
       setError(`Total percentage must equal 100%. Current: ${totalPercentage.toFixed(2)}%`);
+      return false;
+    }
+
+    if (isSingleMilestoneMode && contract) {
+      if (milestones.length !== 1) {
+        setError('Only one milestone is allowed for this payment schedule.');
+        return false;
+      }
+      const totalValue = maxServiceAmount;
+      const singleAmount = milestones[0]?.amount || 0;
+      if (Math.abs(singleAmount - totalValue) > 0.01) {
+        setError('Single milestone amount must match the service amount.');
+        return false;
+      }
+    }
+
+    const totalAmount = milestones.reduce((sum, m) => sum + m.amount, 0);
+    if (totalAmount - maxServiceAmount > 0.01) {
+      setError('Total milestone amount cannot exceed the service amount.');
       return false;
     }
 
@@ -148,7 +205,7 @@ function NewMilestoneContent() {
       setSuccess('');
 
       const response = await fetch('/api/service-milestones', {
-        method: 'POST',
+        method: mode === 'edit' ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -161,7 +218,7 @@ function NewMilestoneContent() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Milestones created successfully!');
+        setSuccess(mode === 'edit' ? 'Milestones updated successfully!' : 'Milestones created successfully!');
         setTimeout(() => {
           router.push(`/procurement/services/contracts/${contractId}`);
         }, 1500);
@@ -179,7 +236,7 @@ function NewMilestoneContent() {
   if (!contractId) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900">Contract ID Required</h1>
             <p className="mt-2 text-gray-600">Please provide a contract ID to create milestones.</p>
@@ -193,9 +250,22 @@ function NewMilestoneContent() {
     );
   }
 
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white shadow rounded-lg p-10 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-wujha-primary mx-auto"></div>
+            <p className="mt-4 text-sm text-gray-600">Loading milestones...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -204,7 +274,9 @@ function NewMilestoneContent() {
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back to Contract
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Create Service Milestones</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {mode === 'edit' ? 'Edit Service Milestones' : 'Create Service Milestones'}
+              </h1>
               <p className="mt-2 text-gray-600">
                 Break down the service delivery into manageable phases with payment schedules
               </p>
@@ -228,19 +300,24 @@ function NewMilestoneContent() {
                 <span className="ml-2 font-medium">OMR {parseFloat(contract.totalValue).toFixed(3)}</span>
               </div>
               <div className="flex items-center">
+                <DollarSign className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-sm text-gray-600">Service Amount (Milestone Cap):</span>
+                <span className="ml-2 font-medium">OMR {maxServiceAmount.toFixed(3)}</span>
+              </div>
+              <div className="flex items-center">
                 <Calendar className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-sm text-gray-600">Vendor:</span>
                 <span className="ml-2 font-medium">{contract.vendor.nameEn}</span>
               </div>
             </div>
             {contract.pr?.servicePR?.paymentSchedule && contract.pr.servicePR.paymentSchedule !== 'MILESTONE' && (
-              <div className="mt-4 rounded-md bg-red-50 p-4">
+              <div className="mt-4 rounded-md bg-blue-50 p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <AlertCircle className="h-5 w-5 text-blue-400" />
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-red-800">
-                      Cannot create milestones. Payment schedule is set to {contract.pr.servicePR.paymentSchedule}. 
-                      Milestones can only be created when payment schedule is MILESTONE.
+                    <p className="text-sm font-medium text-blue-800">
+                      Payment schedule is set to {contract.pr.servicePR.paymentSchedule}. 
+                      A single milestone equal to the total contract value will be created.
                     </p>
                   </div>
                 </div>
@@ -279,6 +356,7 @@ function NewMilestoneContent() {
               <button
                 type="button"
                 onClick={addMilestone}
+                disabled={isSingleMilestoneMode}
                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -312,7 +390,7 @@ function NewMilestoneContent() {
                       type="text"
                       value={milestone.title}
                       onChange={(e) => updateMilestone(index, 'title', e.target.value)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      className="block w-full rounded-md border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="e.g., Project Setup, Development Phase"
                       required
                     />
@@ -326,7 +404,7 @@ function NewMilestoneContent() {
                       type="date"
                       value={milestone.dueDate}
                       onChange={(e) => updateMilestone(index, 'dueDate', e.target.value)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      className="block w-full rounded-md border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       required
                     />
                   </div>
@@ -340,8 +418,9 @@ function NewMilestoneContent() {
                       step="0.001"
                       value={milestone.amount}
                       onChange={(e) => updateMilestone(index, 'amount', parseFloat(e.target.value) || 0)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      className="block w-full rounded-md border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="0.000"
+                      readOnly={isSingleMilestoneMode}
                       required
                     />
                   </div>
@@ -355,7 +434,7 @@ function NewMilestoneContent() {
                       step="0.01"
                       value={milestone.percentage}
                       onChange={(e) => updateMilestone(index, 'percentage', parseFloat(e.target.value) || 0)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      className="block w-full rounded-md border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="0.00"
                       readOnly
                     />
@@ -369,7 +448,7 @@ function NewMilestoneContent() {
                       value={milestone.description}
                       onChange={(e) => updateMilestone(index, 'description', e.target.value)}
                       rows={3}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
+                      className="block w-full rounded-md border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-wujha-primary focus:ring-wujha-primary"
                       placeholder="Describe what will be delivered in this milestone..."
                       required
                     />
@@ -384,6 +463,12 @@ function NewMilestoneContent() {
                 <span className="text-sm font-medium text-gray-700">Total Amount:</span>
                 <span className="text-lg font-bold text-gray-900">
                   OMR {milestones.reduce((sum, m) => sum + m.amount, 0).toFixed(3)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-sm font-medium text-gray-700">Service Amount Cap:</span>
+                <span className="text-sm font-semibold text-gray-700">
+                  OMR {maxServiceAmount.toFixed(3)}
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2">
@@ -409,7 +494,7 @@ function NewMilestoneContent() {
             </Link>
             <button
               type="submit"
-              disabled={loading || contract?.pr?.servicePR?.paymentSchedule !== 'MILESTONE'}
+              disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-wujha-primary hover:bg-wujha-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -418,7 +503,7 @@ function NewMilestoneContent() {
                   Creating...
                 </>
               ) : (
-                'Create Milestones'
+                mode === 'edit' ? 'Update Milestones' : 'Create Milestones'
               )}
             </button>
           </div>

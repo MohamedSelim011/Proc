@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { initializeApprovalWorkflow } from '@/lib/approval-routing'
-import { createContractVersion } from '@/lib/contract-version-service'
-import { notifyApprovalSubmitted } from '@/lib/notification-service'
 import { requireAuth } from '@/lib/jwt'
 
 /**
@@ -34,7 +31,7 @@ export async function POST(
       where: { id },
       include: {
         vendor: true,
-        pr: true,
+        servicePR: true,
       },
     })
 
@@ -56,64 +53,52 @@ export async function POST(
       )
     }
 
-    // Create initial version snapshot
-    await createContractVersion({
-      contractId: id,
-      changeReason: 'Initial submission for approval',
-      changeDescription: 'Contract submitted for approval workflow',
-      createdBy: userId,
-      createdByName: userName,
+    const levelOneRoles = ['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_MANAGER'] as const
+    const eligibleApprovers = await prisma.user.findMany({
+      where: {
+        role: { in: levelOneRoles },
+        isActive: true,
+      },
+      select: { id: true },
     })
+    const primaryApproverId = eligibleApprovers[0]?.id || userId
 
-    // Initialize approval workflow
-    const approvalPlan = await initializeApprovalWorkflow({
-      documentType: 'SERVICE_CONTRACT',
-      amount: Number(contract.totalValue),
-      createdBy: userId,
-    })
-
-    if (!approvalPlan) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No approval workflow configured for service contracts',
+    const approval = await prisma.$transaction(async (tx) => {
+      const created = await tx.approval.create({
+        data: {
+          documentType: 'SERVICE_CONTRACT',
+          documentId: id,
+          serviceContractId: id,
+          approverId: primaryApproverId,
+          status: 'PENDING',
+          level: 1,
         },
-        { status: 400 }
-      )
-    }
+      })
 
-    // Create approval record
-    const approval = await prisma.approval.create({
-      data: {
-        documentType: 'SERVICE_CONTRACT',
-        documentId: id,
-        serviceContractId: id,
-        approverId: approvalPlan.steps[0].eligibleApprovers[0] || userId,
-        status: 'PENDING',
-        level: 1,
-        routingRuleId: approvalPlan.ruleId,
-      },
+      await tx.approvalHistory.create({
+        data: {
+          approvalId: created.id,
+          serviceContractId: id,
+          contractVersionNumber: contract.versionNumber,
+          level: 1,
+          action: 'SUBMITTED',
+          approverId: userId,
+          approverName: userName || 'Unknown',
+          comments: 'Submitted for approval',
+          timestamp: new Date(),
+        },
+      })
+
+      await tx.serviceContract.update({
+        where: { id },
+        data: {
+          approvalId: created.id,
+          status: 'PENDING_APPROVAL',
+        },
+      })
+
+      return created
     })
-
-    // Update contract with approval ID and status
-    await prisma.serviceContract.update({
-      where: { id },
-      data: {
-        approvalId: approval.id,
-        status: 'PENDING_APPROVAL', // Move to PENDING_APPROVAL status (awaiting approvers)
-      },
-    })
-
-    // Notify informed parties
-    if (approvalPlan.notifyUsers.length > 0) {
-      await notifyApprovalSubmitted(
-        'SERVICE_CONTRACT',
-        id,
-        approvalPlan.notifyUsers,
-        userName || 'User',
-        Number(contract.totalValue)
-      )
-    }
 
     return NextResponse.json({
       success: true,
@@ -122,15 +107,13 @@ export async function POST(
         id: approval.id,
         status: approval.status,
         level: approval.level,
-        totalLevels: approvalPlan.totalLevels,
-        estimatedDuration: `${approvalPlan.estimatedDuration} hours`,
+        totalLevels: 2,
       },
       approvalPlan: {
-        steps: approvalPlan.steps.map((step) => ({
-          level: step.level,
-          role: step.approverRole,
-          isOptional: step.isOptional,
-        })),
+        steps: [
+          { level: 1, role: 'PROCUREMENT_MANAGER', isOptional: false },
+          { level: 2, role: 'BILLING_ENGINEER', isOptional: false },
+        ],
       },
     })
   } catch (error) {

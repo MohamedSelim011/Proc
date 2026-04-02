@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceVendor {
   id: string;
@@ -350,7 +351,7 @@ export default function ServiceVendors() {
           />
         </ListFilterField>
         <ListFilterField label="Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -359,10 +360,10 @@ export default function ServiceVendors() {
             <option value="PENDING">Pending</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Service Category">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.category}
             onChange={(e) => handleFilterChange('category', e.target.value)}
@@ -373,10 +374,10 @@ export default function ServiceVendors() {
             <option value="IT Services">IT Services</option>
             <option value="Maintenance">Maintenance</option>
             <option value="Consultancy">Consultancy</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Performance Rating">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.rating}
             onChange={(e) => handleFilterChange('rating', e.target.value)}
@@ -386,7 +387,7 @@ export default function ServiceVendors() {
             <option value="4">4+ Stars</option>
             <option value="3">3+ Stars</option>
             <option value="2">2+ Stars</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

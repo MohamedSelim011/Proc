@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import puppeteer from 'puppeteer';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { requireAuth, verifyJWT } from '@/lib/jwt';
 
 // GET /api/service-contracts/[id]/versions/[versionId]/download - Download Contract Version as PDF
 export async function GET(
@@ -11,6 +12,26 @@ export async function GET(
 ) {
   let browser;
   try {
+    try {
+      requireAuth(request);
+    } catch (authError) {
+      const url = new URL(request.url);
+      const token = url.searchParams.get('token');
+      if (!token) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      const userFromToken = verifyJWT(token);
+      if (!userFromToken) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    }
+
     const { id, versionId } = await params;
     
     // Fetch the contract version with vendor data
@@ -20,26 +41,22 @@ export async function GET(
         contract: {
           include: {
             vendor: true,
-            pr: {
+            servicePR: {
               include: {
                 items: {
                   include: {
-                    item: {
+                    serviceItem: {
                       include: {
-                        category: true
+                        serviceCategory: true
                       }
                     }
                   }
                 },
-                servicePR: {
+                materialItems: {
                   include: {
-                    items: {
+                    item: {
                       include: {
-                        serviceItem: {
-                          include: {
-                            serviceCategory: true
-                          }
-                        }
+                        category: true
                       }
                     }
                   }
@@ -226,6 +243,16 @@ export async function GET(
               color: #1e40af;
               font-size: 14px;
               margin-bottom: 8px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .inline-icon {
+              display: inline-flex;
+              width: 16px;
+              height: 16px;
+              align-items: center;
+              justify-content: center;
             }
             .version-info p {
               color: #1e40af;
@@ -370,7 +397,15 @@ export async function GET(
 
           ${version.changeReason || version.changeDescription ? `
           <div class="version-info">
-            <h3>📝 Version ${version.versionNumber} Information</h3>
+            <h3>
+              <span class="inline-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <path d="M14 2v6h6"></path>
+                </svg>
+              </span>
+              Version ${version.versionNumber} Information
+            </h3>
             ${version.changeReason ? `<p><strong>Change Reason:</strong> ${version.changeReason}</p>` : ''}
             ${version.changeDescription ? `<p><strong>Change Description:</strong> ${version.changeDescription}</p>` : ''}
             <p><strong>Created By:</strong> ${version.createdByName || 'N/A'}</p>
@@ -388,8 +423,8 @@ export async function GET(
                   <div class="info-value">${version.contractNumber}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Purchase Requisition</div>
-                  <div class="info-value">${version.contract.pr?.prNumber || 'N/A'}</div>
+                  <div class="info-label">Service Requisition</div>
+                  <div class="info-value">${version.contract.servicePR?.prNumber || 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Vendor</div>
@@ -414,33 +449,33 @@ export async function GET(
             </div>
           </div>
 
-          ${version.contract.pr?.servicePR ? `
+          ${version.contract.servicePR ? `
           <div class="section">
             <div class="section-title">Service Requirements</div>
             <div class="info-grid">
               <div class="info-column">
                 <div class="info-item">
                   <div class="info-label">Service Scope</div>
-                  <div class="info-value">${version.contract.pr.servicePR.serviceScope || 'N/A'}</div>
+                  <div class="info-value">${version.contract.servicePR.serviceScope || 'N/A'}</div>
                 </div>
               </div>
               <div class="info-column">
                 <div class="info-item">
                   <div class="info-label">Duration</div>
-                  <div class="info-value">${version.contract.pr.servicePR.duration || 0} ${version.contract.pr.servicePR.durationUnit || 'DAYS'}</div>
+                  <div class="info-value">${version.contract.servicePR.duration || 0} ${version.contract.servicePR.durationUnit || 'DAYS'}</div>
                 </div>
               </div>
             </div>
-            ${version.contract.pr.servicePR.technicalSpecifications ? `
+            ${version.contract.servicePR.technicalSpecifications ? `
               <div style="margin-top: 15px; padding: 15px; background: #f9fafb; border-radius: 6px;">
                 <div class="info-label">Technical Specifications</div>
-                <div class="info-value" style="margin-top: 8px;">${version.contract.pr.servicePR.technicalSpecifications}</div>
+                <div class="info-value" style="margin-top: 8px;">${version.contract.servicePR.technicalSpecifications}</div>
               </div>
             ` : ''}
           </div>
           ` : ''}
 
-          ${version.contract.pr?.servicePR?.items && version.contract.pr.servicePR.items.length > 0 ? `
+          ${version.contract.servicePR?.items && version.contract.servicePR.items.length > 0 ? `
           <div class="section">
             <div class="section-title">Service Items</div>
             <table>
@@ -455,7 +490,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${version.contract.pr.servicePR.items.map((item: any) => `
+                ${version.contract.servicePR.items.map((item: any) => `
                   <tr>
                     <td>${item.serviceItem?.serviceCode || 'N/A'}</td>
                     <td>${item.serviceItem?.nameEn || 'N/A'}</td>
@@ -470,7 +505,7 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${version.contract.pr?.items && version.contract.pr.items.length > 0 ? `
+          ${version.contract.servicePR?.materialItems && version.contract.servicePR.materialItems.length > 0 ? `
           <div class="section">
             <div class="section-title">Material Items (Mixed Requisition)</div>
             <table>
@@ -485,7 +520,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${version.contract.pr.items.map((item: any) => `
+                ${version.contract.servicePR.materialItems.map((item: any) => `
                   <tr>
                     <td>${item.item?.itemCode || 'N/A'}</td>
                     <td>${item.item?.nameEn || 'N/A'}</td>
@@ -548,11 +583,11 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${version.contract.pr?.justification ? `
+          ${version.contract.servicePR?.justification ? `
           <div class="section">
             <div class="section-title">Business Justification</div>
             <div style="padding: 15px; background: #f9fafb; border-radius: 6px;">
-              <p style="font-size: 12px; color: #374151; white-space: pre-wrap;">${version.contract.pr.justification}</p>
+              <p style="font-size: 12px; color: #374151; white-space: pre-wrap;">${version.contract.servicePR.justification}</p>
             </div>
           </div>
           ` : ''}

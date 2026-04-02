@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { createContractVersion } from '@/lib/contract-version-service';
 
 // GET /api/services/contracts - Get service contracts
 export async function GET(request: NextRequest) {
@@ -29,17 +30,13 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           vendor: true,
-          pr: {
+          servicePR: {
             include: {
-              servicePR: {
+              items: {
                 include: {
-                  items: {
+                  serviceItem: {
                     include: {
-                      serviceItem: {
-                        include: {
-                          serviceCategory: true
-                        }
-                      }
+                      serviceCategory: true
                     }
                   }
                 }
@@ -71,8 +68,25 @@ export async function GET(request: NextRequest) {
       prisma.serviceContract.count({ where })
     ]);
 
+    const contractsWithLegacyPr = contracts.map((contract) => {
+      const servicePR = contract.servicePR;
+      const pr = servicePR
+        ? {
+            id: servicePR.id,
+            prNumber: servicePR.prNumber,
+            estimatedCost: servicePR.estimatedCost,
+            servicePR,
+          }
+        : null;
+
+      return {
+        ...contract,
+        pr,
+      };
+    });
+
     return NextResponse.json({
-      contracts,
+      contracts: contractsWithLegacyPr,
       pagination: {
         page,
         limit,
@@ -95,6 +109,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       prId,
+      servicePrId,
       vendorId,
       contractType,
       startDate,
@@ -110,7 +125,9 @@ export async function POST(request: NextRequest) {
       milestones
     } = body;
 
-    if (!prId || !vendorId || !startDate || !endDate || !totalValue || !paymentTerms) {
+    const resolvedServicePrId = servicePrId || prId;
+
+    if (!resolvedServicePrId || !vendorId || !startDate || !endDate || !totalValue || !paymentTerms) {
       return NextResponse.json(
         { error: 'Required fields missing' },
         { status: 400 }
@@ -118,21 +135,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Check payment schedule before creating contract and milestones
-    const pr = await prisma.purchaseRequisition.findUnique({
-      where: { id: prId },
-      include: {
-        servicePR: true
-      }
+    const pr = await prisma.servicePR.findUnique({
+      where: { id: resolvedServicePrId },
     });
 
-    // Validate milestones can only be created if payment schedule is MILESTONE
     if (milestones && milestones.length > 0) {
-      const paymentSchedule = pr?.servicePR?.paymentSchedule;
-      if (paymentSchedule !== 'MILESTONE') {
-        return NextResponse.json(
-          { error: `Cannot create milestones. Payment schedule is set to ${paymentSchedule}. Milestones can only be created when payment schedule is MILESTONE.` },
-          { status: 400 }
-        );
+      const paymentSchedule = pr?.paymentSchedule;
+      if (paymentSchedule && paymentSchedule !== 'MILESTONE') {
+        if (milestones.length !== 1) {
+          return NextResponse.json(
+            { error: 'Only one milestone is allowed for this payment schedule.' },
+            { status: 400 }
+          );
+        }
+        const totalValueNumber = Number(totalValue || 0);
+        const milestoneAmount = Number(milestones[0]?.amount || 0);
+        if (Math.abs(totalValueNumber - milestoneAmount) > 0.01) {
+          return NextResponse.json(
+            { error: 'Milestone amount must match total contract value.' },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -145,7 +168,9 @@ export async function POST(request: NextRequest) {
       const contract = await tx.serviceContract.create({
         data: {
           contractNumber,
-          prId,
+          servicePrId: resolvedServicePrId,
+          departmentId: pr?.departmentId || null,
+          projectId: pr?.projectId || null,
           vendorId,
           contractType: contractType || 'SERVICE_AGREEMENT',
           startDate: new Date(startDate),
@@ -175,8 +200,7 @@ export async function POST(request: NextRequest) {
               targetDate: new Date(milestone.targetDate),
               completionCriteria: milestone.completionCriteria,
               paymentPercentage: parseFloat(milestone.paymentPercentage),
-              amount: parseFloat(milestone.amount),
-              status: 'PENDING'
+              amount: parseFloat(milestone.amount)
             }
           });
         }
@@ -184,6 +208,16 @@ export async function POST(request: NextRequest) {
 
       return contract;
     });
+
+    try {
+      await createContractVersion({
+        contractId: result.id,
+        createdBy: body.createdBy || 'system',
+        createdByName: body.createdByName || body.createdBy || 'system',
+      });
+    } catch (versionError) {
+      console.error('Error creating initial version:', versionError);
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  Clock,
   Activity,
+  CheckCircle2,
+  ClipboardCheck,
   RefreshCw,
-  ShieldAlert,
   DollarSign,
   Users,
   FileText,
@@ -16,59 +16,64 @@ import {
 
 interface DashboardStats {
   totalPRs: number;
-  pendingApprovals: number;
+  draftPRs: number;
+  submittedPRs: number;
+  approvedPRs: number;
+  rejectedPRs: number;
+  totalPRValue: number;
+  totalMaterialRequests: number;
+  approvedMaterialRequests: number;
+  pendingMaterialRequests: number;
+  totalMaterialValue: number;
   activePOs: number;
+  completedPOs: number;
   pendingDeliveries: number;
   totalSpend: number;
-  budgetUtilization: number;
-  onTimeDelivery: number;
-  costSavings: number;
+  monthlySpend: number;
+  monthlyOrders: number;
+  activeVendors: number;
+  averageVendorScore: number;
+  totalInvoices: number;
+  unpaidInvoices: number;
+  overdueInvoices: number;
+  totalUnpaid: number;
   avgLeadTime: number;
 }
 
 interface RecentActivity {
   id: string;
-  type: 'PR' | 'PO' | 'GR' | 'Invoice';
+  type: string;
   title: string;
   status: string;
   amount?: number;
   date: string;
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 }
-
-interface PendingApproval {
+interface ApiActivity {
   id: string;
-  type: 'PR' | 'PO' | 'Invoice';
-  number: string;
-  requestor: string;
-  amount: number;
-  daysWaiting: number;
-  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  type: string;
+  title: string;
+  status?: string | null;
+  amount?: string | number | null;
+  currency?: string | null;
+  createdAt: string;
 }
 
-interface ApiRequisition {
-  id: string;
-  prNumber: string;
-  status: string;
-  estimatedCost: number | string;
-  createdAt: string;
-  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-  requesterId: string;
-}
-
-interface ApiPurchaseOrder {
-  id: string;
-  poNumber: string;
-  status: string;
-  totalAmount: number | string;
-  createdAt: string;
+interface StatCard {
+  label: string;
+  value: string;
+  icon: ReactNode;
+  iconWrapClass: string;
+  iconClass: string;
 }
 
 export default function ProcurementDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const [allActivity, setAllActivity] = useState<RecentActivity[]>([]);
+  const [allActivityLoading, setAllActivityLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -81,73 +86,71 @@ export default function ProcurementDashboard() {
       const dashboardResponse = await fetch('/api/dashboard');
       const dashboardData = await dashboardResponse.json();
 
-      const prResponse = await fetch('/api/purchase-requisitions?limit=5');
-      const prData = await prResponse.json();
-
-      const poResponse = await fetch('/api/purchase-orders?limit=5');
-      const poData = await poResponse.json();
-
-      const pendingPRResponse = await fetch('/api/purchase-requisitions?status=SUBMITTED');
-      const pendingPRData = await pendingPRResponse.json();
+      const activityResponse = await fetch('/api/activity-logs?limit=5');
+      const activityData = await activityResponse.json();
 
       setStats({
         totalPRs: dashboardData.totalPRs || 0,
-        pendingApprovals: dashboardData.pendingApprovals || 0,
+        draftPRs: dashboardData.draftPRs || 0,
+        submittedPRs: dashboardData.submittedPRs || 0,
+        approvedPRs: dashboardData.approvedPRs || 0,
+        rejectedPRs: dashboardData.rejectedPRs || 0,
+        totalPRValue: dashboardData.totalPRValue || 0,
+        totalMaterialRequests: dashboardData.materialRequests?.total || 0,
+        approvedMaterialRequests: dashboardData.materialRequests?.approved || 0,
+        pendingMaterialRequests: dashboardData.materialRequests?.pending || 0,
+        totalMaterialValue: dashboardData.materialRequests?.totalValue || 0,
         activePOs: dashboardData.activePOs || 0,
+        completedPOs: dashboardData.completedPOs || 0,
         pendingDeliveries: dashboardData.pendingDeliveries || 0,
         totalSpend: dashboardData.totalSpend || 0,
-        budgetUtilization: dashboardData.budgetUtilization || 0,
-        onTimeDelivery: dashboardData.onTimeDelivery || 0,
-        costSavings: dashboardData.costSavings || 0,
+        monthlySpend: dashboardData.monthlySpend || 0,
+        monthlyOrders: dashboardData.monthlyOrders || 0,
+        activeVendors: dashboardData.activeVendors || 0,
+        averageVendorScore: dashboardData.averageVendorScore || 0,
+        totalInvoices: dashboardData.totalInvoices || 0,
+        unpaidInvoices: dashboardData.unpaidInvoices || 0,
+        overdueInvoices: dashboardData.overdueInvoices || 0,
+        totalUnpaid: dashboardData.totalUnpaid || 0,
         avgLeadTime: dashboardData.avgLeadTime || 0,
       });
 
-      const activities: RecentActivity[] = [];
+      const activities: RecentActivity[] = (activityData.activities || []).map((row: ApiActivity) => ({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        status: row.status || 'N/A',
+        amount: row.amount ? Number(row.amount) : undefined,
+        date: row.createdAt,
+      }));
 
-      prData.requisitions?.slice(0, 3).forEach((pr: ApiRequisition) => {
-        activities.push({
-          id: pr.id,
-          type: 'PR',
-          title: `PR ${pr.prNumber}`,
-          status: pr.status,
-          amount: Number(pr.estimatedCost),
-          date: pr.createdAt,
-          priority: pr.priority,
-        });
-      });
-
-      poData.orders?.slice(0, 3).forEach((po: ApiPurchaseOrder) => {
-        activities.push({
-          id: po.id,
-          type: 'PO',
-          title: `PO ${po.poNumber}`,
-          status: po.status,
-          amount: Number(po.totalAmount),
-          date: po.createdAt,
-        });
-      });
-
-      activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setRecentActivity(activities.slice(0, 6));
-
-      const approvals: PendingApproval[] =
-        pendingPRData.requisitions?.map((pr: ApiRequisition) => ({
-          id: pr.id,
-          type: 'PR' as const,
-          number: pr.prNumber,
-          requestor: pr.requesterId,
-          amount: Number(pr.estimatedCost),
-          daysWaiting: Math.floor(
-            (new Date().getTime() - new Date(pr.createdAt).getTime()) / (1000 * 60 * 60 * 24)
-          ),
-          priority: pr.priority,
-        })) || [];
-
-      setPendingApprovals(approvals);
+      setRecentActivity(activities.slice(0, 5));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllActivity = async () => {
+    try {
+      setAllActivityLoading(true);
+      const response = await fetch('/api/activity-logs?limit=100');
+      const data = await response.json();
+      const activities: RecentActivity[] = (data.activities || []).map((row: ApiActivity) => ({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        status: row.status || 'N/A',
+        amount: row.amount ? Number(row.amount) : undefined,
+        date: row.createdAt,
+      }));
+      setAllActivity(activities);
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      setAllActivity([]);
+    } finally {
+      setAllActivityLoading(false);
     }
   };
 
@@ -157,6 +160,7 @@ export default function ProcurementDashboard() {
       currency: 'OMR',
     }).format(amount);
   };
+  const formatNumber = (value: number) => new Intl.NumberFormat('en-OM').format(value);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-OM', {
@@ -165,21 +169,6 @@ export default function ProcurementDashboard() {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'text-red-600 bg-red-100';
-      case 'HIGH':
-        return 'text-wujha-primary bg-wujha-primary/10';
-      case 'NORMAL':
-        return 'text-blue-600 bg-blue-100';
-      case 'LOW':
-        return 'text-gray-600 bg-gray-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
   };
 
   const getStatusColor = (status: string) => {
@@ -198,9 +187,37 @@ export default function ProcurementDashboard() {
     }
   };
 
-  const highPriorityApprovalsCount = pendingApprovals.filter(
-    (approval) => approval.priority === 'HIGH' || approval.priority === 'URGENT'
-  ).length;
+  const statCards: StatCard[] = [
+    {
+      label: 'Material Requests',
+      value: formatNumber(stats?.totalMaterialRequests || 0),
+      icon: <ClipboardCheck className="h-6 w-6 text-indigo-700" />,
+      iconWrapClass: 'bg-indigo-50 ring-indigo-100',
+      iconClass: 'text-indigo-700',
+    },
+    {
+      label: 'Material Approved',
+      value: formatNumber(stats?.approvedMaterialRequests || 0),
+      icon: <CheckCircle2 className="h-6 w-6 text-emerald-700" />,
+      iconWrapClass: 'bg-emerald-50 ring-emerald-100',
+      iconClass: 'text-emerald-700',
+    },
+    {
+      label: 'Purchase Requisitions',
+      value: formatNumber(stats?.totalPRs || 0),
+      icon: <FileText className="h-6 w-6 text-blue-700" />,
+      iconWrapClass: 'bg-blue-50 ring-blue-100',
+      iconClass: 'text-blue-700',
+    },
+    {
+      label: 'PR Total Value',
+      value: formatCurrency(stats?.totalPRValue || 0),
+      icon: <DollarSign className="h-6 w-6 text-teal-700" />,
+      iconWrapClass: 'bg-teal-50 ring-teal-100',
+      iconClass: 'text-teal-700',
+    },
+  ];
+  const primaryStatCards = statCards;
 
   if (loading) {
     return (
@@ -211,10 +228,7 @@ export default function ProcurementDashboard() {
             <div key={i} className="h-36 rounded-2xl bg-slate-200"></div>
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-          <div className="h-96 rounded-2xl bg-slate-200 xl:col-span-3"></div>
-          <div className="h-96 rounded-2xl bg-slate-200 xl:col-span-2"></div>
-        </div>
+        <div className="h-96 rounded-2xl bg-slate-200"></div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-40 rounded-2xl bg-slate-200"></div>
@@ -233,7 +247,7 @@ export default function ProcurementDashboard() {
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl font-bold text-white sm:text-4xl">Procurement Command Center</h1>
             <p className="mt-2 max-w-3xl text-sm text-white/90 sm:text-base">
-              Live overview of requisitions, approvals, purchase orders, and spend execution.
+              Live overview of requisitions, purchase orders, deliveries, and spend execution.
             </p>
           </div>
           <div className="mt-5 md:ml-6 md:mt-0">
@@ -249,85 +263,47 @@ export default function ProcurementDashboard() {
       </section>
 
       <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Requisitions</p>
-                <p className="text-3xl font-bold text-slate-900">{stats?.totalPRs || 0}</p>
-                <p className="mt-2 text-sm text-slate-500">Submitted and draft requisition volume.</p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <div className="rounded-xl bg-blue-50 p-3 ring-1 ring-blue-100">
-                  <FileText className="h-6 w-6 text-blue-700" />
+        {primaryStatCards.map((card) => (
+          <div
+            key={card.label}
+            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
+                  <p className="whitespace-nowrap text-2xl font-bold text-slate-900 xl:text-3xl">{card.value}</p>
+                </div>
+                <div className="ml-4 flex-shrink-0">
+                  <div className={`rounded-xl p-3 ring-1 ${card.iconWrapClass}`}>
+                    <span className={card.iconClass}>{card.icon}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approvals</p>
-                <p className="text-3xl font-bold text-slate-900">{stats?.pendingApprovals || 0}</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  {highPriorityApprovalsCount} high-priority items require attention.
-                </p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <div className="rounded-xl bg-amber-50 p-3 ring-1 ring-amber-100">
-                  <Clock className="h-6 w-6 text-amber-700" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Active Purchases</p>
-                <p className="text-3xl font-bold text-slate-900">{stats?.activePOs || 0}</p>
-                <p className="mt-2 text-sm text-slate-500">Purchase orders currently in progress.</p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <div className="rounded-xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
-                  <ShoppingCart className="h-6 w-6 text-indigo-700" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Spend</p>
-                <p className="text-3xl font-bold text-slate-900">{formatCurrency(stats?.totalSpend || 0)}</p>
-                <p className="mt-2 text-sm text-slate-500">Aggregate approved and executed procurement spend.</p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <div className="rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
-                  <DollarSign className="h-6 w-6 text-emerald-700" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-3">
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div>
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
             <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              <Activity className="mr-1.5 h-3.5 w-3.5" />
-              {recentActivity.length} items
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                <Activity className="mr-1.5 h-3.5 w-3.5" />
+                {recentActivity.length} items
+              </span>
+              <button
+                onClick={() => {
+                  setShowAllActivity(true);
+                  fetchAllActivity();
+                }}
+                className="text-xs font-semibold text-wujha-primary hover:text-wujha-primary-hover"
+              >
+                View All
+              </button>
+            </div>
           </div>
           <div className="px-6 py-5">
             <div className="space-y-3">
@@ -363,54 +339,67 @@ export default function ProcurementDashboard() {
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-            <h3 className="text-lg font-semibold text-slate-900">Pending Approvals</h3>
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-              {highPriorityApprovalsCount} priority
-            </span>
-          </div>
-          <div className="px-6 py-5">
-            <div className="space-y-3">
-              {pendingApprovals.length > 0 ? (
-                pendingApprovals.slice(0, 5).map((approval) => (
-                  <div
-                    key={approval.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50"
-                  >
-                    <div className="flex min-w-0 flex-1 items-center space-x-3">
-                      <div
-                        className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${getPriorityColor(approval.priority)}`}
-                      >
-                        {approval.priority}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-900">{approval.number}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {approval.requestor} - {approval.daysWaiting} days waiting
-                        </p>
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-shrink-0 text-right">
-                      <div className="mb-1 text-sm font-semibold text-slate-900">{formatCurrency(approval.amount)}</div>
-                      <Link
-                        href={`/procurement/requisitions/${approval.id}`}
-                        className="inline-flex items-center text-xs font-medium text-wujha-primary hover:text-wujha-primary-hover hover:underline"
-                      >
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                ))
+      {showAllActivity && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowAllActivity(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h4 className="text-lg font-semibold text-slate-900">All Recent Activities</h4>
+                <p className="text-xs text-slate-500">Showing the most recent events across the system.</p>
+              </div>
+              <button
+                onClick={() => setShowAllActivity(false)}
+                className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[65vh] overflow-y-auto px-6 py-4">
+              {allActivityLoading ? (
+                <div className="py-10 text-center text-sm text-slate-500">Loading activities...</div>
+              ) : allActivity.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-500">No activities yet.</div>
               ) : (
-                <p className="py-8 text-center text-sm text-slate-500">No pending approvals</p>
+                <div className="space-y-3">
+                  {allActivity.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 p-3"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center space-x-3">
+                        <div
+                          className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${getStatusColor(activity.status)}`}
+                        >
+                          {activity.type}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-900">{activity.title}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {activity.status} - {formatDate(activity.date)}
+                          </p>
+                        </div>
+                      </div>
+                      {activity.amount && (
+                        <div className="ml-4 flex-shrink-0 text-sm font-semibold text-slate-900">
+                          {formatCurrency(activity.amount)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
-      </section>
+      )}
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-5">
@@ -420,7 +409,7 @@ export default function ProcurementDashboard() {
         <div className="px-6 py-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Link
-              href="/procurement/requisitions/new"
+              href="/procurement/services/requisitions/new"
               className="relative rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-wujha-primary/50 hover:shadow-md focus-within:ring-2 focus-within:ring-wujha-primary"
             >
               <div>

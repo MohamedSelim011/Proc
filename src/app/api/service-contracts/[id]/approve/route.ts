@@ -2,11 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { canUserApproveAtLevel, getApprovalStatus, getEligibleApproversForLevel } from '@/lib/approval-routing'
 import { approveContractVersion } from '@/lib/contract-version-service'
-import { createVendorResponseRequest } from '@/lib/vendor-response-service'
-import {
-  notifyApprovalLevelCompleted,
-  notifyApprovalComplete,
-} from '@/lib/notification-service'
 import { requireAuth } from '@/lib/jwt'
 
 /**
@@ -35,6 +30,13 @@ export async function POST(
     const userId = user.id;
     const userName = user.name || user.email || 'Unknown User';
 
+    if (!comments || String(comments).trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'Comments are required when approving a contract' },
+        { status: 400 }
+      )
+    }
+
     // Get the contract with approval details
     const contract = await prisma.serviceContract.findUnique({
       where: { id },
@@ -62,21 +64,7 @@ export async function POST(
       )
     }
 
-    // Normalize approval.level from history so it never gets out of sync (e.g. after manual DB edit or REQUEST_EDIT)
-    const approvedLevels = contract.approval.approvalHistory
-      .filter((h) => h.action === 'APPROVED')
-      .map((h) => h.level)
-    const highestApprovedLevel = approvedLevels.length > 0 ? Math.max(...approvedLevels) : 0
-    const correctLevel = highestApprovedLevel + 1
-
-    if (contract.approval.level !== correctLevel) {
-      await prisma.approval.update({
-        where: { id: contract.approval.id },
-        data: { level: correctLevel },
-      })
-    }
-
-    const currentApprovalLevel = correctLevel
+    const currentApprovalLevel = contract.approval.level
 
     // Check if already fully approved
     const approvalStatus = await getApprovalStatus(id)
@@ -115,10 +103,11 @@ export async function POST(
       )
     }
 
-    // Create approval history entry for the level being approved
     await prisma.approvalHistory.create({
       data: {
         approvalId: contract.approval.id,
+        serviceContractId: id,
+        contractVersionNumber: contract.versionNumber,
         level: currentApprovalLevel,
         action: 'APPROVED',
         approverId: userId,
@@ -128,115 +117,56 @@ export async function POST(
       },
     })
 
-    // Determine total levels from the approval rule
-    const rule = await prisma.approvalRule.findUnique({
-      where: { id: contract.approval.routingRuleId || '' },
-      include: {
-        routings: {
-          where: {
-            raciType: 'ACCOUNTABLE',
-          },
-        },
-      },
-    })
-
-    const totalLevels = rule?.routings.length || 0
+    const totalLevels = 2
     const isFinalApproval = currentApprovalLevel >= totalLevels
     const nextApprovalLevel = currentApprovalLevel + 1
 
     if (isFinalApproval) {
-      // Final approval - update approval status
-      await prisma.approval.update({
-        where: { id: contract.approval.id },
-        data: {
-          status: 'APPROVED',
-          approvedAt: new Date(),
-        },
-      })
+      await prisma.$transaction(async (tx) => {
+        await tx.approval.update({
+          where: { id: contract.approval.id },
+          data: {
+            status: 'APPROVED',
+            approvedAt: new Date(),
+          },
+        })
 
-      // Update contract status to APPROVED (all levels completed)
-      await prisma.serviceContract.update({
-        where: { id },
-        data: {
-          status: 'APPROVED',
-        },
+        await tx.serviceContract.update({
+          where: { id },
+          data: {
+            status: 'APPROVED',
+          },
+        })
       })
 
       // Approve the contract version
       await approveContractVersion(id, contract.versionNumber, userId)
 
-      // Send contract to vendor for acceptance
-      const vendorResponse = await createVendorResponseRequest({
-        contractId: id,
-        versionNumber: contract.versionNumber,
-        vendorEmail: contract.vendor.email,
-        vendorName: contract.vendor.nameEn || contract.vendor.nameAr,
-        expiryDays: 30,
-      })
-
-      // Notify informed parties
-      if (rule && rule.routings.length > 0) {
-        // Get informed users
-        const informedUsers = await prisma.user.findMany({
-          where: {
-            role: {
-              in: rule.routings.map((r) => r.approverRole),
-            },
-            isActive: true,
-          },
-          select: { id: true },
-        })
-
-        await notifyApprovalComplete(
-          'SERVICE_CONTRACT',
-          id,
-          informedUsers.map((u) => u.id),
-          userName || 'Approver'
-        )
-      }
-
       return NextResponse.json({
         success: true,
-        message:
-          'Contract fully approved and sent to vendor for acceptance',
+        message: 'Contract fully approved',
         approval: {
           status: 'APPROVED',
           level: currentApprovalLevel,
           isFinalApproval: true,
-          vendorResponseSent: true,
-          vendorResponseExpiresAt: vendorResponse.expiresAt,
         },
       })
     } else {
-      // Intermediate approval - move to next level
-      await prisma.approval.update({
-        where: { id: contract.approval.id },
-        data: {
-          level: nextApprovalLevel,
-        },
-      })
-
-      // Notify informed parties about level completion
-      if (rule && rule.routings.length > 0) {
-        const informedUsers = await prisma.user.findMany({
-          where: {
-            role: {
-              in: rule.routings.map((r) => r.approverRole),
-            },
-            isActive: true,
+      await prisma.$transaction(async (tx) => {
+        await tx.approval.update({
+          where: { id: contract.approval.id },
+          data: {
+            level: nextApprovalLevel,
           },
-          select: { id: true },
         })
 
-        await notifyApprovalLevelCompleted(
-          'SERVICE_CONTRACT',
-          id,
-          informedUsers.map((u) => u.id),
-          currentApprovalLevel,
-          userName || 'Approver',
-          'APPROVED'
-        )
-      }
+        await tx.serviceContract.update({
+          where: { id },
+          data: {
+            status: 'PENDING_APPROVAL',
+          },
+        })
+      })
 
       return NextResponse.json({
         success: true,

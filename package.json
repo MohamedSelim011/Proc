@@ -11,6 +11,7 @@
     "docs:postman:finance": "node scripts/generate-finance-postman-docs.js",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "npx prisma migrate reset && npm run db:seed",
+    "db:backfill:service-contract-dept-project": "tsx scripts/backfill-service-contract-dept-project.ts",
     "seed:bright": "tsx prisma/seed-bright.ts",
     "seed:ziad-pos": "tsx prisma/seed-ziad-acknowledged-pos.ts"
   },

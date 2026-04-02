@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface PurchaseRequisition {
   id: string;
@@ -267,7 +268,7 @@ export default function NewRFQPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Purchase Requisition *
               </label>
-              <select
+              <SearchableSelect
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                 value={formData.prId}
                 onChange={(e) => handlePRSelect(e.target.value)}
@@ -289,7 +290,7 @@ export default function NewRFQPage() {
                 {prs.length === 0 && (
                   <option disabled>No PRs available</option>
                 )}
-              </select>
+              </SearchableSelect>
             </div>
             
             {selectedPR && (

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { isExternalIntegrationEnabled } from '@/integration/router/integration-switch';
+
+const toQuantity = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.max(0, num) : 0;
+};
 
 
 // GET /api/goods-receipts/[id] - Get goods receipt by ID
@@ -68,16 +74,18 @@ export async function GET(
       rejectedValue: 0
     };
 
-    receipt.items.forEach(grItem => {
-      const poItem = receipt.po.items.find(pi => pi.itemId === grItem.itemId);
-      if (poItem) {
-        const unitPrice = Number(poItem.unitPrice);
-        valueStats.orderedValue += grItem.orderedQuantity * unitPrice;
-        valueStats.receivedValue += grItem.receivedQuantity * unitPrice;
-        valueStats.acceptedValue += grItem.acceptedQuantity * unitPrice;
-        valueStats.rejectedValue += grItem.rejectedQuantity * unitPrice;
-      }
-    });
+    if (receipt.po?.items) {
+      receipt.items.forEach(grItem => {
+        const poItem = receipt.po?.items.find(pi => pi.itemId === grItem.itemId);
+        if (poItem) {
+          const unitPrice = Number(poItem.unitPrice);
+          valueStats.orderedValue += grItem.orderedQuantity * unitPrice;
+          valueStats.receivedValue += grItem.receivedQuantity * unitPrice;
+          valueStats.acceptedValue += grItem.acceptedQuantity * unitPrice;
+          valueStats.rejectedValue += grItem.rejectedQuantity * unitPrice;
+        }
+      });
+    }
 
     return NextResponse.json({
       ...receipt,
@@ -101,6 +109,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (isExternalIntegrationEnabled('goodsReceipts')) {
+      return NextResponse.json(
+        { error: 'Goods receipts integration is enabled. Manual update is disabled.' },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     
@@ -125,14 +140,21 @@ export async function PUT(
         where: { id: id },
         data: {
           receivedDate: body.receivedDate ? new Date(body.receivedDate) : existingGR.receivedDate,
+          receiptDate: body.receivedDate ? new Date(body.receivedDate) : existingGR.receiptDate,
           receivedBy: body.receivedBy || existingGR.receivedBy,
+          receivedById: body.receivedBy || existingGR.receivedById,
           deliveryNote: body.deliveryNote !== undefined ? body.deliveryNote : existingGR.deliveryNote,
           transportDetails: body.transportDetails !== undefined ? body.transportDetails : existingGR.transportDetails,
+          vehicleNumber: body.transportDetails !== undefined ? body.transportDetails : existingGR.vehicleNumber,
+          driverName: body.driverName !== undefined ? body.driverName : existingGR.driverName,
           storageLocation: body.storageLocation !== undefined ? body.storageLocation : existingGR.storageLocation,
           specialHandling: body.specialHandling !== undefined ? body.specialHandling : existingGR.specialHandling,
+          remarks: body.specialHandling !== undefined ? body.specialHandling : existingGR.remarks,
           qualityChecked: body.qualityChecked !== undefined ? body.qualityChecked : existingGR.qualityChecked,
           qualityComments: body.qualityComments !== undefined ? body.qualityComments : existingGR.qualityComments,
           qualityInspector: body.qualityInspector !== undefined ? body.qualityInspector : existingGR.qualityInspector,
+          inspectedBy: body.qualityInspector !== undefined ? body.qualityInspector : existingGR.inspectedBy,
+          inspectedAt: body.qualityChecked ? new Date() : existingGR.inspectedAt,
           updatedAt: new Date()
         }
       });
@@ -144,20 +166,24 @@ export async function PUT(
           await tx.gRItem.update({
             where: { id: item.id },
             data: {
-              receivedQuantity: item.receivedQuantity,
-              acceptedQuantity: item.acceptedQuantity,
-              rejectedQuantity: item.rejectedQuantity,
-              rejectionReason: item.rejectionReason
+              deliveredQuantity: toQuantity(item.receivedQuantity),
+              receivedQuantity: toQuantity(item.receivedQuantity),
+              acceptedQuantity: toQuantity(item.acceptedQuantity),
+              rejectedQuantity: toQuantity(item.rejectedQuantity),
+              rejectionReason: item.rejectionReason,
+              remarks: item.inspectionNotes || null,
             }
           });
         }
 
         // Determine new status based on items
-        const allFullyReceived = body.items.every((item: any) => 
-          item.receivedQuantity >= item.acceptedQuantity + item.rejectedQuantity
+        const allFullyReceived = body.items.every(
+          (item: any) =>
+            toQuantity(item.receivedQuantity) >=
+            toQuantity(item.acceptedQuantity) + toQuantity(item.rejectedQuantity),
         );
 
-        const newStatus = allFullyReceived ? 'COMPLETED' : 'PARTIAL';
+        const newStatus = allFullyReceived ? 'COMPLETED' : 'PARTIALLY_ACCEPTED';
         
         await tx.goodsReceipt.update({
           where: { id: id },
@@ -199,6 +225,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (isExternalIntegrationEnabled('goodsReceipts')) {
+      return NextResponse.json(
+        { error: 'Goods receipts integration is enabled. Manual delete is disabled.' },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
     const receipt = await prisma.goodsReceipt.findUnique({
       where: { id },
@@ -235,16 +268,18 @@ export async function DELETE(
       });
 
       // Update PO status back to previous state if needed
-      const remainingGRs = await tx.goodsReceipt.findMany({
-        where: { poId: receipt.poId }
-      });
-
-      if (remainingGRs.length === 0) {
-        // No more GRs, revert PO status
-        await tx.purchaseOrder.update({
-          where: { id: receipt.poId },
-          data: { status: 'ACKNOWLEDGED' }
+      if (receipt.poId) {
+        const remainingGRs = await tx.goodsReceipt.findMany({
+          where: { poId: receipt.poId }
         });
+
+        if (remainingGRs.length === 0) {
+          // No more GRs, revert PO status
+          await tx.purchaseOrder.update({
+            where: { id: receipt.poId },
+            data: { status: 'ACKNOWLEDGED' }
+          });
+        }
       }
     });
 

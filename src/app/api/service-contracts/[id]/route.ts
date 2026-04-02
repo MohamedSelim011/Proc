@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { createContractVersion } from '@/lib/contract-version-service';
 
 
 export async function GET(
@@ -10,29 +9,29 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const contract = await prisma.serviceContract.findUnique({
+    let contract = await prisma.serviceContract.findUnique({
       where: { id },
       include: {
         vendor: true,
-        pr: {
+        department: true,
+        project: true,
+        servicePR: {
           include: {
+            department: true,
+            project: true,
             items: {
               include: {
-                item: true
-              }
-            },
-            servicePR: {
-              include: {
-                items: {
+                serviceItem: {
                   include: {
-                    serviceItem: {
-                      include: {
-                        serviceCategory: true
-                      }
-                    }
+                    serviceCategory: true
                   }
                 }
               }
+            },
+            materialItems: {
+              include: {
+                item: true,
+              },
             }
           }
         },
@@ -79,7 +78,48 @@ export async function GET(
       historyCount: contract.approval?.approvalHistory?.length
     });
 
-    return NextResponse.json(contract);
+    const approvalNotesByVersion = new Map<number, any[]>();
+    if (contract.approval?.approvalHistory?.length) {
+      for (const entry of contract.approval.approvalHistory) {
+        if (!entry.contractVersionNumber) continue;
+        const list = approvalNotesByVersion.get(entry.contractVersionNumber) || [];
+        list.push(entry);
+        approvalNotesByVersion.set(entry.contractVersionNumber, list);
+      }
+    }
+
+    const versionsWithNotes = contract.versions?.map((version) => ({
+      ...version,
+      approvalNotes: approvalNotesByVersion.get(version.versionNumber) || [],
+    }));
+
+    const pr = contract.servicePR
+      ? {
+          id: contract.servicePR.id,
+          prNumber: contract.servicePR.prNumber,
+          estimatedCost: contract.servicePR.estimatedCost,
+          servicePR: contract.servicePR,
+          items: contract.servicePR.materialItems?.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+            estimatedPrice: item.estimatedPrice,
+            item: item.item,
+          })) ?? [],
+          department: contract.servicePR.department || null,
+          project: contract.servicePR.project || null,
+        }
+      : null;
+
+    const resolvedDepartment = contract.department || contract.servicePR?.department || null;
+    const resolvedProject = contract.project || contract.servicePR?.project || null;
+
+    return NextResponse.json({
+      ...contract,
+      department: resolvedDepartment,
+      project: resolvedProject,
+      versions: versionsWithNotes,
+      pr
+    });
   } catch (error) {
     console.error('Error fetching service contract:', error);
     return NextResponse.json(
@@ -137,27 +177,78 @@ export async function PUT(
       },
       include: {
         vendor: true,
-        pr: true
+        servicePR: true
       }
     });
 
-    // Create a new version snapshot after edit
-    if (body.editedBy) {
-      try {
-        await createContractVersion({
+    // Keep the current version snapshot in sync (no new version for direct edits)
+    try {
+      await prisma.serviceContractVersion.upsert({
+        where: {
+          contractId_versionNumber: {
+            contractId: id,
+            versionNumber: existingContract.versionNumber,
+          },
+        },
+        update: {
+          contractNumber: updatedContract.contractNumber,
+          vendorId: updatedContract.vendorId,
+          contractType: updatedContract.contractType,
+          startDate: updatedContract.startDate,
+          endDate: updatedContract.endDate,
+          totalValue: updatedContract.totalValue,
+          serviceAmount: updatedContract.serviceAmount,
+          currency: updatedContract.currency,
+          paymentTerms: updatedContract.paymentTerms,
+          slaTerms: updatedContract.slaTerms,
+          penaltyClause: updatedContract.penaltyClause,
+          performanceBond: updatedContract.performanceBond,
+          retentionAmount: updatedContract.retentionAmount,
+          insuranceRequirements: updatedContract.insuranceRequirements,
+          status: updatedContract.status,
+        },
+        create: {
           contractId: id,
-          changeReason: body.changeReason || 'Contract updated',
-          changeDescription: body.changeDescription || 'Contract details modified',
-          createdBy: body.editedBy,
-          createdByName: body.editedByName
-        });
-      } catch (versionError) {
-        console.error('Error creating version after edit:', versionError);
-        // Continue even if version creation fails
-      }
+          versionNumber: existingContract.versionNumber,
+          contractNumber: updatedContract.contractNumber,
+          vendorId: updatedContract.vendorId,
+          contractType: updatedContract.contractType,
+          startDate: updatedContract.startDate,
+          endDate: updatedContract.endDate,
+          totalValue: updatedContract.totalValue,
+          serviceAmount: updatedContract.serviceAmount,
+          currency: updatedContract.currency,
+          paymentTerms: updatedContract.paymentTerms,
+          slaTerms: updatedContract.slaTerms,
+          penaltyClause: updatedContract.penaltyClause,
+          performanceBond: updatedContract.performanceBond,
+          retentionAmount: updatedContract.retentionAmount,
+          insuranceRequirements: updatedContract.insuranceRequirements,
+          status: updatedContract.status,
+          createdBy: body.editedBy || updatedContract.createdBy || 'system',
+          createdByName: body.editedByName || body.editedBy || updatedContract.createdBy || 'system',
+          approvalStatus: 'PENDING',
+        },
+      })
+    } catch (versionSyncError) {
+      console.error('Error syncing contract version snapshot:', versionSyncError)
     }
 
-    return NextResponse.json(updatedContract);
+    const legacyPr = updatedContract.servicePR
+      ? {
+          id: updatedContract.servicePR.id,
+          prNumber: updatedContract.servicePR.prNumber,
+          estimatedCost: updatedContract.servicePR.estimatedCost,
+          servicePR: updatedContract.servicePR,
+        }
+      : null;
+
+    const responsePayload = {
+      ...updatedContract,
+      pr: legacyPr,
+    };
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     console.error('Error updating service contract:', error);
     return NextResponse.json(

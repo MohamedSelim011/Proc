@@ -295,10 +295,10 @@ function NewGoodsReceiptContent() {
       let status = 'COMPLETED';
       
       if (stats.totalReceived < stats.totalOrdered) {
-        status = 'PARTIAL';
+        status = 'PARTIALLY_ACCEPTED';
       }
       if (stats.totalRejected > 0) {
-        status = 'PARTIAL';
+        status = 'PARTIALLY_ACCEPTED';
       }
 
       const submitData = {

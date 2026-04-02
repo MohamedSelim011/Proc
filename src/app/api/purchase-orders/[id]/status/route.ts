@@ -55,7 +55,7 @@ export async function PUT(
     // Validate status transition
     const currentStatus = order.status;
     const validTransitions: { [key: string]: string[] } = {
-      DRAFT: ['SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'CANCELLED'],
+      DRAFT: ['SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'],
       SUBMITTED: ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'],
       PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
       APPROVED: ['SENT', 'CANCELLED'],

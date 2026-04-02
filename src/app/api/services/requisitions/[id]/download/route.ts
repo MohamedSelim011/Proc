@@ -14,27 +14,23 @@ export async function GET(
     const { id } = await params;
     
     // Fetch the service requisition with all related data
-    const sr = await prisma.purchaseRequisition.findUnique({
+    const sr = await prisma.servicePR.findUnique({
       where: { id },
       include: {
         items: {
           include: {
-            item: {
+            serviceItem: {
               include: {
-                category: true
+                serviceCategory: true
               }
             }
           }
         },
-        servicePR: {
+        materialItems: {
           include: {
-            items: {
+            item: {
               include: {
-                serviceItem: {
-                  include: {
-                    serviceCategory: true
-                  }
-                }
+                category: true
               }
             }
           }
@@ -49,13 +45,7 @@ export async function GET(
       );
     }
 
-    // Check if it's a service requisition
-    if (sr.itemType !== 'SERVICE' && sr.itemType !== 'NON_STOCK') {
-      return NextResponse.json(
-        { error: 'This is not a service requisition' },
-        { status: 400 }
-      );
-    }
+    const servicePR = sr;
 
     const formatCurrency = (amount: number) => {
       return new Intl.NumberFormat('en-OM', {
@@ -365,24 +355,24 @@ export async function GET(
               <div class="info-title">Service Details</div>
               <div class="info-row">
                 <span class="info-label">Service Category:</span>
-                <span class="info-value">${sr.servicePR?.serviceCategory || 'N/A'}</span>
+                <span class="info-value">${servicePR.serviceCategory || 'N/A'}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Service Type:</span>
-                <span class="info-value">${sr.servicePR?.serviceType || 'N/A'}</span>
+                <span class="info-value">${servicePR.serviceType || 'N/A'}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Duration:</span>
-                <span class="info-value">${sr.servicePR?.duration || 0} ${sr.servicePR?.durationUnit || 'DAYS'}</span>
+                <span class="info-value">${servicePR.duration || 0} ${servicePR.durationUnit || 'DAYS'}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Requester:</span>
                 <span class="info-value">${sr.requesterId || 'N/A'}</span>
               </div>
-              ${sr.servicePR?.requestor ? `
+              ${servicePR.requestor ? `
               <div class="info-row">
                 <span class="info-label">Requestor Name:</span>
-                <span class="info-value">${sr.servicePR.requestor}</span>
+                <span class="info-value">${servicePR.requestor}</span>
               </div>
               ` : ''}
             </div>
@@ -391,16 +381,6 @@ export async function GET(
           <div class="info-grid">
             <div class="info-section">
               <div class="info-title">Financial Information</div>
-              <div class="info-row">
-                <span class="info-label">Budget Code:</span>
-                <span class="info-value">${sr.budgetCode || 'N/A'}</span>
-              </div>
-              ${sr.costCenter ? `
-              <div class="info-row">
-                <span class="info-label">Cost Center:</span>
-                <span class="info-value">${sr.costCenter}</span>
-              </div>
-              ` : ''}
               <div class="info-row">
                 <span class="info-label">Total Estimated Cost:</span>
                 <span class="info-value" style="color: #f97316; font-size: 13px;">${formatCurrency(Number(sr.estimatedCost || 0))}</span>
@@ -411,22 +391,14 @@ export async function GET(
               <div class="info-title">Payment Terms</div>
               <div class="info-row">
                 <span class="info-label">Payment Schedule:</span>
-                <span class="info-value">${sr.servicePR?.paymentSchedule || 'N/A'}</span>
+                <span class="info-value">${servicePR.paymentSchedule || 'N/A'}</span>
               </div>
-              ${sr.servicePR?.paymentTerms ? `
+              ${servicePR.paymentTerms ? `
               <div class="info-row">
                 <span class="info-label">Payment Terms:</span>
-                <span class="info-value">${sr.servicePR.paymentTerms}</span>
+                <span class="info-value">${servicePR.paymentTerms}</span>
               </div>
               ` : ''}
-              <div class="info-row">
-                <span class="info-label">Retention:</span>
-                <span class="info-value">${sr.servicePR?.retentionPercentage || 0}%</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Insurance Required:</span>
-                <span class="info-value">${sr.servicePR?.insuranceRequired ? 'Yes' : 'No'}</span>
-              </div>
             </div>
           </div>
 
@@ -437,41 +409,41 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${sr.servicePR?.serviceScope ? `
+          ${servicePR.serviceScope ? `
           <div class="section">
             <div class="section-title">Scope of Work</div>
-            <div class="section-content">${sr.servicePR.serviceScope}</div>
+            <div class="section-content">${servicePR.serviceScope}</div>
           </div>
           ` : ''}
 
-          ${sr.servicePR?.technicalSpecifications ? `
+          ${servicePR.technicalSpecifications ? `
           <div class="section">
             <div class="section-title">Technical Specifications</div>
-            <div class="section-content">${sr.servicePR.technicalSpecifications}</div>
+            <div class="section-content">${servicePR.technicalSpecifications}</div>
           </div>
           ` : ''}
 
-          ${sr.servicePR?.qualityStandards ? `
+          ${servicePR.qualityStandards ? `
           <div class="section">
             <div class="section-title">Quality Standards</div>
-            <div class="section-content">${sr.servicePR.qualityStandards}</div>
+            <div class="section-content">${servicePR.qualityStandards}</div>
           </div>
           ` : ''}
 
-          ${sr.servicePR?.safetyRequirements ? `
+          ${servicePR.safetyRequirements ? `
           <div class="section">
             <div class="section-title">Safety Requirements</div>
-            <div class="section-content">${sr.servicePR.safetyRequirements}</div>
+            <div class="section-content">${servicePR.safetyRequirements}</div>
           </div>
           ` : ''}
 
-          ${sr.servicePR?.deliverables ? `
+          ${servicePR.deliverables ? `
           <div class="section">
             <div class="section-title">Deliverables</div>
             <div class="section-content">
               <ul class="deliverables-list">
                 ${(() => {
-                  let deliverables = sr.servicePR.deliverables;
+                  let deliverables = servicePR.deliverables;
                   // If it's a string, try to parse as JSON
                   if (typeof deliverables === 'string') {
                     try {
@@ -502,13 +474,13 @@ export async function GET(
           </div>
           ` : ''}
 
-          ${sr.servicePR?.performanceMetrics ? `
+          ${servicePR.performanceMetrics ? `
           <div class="section">
             <div class="section-title">Performance Metrics</div>
             <div class="section-content">
               <ul class="metrics-list">
                 ${(() => {
-                  let metrics = sr.servicePR.performanceMetrics;
+                  let metrics = servicePR.performanceMetrics;
                   // If it's a string, try to parse as JSON
                   if (typeof metrics === 'string') {
                     try {
@@ -553,7 +525,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${sr.servicePR?.items && sr.servicePR.items.length > 0 ? sr.servicePR.items.map((item: any) => `
+                ${servicePR.items && servicePR.items.length > 0 ? servicePR.items.map((item: any) => `
                   <tr>
                     <td>
                       <strong>${item.serviceItem?.serviceCode || 'N/A'}</strong><br>
@@ -577,7 +549,7 @@ export async function GET(
             </table>
           </div>
 
-          ${sr.items && sr.items.length > 0 ? `
+          ${servicePR.materialItems && servicePR.materialItems.length > 0 ? `
           <div class="section">
             <div class="section-title">Material Items (Mixed Requisition)</div>
             <table class="items-table">
@@ -591,7 +563,7 @@ export async function GET(
                 </tr>
               </thead>
               <tbody>
-                ${sr.items.map((item: any) => `
+                ${servicePR.materialItems.map((item: any) => `
                   <tr>
                     <td>
                       <strong>${item.item?.itemCode || 'N/A'}</strong><br>
@@ -608,7 +580,7 @@ export async function GET(
               <tfoot>
                 <tr class="total-row">
                   <td colspan="4" style="text-align: right; padding-right: 15px;"><strong>TOTAL MATERIAL COST:</strong></td>
-                  <td style="text-align: right; font-size: 12px; color: #f97316;"><strong>${formatCurrency(sr.items.reduce((sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)), 0))}</strong></td>
+                  <td style="text-align: right; font-size: 12px; color: #f97316;"><strong>${formatCurrency(servicePR.materialItems.reduce((sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.estimatedPrice || 0)), 0))}</strong></td>
                 </tr>
               </tfoot>
             </table>

@@ -285,17 +285,7 @@ export async function GET(
             </div>
 
             <div class="info-card">
-              <div class="info-title">Budget & Requestor</div>
-              <div class="info-row">
-                <span class="info-label">Budget Code</span>
-                <span class="info-value">${escapeHtml(pr.budgetCode || 'N/A')}</span>
-              </div>
-              ${pr.costCenter ? `
-              <div class="info-row">
-                <span class="info-label">Cost Center</span>
-                <span class="info-value">${escapeHtml(pr.costCenter)}</span>
-              </div>
-              ` : ''}
+              <div class="info-title">Requestor & Cost</div>
               <div class="info-row">
                 <span class="info-label">Requester ID</span>
                 <span class="info-value">${escapeHtml(pr.requesterId || 'N/A')}</span>

@@ -92,6 +92,7 @@ export async function PUT(
       where: { id: params.id },
       data: {
         itemCode: body.itemCode,
+        externalId: body.externalId ? String(body.externalId).trim() : null,
         nameEn: body.nameEn,
         nameAr: body.nameAr,
         description: body.description,

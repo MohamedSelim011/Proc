@@ -21,6 +21,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toast';
 import { ListFiltersCard, ListFilterField } from '@/components/ui/list-filters-card';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface ServiceInvoice {
   id: string;
@@ -611,7 +612,7 @@ export default function ServiceInvoicesPage() {
           />
         </ListFilterField>
         <ListFilterField label="Invoice Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.status}
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
@@ -623,10 +624,10 @@ export default function ServiceInvoicesPage() {
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
             <option value="PAID">Paid</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Payment Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.paymentStatus}
             onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
@@ -636,10 +637,10 @@ export default function ServiceInvoicesPage() {
             <option value="PARTIAL">Partial</option>
             <option value="PAID">Paid</option>
             <option value="OVERDUE">Overdue</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Matching Status">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.matchingStatus}
             onChange={(e) => setFilters(prev => ({ ...prev, matchingStatus: e.target.value }))}
@@ -649,10 +650,10 @@ export default function ServiceInvoicesPage() {
             <option value="MATCHED">Matched</option>
             <option value="DISCREPANCY">Discrepancy</option>
             <option value="APPROVED">Approved</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
         <ListFilterField label="Service Type">
-          <select
+          <SearchableSelect
             className="erp-input"
             value={filters.serviceType}
             onChange={(e) => setFilters(prev => ({ ...prev, serviceType: e.target.value }))}
@@ -663,7 +664,7 @@ export default function ServiceInvoicesPage() {
             <option value="TRAINING">Training</option>
             <option value="SUPPORT">Support</option>
             <option value="OTHER">Other</option>
-          </select>
+          </SearchableSelect>
         </ListFilterField>
       </ListFiltersCard>
 

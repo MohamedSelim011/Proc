@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select';
 
 interface ServiceRequisitionOption {
   id: string;
@@ -11,6 +12,25 @@ interface ServiceRequisitionOption {
   estimatedCost?: number | string;
   departmentId?: string;
   itemType?: string;
+  servicePR?: {
+    paymentTerms?: string | null;
+    duration?: number | string;
+    durationUnit?: string | null;
+    items?: Array<{
+      quantity?: number | string;
+      estimatedRate?: number | string;
+      duration?: number | string;
+    }>;
+  };
+  items?: Array<{
+    quantity?: number | string;
+    estimatedPrice?: number | string;
+  }>;
+  serviceRFP?: {
+    id: string;
+    rfpNumber: string;
+    status: string;
+  } | null;
 }
 
 interface VendorOption {
@@ -50,7 +70,8 @@ export default function NewServiceRFPPage() {
     submissionDeadline: buildDefaultDeadline(),
     serviceLevelAgreements: '',
     paymentTerms: '',
-    contractDuration: '',
+    contractDurationValue: '',
+    contractDurationUnit: 'DAYS',
     confidentialityClause: '',
   });
 
@@ -59,6 +80,34 @@ export default function NewServiceRFPPage() {
     { name: 'Commercial Value', weight: 40 },
     { name: 'Delivery & Timeline', weight: 20 },
   ]);
+
+  const toNumber = (value: unknown) => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getRequisitionTotalValue = (requisition: ServiceRequisitionOption) => {
+    const serviceTotal = (requisition.servicePR?.items || []).reduce((sum, item) => {
+      const quantity = toNumber(item.quantity);
+      const estimatedRate = toNumber(item.estimatedRate);
+      const duration = Math.max(toNumber(item.duration) || 1, 1);
+      return sum + quantity * estimatedRate * duration;
+    }, 0);
+
+    const materialTotal = (requisition.items || []).reduce((sum, item) => {
+      return sum + toNumber(item.quantity) * toNumber(item.estimatedPrice);
+    }, 0);
+
+    const computed = serviceTotal + materialTotal;
+    if (computed > 0) return computed;
+    return toNumber(requisition.estimatedCost);
+  };
+
+  const normalizeDurationUnit = (value: unknown) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    const allowed = new Set(['HOURS', 'DAYS', 'WEEKS', 'MONTHS', 'YEARS']);
+    return allowed.has(normalized) ? normalized : 'DAYS';
+  };
 
   const totalWeight = useMemo(
     () => criteria.reduce((sum, c) => sum + Number(c.weight || 0), 0),
@@ -70,7 +119,7 @@ export default function NewServiceRFPPage() {
       try {
         setLoading(true);
         const [reqRes, vendorRes] = await Promise.all([
-          fetch('/api/services/requisitions?status=APPROVED&itemType=SERVICE&limit=300'),
+          fetch('/api/services/requisitions?status=APPROVED&limit=300'),
           fetch('/api/vendors?limit=1000'),
         ]);
 
@@ -78,7 +127,7 @@ export default function NewServiceRFPPage() {
 
         if (reqRes.ok) {
           const all = (reqData.serviceRequisitions || []) as ServiceRequisitionOption[];
-          setRequisitions(all.filter((r) => r.itemType === 'SERVICE'));
+          setRequisitions(all.filter((r) => !r.serviceRFP));
         }
 
         if (vendorRes.ok) {
@@ -160,7 +209,10 @@ export default function NewServiceRFPPage() {
       const termsAndConditions = {
         serviceLevelAgreements: form.serviceLevelAgreements.trim() || undefined,
         paymentTerms: form.paymentTerms.trim() || undefined,
-        contractDuration: form.contractDuration.trim() || undefined,
+        contractDuration:
+          Number(form.contractDurationValue) > 0
+            ? `${Number(form.contractDurationValue)} ${form.contractDurationUnit}`
+            : undefined,
         confidentialityClause: form.confidentialityClause.trim() || undefined,
       };
 
@@ -230,15 +282,22 @@ export default function NewServiceRFPPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Service Requisition *</label>
-            <select
+            <SearchableSelect
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
               value={form.prId}
               onChange={(e) => {
                 const prId = e.target.value;
                 const selected = requisitions.find((r) => r.id === prId);
+                const selectedPaymentTerms = (selected?.servicePR?.paymentTerms || '').trim();
+                const selectedDurationValue = toNumber(selected?.servicePR?.duration);
+                const selectedDurationUnit = normalizeDurationUnit(selected?.servicePR?.durationUnit);
                 setForm((prev) => ({
                   ...prev,
                   prId,
+                  paymentTerms: selectedPaymentTerms,
+                  contractDurationValue:
+                    selected && selectedDurationValue > 0 ? String(selectedDurationValue) : '',
+                  contractDurationUnit: selectedDurationUnit,
                   title:
                     prev.title.trim() && !prev.title.startsWith('RFP for ')
                       ? prev.title
@@ -251,10 +310,10 @@ export default function NewServiceRFPPage() {
               <option value="">Select approved service requisition</option>
               {requisitions.map((req) => (
                 <option key={req.id} value={req.id}>
-                  {req.prNumber} {req.estimatedCost ? `(OMR ${Number(req.estimatedCost).toFixed(3)})` : ''}
+                  {req.prNumber} (OMR {getRequisitionTotalValue(req).toFixed(3)})
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
             {errors.prId && <p className="mt-1 text-sm text-red-600">{errors.prId}</p>}
           </div>
 
@@ -385,20 +444,36 @@ export default function NewServiceRFPPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
             <textarea
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-gray-50 cursor-not-allowed"
               value={form.paymentTerms}
-              onChange={(e) => setForm((prev) => ({ ...prev, paymentTerms: e.target.value }))}
+              readOnly
+              disabled
+              placeholder="Payment terms will be loaded from the selected service request"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contract Duration</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
-              value={form.contractDuration}
-              onChange={(e) => setForm((prev) => ({ ...prev, contractDuration: e.target.value }))}
-              placeholder="e.g. 12 months"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                min="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                value={form.contractDurationValue}
+                onChange={(e) => setForm((prev) => ({ ...prev, contractDurationValue: e.target.value }))}
+                placeholder="e.g. 12"
+              />
+              <SearchableSelect
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
+                value={form.contractDurationUnit}
+                onChange={(e) => setForm((prev) => ({ ...prev, contractDurationUnit: e.target.value }))}
+              >
+                <option value="HOURS">Hours</option>
+                <option value="DAYS">Days</option>
+                <option value="WEEKS">Weeks</option>
+                <option value="MONTHS">Months</option>
+                <option value="YEARS">Years</option>
+              </SearchableSelect>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Confidentiality Clause</label>

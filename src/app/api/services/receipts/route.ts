@@ -32,11 +32,7 @@ export async function GET(request: NextRequest) {
           contract: {
             include: {
               vendor: true,
-              pr: {
-                include: {
-                  servicePR: true
-                }
-              }
+              servicePR: true
             }
           },
           milestone: true
@@ -48,8 +44,28 @@ export async function GET(request: NextRequest) {
       prisma.serviceReceipt.count({ where })
     ]);
 
+    const receiptsWithLegacyPr = receipts.map((receipt) => {
+      const servicePR = receipt.contract.servicePR;
+      const pr = servicePR
+        ? {
+            id: servicePR.id,
+            prNumber: servicePR.prNumber,
+            estimatedCost: servicePR.estimatedCost,
+            servicePR,
+          }
+        : null;
+
+      return {
+        ...receipt,
+        contract: {
+          ...receipt.contract,
+          pr,
+        },
+      };
+    });
+
     return NextResponse.json({
-      receipts,
+      receipts: receiptsWithLegacyPr,
       pagination: {
         page,
         limit,

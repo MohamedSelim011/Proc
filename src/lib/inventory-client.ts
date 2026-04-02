@@ -1,9 +1,10 @@
 /**
  * Client for Wujha Inventory APIs. Used for material requisition flow only:
- * - Item catalog, warehouses, projects, users
+ * - Item catalog, warehouses, users
  * - Check availability (stock)
  * - Create Material Requisition (MR) when stock sufficient
  */
+import { fetchItemsFromIntegration } from '@/integration/contracts/items.client';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -93,15 +94,6 @@ export interface InventoryWarehouse {
   country?: string;
 }
 
-export interface InventoryProject {
-  id: string;
-  code: string;
-  name: string;
-  budget?: number;
-  status?: string;
-  company?: { id: string; name: string; code: string };
-}
-
 export interface InventoryUser {
   id: string;
   email: string;
@@ -180,16 +172,6 @@ export interface CreateMRResult {
 
 // --- API functions ---
 
-/** GET /api/items/:id – fetch a single item by id (Inventory is master; use to sync into Procurement). */
-export async function getInventoryItemById(
-  id: string
-): Promise<{ success: true; data: InventoryItem } | { success: false; error: string }> {
-  if (!id?.trim()) return { success: false, error: 'Item id is required.' };
-  const out = await fetchInventory<InventoryItem>(`/api/items/${encodeURIComponent(id.trim())}`);
-  if (!out.success) return out;
-  return { success: true, data: out.data as InventoryItem };
-}
-
 /** GET /api/items – item catalog (for material requisition item selection). */
 export async function getInventoryItems(params?: {
   page?: number;
@@ -198,21 +180,79 @@ export async function getInventoryItems(params?: {
   stockType?: string;
   search?: string;
   categoryId?: string;
-}): Promise<{ success: true; data: InventoryItem[]; total?: number } | { success: false; error: string }> {
-  const sp = new URLSearchParams();
-  if (params?.page != null) sp.set('page', String(params.page));
-  if (params?.limit != null) sp.set('limit', String(params.limit));
-  if (params?.status) sp.set('status', params.status);
-  if (params?.stockType) sp.set('stockType', params.stockType);
-  if (params?.search) sp.set('search', params.search);
-  if (params?.categoryId) sp.set('categoryId', params.categoryId);
-  const path = `/api/items?${sp.toString() || 'page=1&limit=100&status=ACTIVE'}`;
-  const out = await fetchInventory<InventoryItem[] | { data: InventoryItem[]; total?: number }>(path);
-  if (!out.success) return out;
-  const raw = out.data;
-  const list = Array.isArray(raw) ? raw : (raw as { data?: InventoryItem[] })?.data ?? [];
-  const total = Array.isArray(raw) ? undefined : (raw as { total?: number })?.total;
-  return { success: true, data: list, total };
+}, authorizationHeader?: string): Promise<{ success: true; data: InventoryItem[]; total?: number } | { success: false; error: string }> {
+  try {
+    const payload = (await fetchItemsFromIntegration(
+      {
+        ...(params?.status ? { status: params.status } : {}),
+        ...(params?.stockType ? { stockType: params.stockType } : {}),
+        ...(params?.search ? { search: params.search } : {}),
+        ...(params?.categoryId ? { categoryId: params.categoryId } : {}),
+      },
+      authorizationHeader,
+    )) as Record<string, unknown>;
+
+    const source = Array.isArray(payload.data)
+      ? payload.data
+      : Array.isArray(payload.items)
+        ? payload.items
+        : [];
+
+    const mapped = source
+      .map((entry) => {
+        const raw = (entry ?? {}) as Record<string, unknown>;
+        const category = (raw.category ?? {}) as Record<string, unknown>;
+        const itemGroup = (raw.itemGroup ?? {}) as Record<string, unknown>;
+        const baseUom = (raw.baseUom ?? {}) as Record<string, unknown>;
+        return {
+          id: (raw._id as string) || (raw.id as string) || '',
+          code: (raw.code as string) || '',
+          name: (raw.name as string) || '',
+          arabicName: (raw.arabicName as string) || undefined,
+          description: (raw.description as string) || null,
+          status: (raw.status as string) || undefined,
+          stockType: (raw.stockType as string) || undefined,
+          category: category.id
+            ? {
+                id: category.id as string,
+                name: (category.name as string) || '',
+                code: (category.code as string) || '',
+              }
+            : undefined,
+          itemGroup: itemGroup.id
+            ? {
+                id: itemGroup.id as string,
+                name: (itemGroup.name as string) || '',
+                code: (itemGroup.code as string) || '',
+              }
+            : undefined,
+          baseUom: baseUom.id
+            ? {
+                id: baseUom.id as string,
+                name: (baseUom.name as string) || '',
+                abbreviation: (baseUom.abbreviation as string) || '',
+                type: (baseUom.type as string) || undefined,
+              }
+            : undefined,
+        } satisfies InventoryItem;
+      })
+      .filter((item) => Boolean(item.id));
+
+    if (params?.page || params?.limit) {
+      const page = params.page && params.page > 0 ? params.page : 1;
+      const limit = params.limit && params.limit > 0 ? params.limit : 100;
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      return { success: true, data: mapped.slice(start, end), total: mapped.length };
+    }
+
+    return { success: true, data: mapped, total: mapped.length };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch items from integration middleware.',
+    };
+  }
 }
 
 /** GET /api/warehouses – warehouse list (for deliveryWarehouseId and availability). */
@@ -234,24 +274,6 @@ export async function getInventoryWarehouses(params?: {
   if (!out.success) return out;
   const raw = out.data;
   const list = Array.isArray(raw) ? raw : (raw as { data?: InventoryWarehouse[] })?.data ?? [];
-  return { success: true, data: list };
-}
-
-/** GET /api/projects – project list (for projectId in Create MR). */
-export async function getInventoryProjects(params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-}): Promise<{ success: true; data: InventoryProject[] } | { success: false; error: string }> {
-  const sp = new URLSearchParams();
-  if (params?.page != null) sp.set('page', String(params.page));
-  if (params?.limit != null) sp.set('limit', String(params.limit));
-  if (params?.search) sp.set('search', params.search);
-  const path = `/api/projects?${sp.toString() || 'page=1&limit=50'}`;
-  const out = await fetchInventory<InventoryProject[] | { data: InventoryProject[] }>(path);
-  if (!out.success) return out;
-  const raw = out.data;
-  const list = Array.isArray(raw) ? raw : (raw as { data?: InventoryProject[] })?.data ?? [];
   return { success: true, data: list };
 }
 

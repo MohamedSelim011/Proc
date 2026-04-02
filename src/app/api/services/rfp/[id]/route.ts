@@ -11,22 +11,19 @@ export async function GET(
     const rfp = await prisma.serviceRFP.findUnique({
       where: { id },
       include: {
-        pr: {
+        servicePR: {
           select: {
+            id: true,
             prNumber: true,
             estimatedCost: true,
-            servicePR: {
-              select: {
-                serviceScope: true,
-                duration: true,
-                durationUnit: true,
-                items: {
+            serviceScope: true,
+            duration: true,
+            durationUnit: true,
+            items: {
+              include: {
+                serviceItem: {
                   include: {
-                    serviceItem: {
-                      include: {
-                        serviceCategory: true
-                      }
-                    }
+                    serviceCategory: true
                   }
                 }
               }
@@ -80,7 +77,32 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(rfp, { status: 200 });
+    const legacyPr = rfp.servicePR
+      ? {
+          id: rfp.servicePR.id,
+          prNumber: rfp.servicePR.prNumber,
+          estimatedCost: rfp.servicePR.estimatedCost,
+          servicePR: {
+            serviceScope: rfp.servicePR.serviceScope,
+            duration: rfp.servicePR.duration,
+            durationUnit: rfp.servicePR.durationUnit,
+            items: rfp.servicePR.items,
+          },
+        }
+      : null;
+
+    const responseWithAccessibleProposalUrls = {
+      ...rfp,
+      pr: legacyPr,
+      responses: (rfp.responses || []).map((response) => ({
+        ...response,
+        proposalFileUrl: response.proposalFileUrl
+          ? `/api/services/rfp/${id}/responses/${response.id}/proposal`
+          : null,
+      })),
+    };
+
+    return NextResponse.json(responseWithAccessibleProposalUrls, { status: 200 });
   } catch (error) {
     console.error('Error fetching Service RFP:', error);
     return NextResponse.json(

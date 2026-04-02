@@ -13,6 +13,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { SearchableSelect } from '@/components/common/searchable-select'
 
 interface Vendor {
   id: string;
@@ -377,7 +378,7 @@ export default function EditServiceContract() {
                 <label className="block text-sm font-medium text-gray-700">
                   Contract Type
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.contractType}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, contractType: e.target.value }))}
@@ -386,14 +387,14 @@ export default function EditServiceContract() {
                   <option value="CONSULTING_CONTRACT">Consulting Contract</option>
                   <option value="MAINTENANCE_CONTRACT">Maintenance Contract</option>
                   <option value="SUPPORT_CONTRACT">Support Contract</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Currency
                 </label>
-                <select
+                <SearchableSelect
                   className="w-full px-3 py-2 border border-wujha-primary rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white"
                   value={formData.currency}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, currency: e.target.value }))}
@@ -401,7 +402,7 @@ export default function EditServiceContract() {
                   <option value="OMR">Omani Rial (OMR)</option>
                   <option value="USD">US Dollar (USD)</option>
                   <option value="EUR">Euro (EUR)</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
@@ -462,19 +463,17 @@ export default function EditServiceContract() {
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Terms *
                 </label>
-                <select
+                <SearchableSelect
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wujha-primary focus:border-wujha-primary text-gray-900 bg-white ${
                     errors.paymentTerms ? 'border-red-300' : 'border-wujha-primary'
                   }`}
                   value={formData.paymentTerms}
                   onChange={(e) => setContractFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
-                >
-                  <option value="Net 30 days">Net 30 days</option>
-                  <option value="Net 45 days">Net 45 days</option>
-                  <option value="Net 60 days">Net 60 days</option>
-                  <option value="Advance Payment">Advance Payment</option>
-                  <option value="Milestone-based">Milestone-based</option>
-                </select>
+                  >
+                    <option value="Net 30 days">Net 30 days</option>
+                    <option value="Net 45 days">Net 45 days</option>
+                    <option value="Net 60 days">Net 60 days</option>
+                  </SearchableSelect>
                 {errors.paymentTerms && (
                   <p className="mt-1 text-sm text-red-600">{errors.paymentTerms}</p>
                 )}
@@ -599,4 +598,3 @@ export default function EditServiceContract() {
     </div>
   );
 }
-

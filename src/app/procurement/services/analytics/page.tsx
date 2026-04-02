@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { SearchableSelect } from '@/components/common/searchable-select'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -362,7 +363,7 @@ export default function ServiceAnalyticsPage() {
           <p className="text-gray-600 mt-1">Comprehensive service procurement insights and performance metrics</p>
         </div>
         <div className="flex gap-3">
-          <select
+          <SearchableSelect
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
@@ -371,7 +372,7 @@ export default function ServiceAnalyticsPage() {
             <option value="6M">Last 6 Months</option>
             <option value="12M">Last 12 Months</option>
             <option value="24M">Last 24 Months</option>
-          </select>
+          </SearchableSelect>
           <button
             onClick={handleExportReport}
             className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium"
