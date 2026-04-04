@@ -87,6 +87,7 @@ export default function NewPurchaseRequisition() {
   const [projects, setProjects] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [materialRequestsIntegrationEnabled, setMaterialRequestsIntegrationEnabled] = useState<boolean | null>(null);
   const [requestBasis, setRequestBasis] = useState<'DEPARTMENT' | 'PROJECT'>('DEPARTMENT');
   const [createPrMode, setCreatePrMode] = useState(false);
   const [insufficientStock, setInsufficientStock] = useState(false);
@@ -184,12 +185,36 @@ export default function NewPurchaseRequisition() {
   }, [currentStep, formData.itemType]);
 
   useEffect(() => {
+    let active = true;
+    const loadIntegrationFlags = async () => {
+      try {
+        const response = await apiFetch('/api/system/integration-flags', { cache: 'no-store' });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          data?: { materialRequestsIntegrationEnabled?: boolean };
+        };
+        if (!active) return;
+        setMaterialRequestsIntegrationEnabled(Boolean(payload?.data?.materialRequestsIntegrationEnabled));
+      } catch {
+        if (!active) return;
+        setMaterialRequestsIntegrationEnabled(false);
+      }
+    };
+    void loadIntegrationFlags();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (currentStep !== 0 || materialRequestMode !== 'WITH_REQUEST') return;
     const loadMaterialRequests = async () => {
       try {
         setMaterialRequestsLoading(true);
-        // Ensure local DB is up-to-date from HR before loading approved requests.
-        await apiFetch('/api/hr/material-requests/sync', { method: 'POST' });
+        // Refresh local DB from HR only when integration is enabled.
+        if (materialRequestsIntegrationEnabled === true) {
+          await apiFetch('/api/hr/material-requests/sync', { method: 'POST' });
+        }
 
         const approvedRows: Array<{
           id: string;
@@ -236,7 +261,7 @@ export default function NewPurchaseRequisition() {
       }
     };
     void loadMaterialRequests();
-  }, [currentStep, materialRequestMode]);
+  }, [currentStep, materialRequestMode, materialRequestsIntegrationEnabled]);
 
   useEffect(() => {
     if (requestBasis === 'PROJECT' && formData.projectId && formData.inventoryProjectId !== formData.projectId) {

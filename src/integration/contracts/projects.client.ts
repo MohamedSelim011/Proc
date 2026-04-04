@@ -33,7 +33,7 @@ function buildHeaders(authorizationHeader?: string) {
 }
 
 function buildListUrl(query: ProjectsIntegrationQuery) {
-  const url = new URL('/projects', getIntegrationBaseUrl());
+  const url = new URL('/procurement/projects', getIntegrationBaseUrl());
 
   if (query.search) url.searchParams.set('search', query.search);
   if (query.status) url.searchParams.set('status', query.status);

@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
       success: true,
       synced,
       failedRecords,
-      sourceEndpoint: '/projects',
+      sourceEndpoint: '/procurement/projects',
       totalLocalRows,
       upstreamErrors,
     });
