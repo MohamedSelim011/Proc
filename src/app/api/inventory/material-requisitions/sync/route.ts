@@ -140,8 +140,35 @@ export async function POST(request: NextRequest) {
 
         if (!shouldUpdate) continue;
 
+        const departmentExternalId =
+          mapped.data.departmentExternalId ||
+          mapped.data.requestedDepartmentId ||
+          (mapped.data.departmentId && mapped.data.departmentId !== 'EXTERNAL'
+            ? mapped.data.departmentId
+            : null);
+        const departmentRecord = departmentExternalId
+          ? await prisma.hrDepartment.findUnique({
+              where: { externalId: departmentExternalId },
+              select: { id: true },
+            })
+          : null;
+
+        const projectExternalId =
+          mapped.data.projectExternalId ||
+          mapped.data.requestedProjectId ||
+          mapped.data.projectId ||
+          null;
+        const projectRecord = projectExternalId
+          ? await prisma.project.findUnique({
+              where: { externalId: projectExternalId },
+              select: { id: true },
+            })
+          : null;
+
         const persistenceData = {
           ...mapped.data,
+          departmentId: departmentRecord?.id ?? null,
+          projectId: projectRecord?.id ?? null,
           rawPayload: mapped.data.rawPayload
             ? (mapped.data.rawPayload as Prisma.InputJsonValue)
             : Prisma.JsonNull,
