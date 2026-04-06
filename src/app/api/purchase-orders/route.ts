@@ -257,6 +257,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (sourceMaterialRequisitionId) {
+      const existingPo = await prisma.purchaseOrder.findFirst({
+        where: {
+          sourceMaterialRequisitionId,
+          status: { notIn: ['CANCELLED', 'REJECTED'] },
+        },
+        select: { id: true, poNumber: true, status: true },
+      });
+      if (existingPo) {
+        return NextResponse.json(
+          {
+            error: 'A purchase order already exists for this material requisition.',
+            existingPoId: existingPo.id,
+            existingPoNumber: existingPo.poNumber,
+            existingPoStatus: existingPo.status,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     // Fallback to caller-provided source context when MR record is not found locally.
     sourceDepartmentId =
       sourceDepartmentId ||

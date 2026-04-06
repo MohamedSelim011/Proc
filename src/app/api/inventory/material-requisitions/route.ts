@@ -85,6 +85,11 @@ export async function GET(request: NextRequest) {
       requisitionNumber: row.mrNumber || row.prNumber,
       status: row.externalStatus || row.status,
       priority: row.externalPriority || row.priority,
+      departmentExternalId:
+        row.departmentExternalId ||
+        row.requestedDepartmentId ||
+        row.departmentId,
+      departmentName: row.departmentName || row.requestedDepartmentName,
       projectExternalId:
         row.projectExternalId ||
         row.requestedProjectId ||
