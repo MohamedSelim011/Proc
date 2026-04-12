@@ -13,7 +13,7 @@ const openApiSpec = {
   },
   servers: [
     {
-      url: 'https://inventorywujha-dev.up.railway.app',
+      url: 'https://wujhaprocurement-dev.up.railway.app',
       description: 'Production server',
     },
   ],
