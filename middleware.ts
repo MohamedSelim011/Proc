@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose';
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/auth\/signin$/,
   /^\/api\/auth\/login$/,
+  /^\/api\/openapi$/,
   /^\/api\/rfq\/submit\/[^/]+\/[^/]+$/,
   /^\/api\/services\/rfp\/submit\/[^/]+\/[^/]+$/,
   /^\/api\/services\/rfp\/[^/]+\/responses\/[^/]+\/proposal(?:\/)?$/,
