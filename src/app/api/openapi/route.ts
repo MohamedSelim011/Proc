@@ -35,6 +35,7 @@ const openApiSpec = {
     { name: 'Upload', description: 'File uploads' },
     { name: 'Automation', description: 'Workflow automation engine' },
     { name: 'Services', description: 'Service procurement' },
+    { name: 'Integration', description: 'Soul integration engine webhooks' },
   ],
   components: {
     schemas: {
@@ -1034,6 +1035,55 @@ const openApiSpec = {
     '/api/services/receipts': {
       get: { tags: ['Services'], summary: 'List service receipts', responses: { '200': { description: 'Service receipts' } } },
       post: { tags: ['Services'], summary: 'Create service receipt', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } }, responses: { '201': { description: 'Created' } } },
+    },
+    '/api/inventory/material-requisitions/sync': {
+      post: {
+        tags: ['Integration'],
+        summary: 'Receive material requisition from Soul',
+        description: 'Called by the Soul integration engine when inventory approves a material requisition. Accepts a Soul event envelope or a direct MR record/array. Requires Authorization: Bearer <INTEGRATION_SERVICE_TOKEN>.',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  event: { type: 'string', example: 'material_requisition.approved' },
+                  source: { type: 'string', example: 'inventory' },
+                  data: {
+                    oneOf: [
+                      { type: 'object', description: 'Single MR record' },
+                      { type: 'array', items: { type: 'object' }, description: 'Bulk MR records' },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Sync result',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    synced: { type: 'integer', example: 1 },
+                    failedRecords: { type: 'integer', example: 0 },
+                    totalLocalRows: { type: 'integer', example: 42 },
+                  },
+                },
+              },
+            },
+          },
+          '400': { description: 'Invalid JSON body' },
+          '401': { description: 'Unauthorized — missing or invalid token' },
+          '500': { description: 'Internal server error' },
+        },
+      },
     },
   },
 };
