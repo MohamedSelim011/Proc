@@ -2,49 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { mapInventoryMaterialRequisitionRecord } from '@/lib/inventory-material-requisitions';
-import { fetchMaterialRequisitionsFromIntegration } from '@/integration/contracts/material-requisitions.client';
-import { isExternalIntegrationEnabled } from '@/integration/router/integration-switch';
-
-const extractList = (payload: unknown): unknown[] => {
-  if (!payload || typeof payload !== 'object') return [];
-  const data = payload as Record<string, unknown>;
-
-  const directCandidates = [data.data, data.items, data.results, data.records, data.requisitions];
-  for (const candidate of directCandidates) {
-    if (Array.isArray(candidate)) return candidate;
-  }
-
-  if (data.data && typeof data.data === 'object') {
-    const nested = data.data as Record<string, unknown>;
-    const nestedCandidates = [
-      nested.data,
-      nested.items,
-      nested.results,
-      nested.records,
-      nested.requisitions,
-      nested.rows,
-    ];
-    for (const candidate of nestedCandidates) {
-      if (Array.isArray(candidate)) return candidate;
-    }
-  }
-
-  return [];
-};
-
-const extractErrorMessage = (payload: unknown): string | null => {
-  if (!payload || typeof payload !== 'object') return null;
-  const data = payload as Record<string, unknown>;
-  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim();
-  if (typeof data.error === 'string' && data.error.trim()) return data.error.trim();
-  if (data.error && typeof data.error === 'object') {
-    const errorObject = data.error as Record<string, unknown>;
-    if (typeof errorObject.message === 'string' && errorObject.message.trim()) {
-      return errorObject.message.trim();
-    }
-  }
-  return null;
-};
 
 const ensureUniquePrNumber = async (basePrNumber: string, externalId: string) => {
   const normalizedBase = (basePrNumber || `EXT-${externalId}`).trim() || `EXT-${externalId}`;
@@ -68,59 +25,56 @@ const ensureUniquePrNumber = async (basePrNumber: string, externalId: string) =>
   return `${normalizedBase}-${Date.now()}`;
 };
 
+function authenticate(request: NextRequest): boolean {
+  const serviceToken = process.env.INTEGRATION_SERVICE_TOKEN?.trim();
+  if (!serviceToken) return true;
+
+  const authHeader = request.headers.get('authorization') || '';
+  const headerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+  const queryToken = request.nextUrl.searchParams.get('token') || '';
+
+  return headerToken === serviceToken || queryToken === serviceToken;
+}
+
+function extractRecords(body: unknown): unknown[] {
+  if (!body || typeof body !== 'object') return [];
+  const b = body as Record<string, unknown>;
+
+  // Soul event envelope: { event, source, data: <record|record[]> }
+  if (b.data !== undefined) {
+    if (Array.isArray(b.data)) return b.data;
+    if (typeof b.data === 'object' && b.data !== null) return [b.data];
+  }
+
+  // Direct array
+  if (Array.isArray(body)) return body;
+
+  // Single record
+  return [body];
+}
+
 export async function POST(request: NextRequest) {
   try {
-    if (!isExternalIntegrationEnabled('materialRequisitions')) {
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: 'MATERIAL_REQUISITIONS_INTEGRATION is disabled.',
-      });
+    if (!authenticate(request)) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
-    const authHeader = request.headers.get('authorization');
-    const cookieToken = request.cookies.get('token')?.value;
-    const forwardedAuthHeader =
-      authHeader && authHeader.startsWith('Bearer ')
-        ? authHeader
-        : cookieToken
-          ? `Bearer ${cookieToken}`
-          : undefined;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    }
 
-    if (!forwardedAuthHeader) {
-      return NextResponse.json(
-        { error: 'Authorization bearer token is required to sync material requisitions.' },
-        { status: 401 },
-      );
+    const records = extractRecords(body);
+    if (records.length === 0) {
+      return NextResponse.json({ success: true, synced: 0, failedRecords: 0, message: 'No records to process.' });
     }
 
     let synced = 0;
     let failedRecords = 0;
-    let pagesSynced = 0;
-    const upstreamErrors: string[] = [];
-    let payload: unknown;
-    try {
-      payload = await fetchMaterialRequisitionsFromIntegration({}, forwardedAuthHeader);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to fetch material requisitions from integration middleware.';
-      upstreamErrors.push(message);
-      return NextResponse.json({ error: message, upstreamErrors }, { status: 502 });
-    }
 
-    const payloadObject = payload as Record<string, unknown>;
-    if (payloadObject && payloadObject.success === false) {
-      const reason = extractErrorMessage(payload) || 'Integration middleware returned an unsuccessful response.';
-      upstreamErrors.push(reason);
-      return NextResponse.json({ error: reason, upstreamErrors }, { status: 502 });
-    }
-
-    const list = extractList(payload);
-    pagesSynced = 1;
-
-    for (const entry of list) {
+    for (const entry of records) {
       try {
         const mapped = mapInventoryMaterialRequisitionRecord(entry);
         const externalId = mapped.externalId;
@@ -177,43 +131,28 @@ export async function POST(request: NextRequest) {
         if (existing) {
           await prisma.purchaseRequisition.update({
             where: { id: existing.id },
-            data: {
-              ...persistenceData,
-              externalId,
-              prNumber: existing.prNumber,
-            },
+            data: { ...persistenceData, externalId, prNumber: existing.prNumber },
           });
         } else {
           const prNumber = await ensureUniquePrNumber(mapped.data.prNumber, externalId);
           await prisma.purchaseRequisition.create({
-            data: {
-              ...persistenceData,
-              externalId,
-              prNumber,
-            },
+            data: { ...persistenceData, externalId, prNumber },
           });
         }
         synced += 1;
       } catch (recordError) {
         failedRecords += 1;
-        console.error('[Inventory Material Requisitions][SYNC] Failed record:', recordError);
+        console.error('[MR Sync] Failed record:', recordError);
       }
     }
 
     const totalLocalRows = await prisma.purchaseRequisition.count({
       where: { externalId: { not: null } },
     });
-    return NextResponse.json({
-      success: true,
-      synced,
-      failedRecords,
-      pagesSynced,
-      sourceEndpoint: '/material-requisitions',
-      totalLocalRows,
-      upstreamErrors,
-    });
+
+    return NextResponse.json({ success: true, synced, failedRecords, totalLocalRows });
   } catch (error) {
-    console.error('[Inventory Material Requisitions][SYNC] Failed:', error);
-    return NextResponse.json({ error: 'Failed to sync material requisitions' }, { status: 500 });
+    console.error('[MR Sync] Failed:', error);
+    return NextResponse.json({ error: 'Failed to process material requisitions.' }, { status: 500 });
   }
 }
