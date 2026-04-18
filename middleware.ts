@@ -11,6 +11,7 @@ const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/purchase-orders\/[^/]+\/acknowledge$/,
   /^\/api\/contracts\/vendor-response\/[^/]+$/,
   /^\/api\/contracts\/vendor-response\/[^/]+\/download$/,
+  /^\/api\/inventory\/material-requisitions\/sync$/,
 ];
 
 const API_KEY_ALLOWED_PREFIXES = ['/api/finance/', '/api/inventory/'];
