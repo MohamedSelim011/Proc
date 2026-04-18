@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isExternalIntegrationEnabled } from '@/integration/router/integration-switch';
+import { notifySoul } from '@/lib/soul-notifier';
 
 const toQuantity = (value: unknown): number => {
   const num = Number(value);
@@ -301,6 +302,17 @@ export async function POST(request: NextRequest) {
         ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null,
         userAgent: request.headers.get('user-agent') || null,
       },
+    });
+
+    void notifySoul('goods_receipt.created', {
+      id: receipt.id,
+      grNumber: receipt.grNumber,
+      status: receipt.status,
+      poId: receipt.poId,
+      receivedBy: receipt.receivedBy || null,
+      receivedDate: receipt.receivedDate,
+      vendorId: receipt.po?.vendor?.id || null,
+      vendorName: receipt.po?.vendor?.nameEn || receipt.po?.vendor?.nameAr || null,
     });
 
     return NextResponse.json(receipt, { status: 201 });

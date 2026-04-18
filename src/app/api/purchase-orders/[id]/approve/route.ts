@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { POStatus } from '@prisma/client';
+import { notifySoul } from '@/lib/soul-notifier';
 
 // POST /api/purchase-orders/[id]/approve - Approve or reject PO
 export async function POST(
@@ -156,6 +157,20 @@ export async function POST(
         ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null,
         userAgent: request.headers.get('user-agent') || null,
       },
+    });
+
+    void notifySoul(action === 'APPROVE' ? 'purchase_order.approved' : 'purchase_order.rejected', {
+      id: updatedPO.id,
+      poNumber: updatedPO.poNumber,
+      status: newStatus,
+      approverId: approverId || null,
+      approvalLevel: currentLevel,
+      comments: comments || null,
+      allApprovalsComplete: remainingApprovals.length === 0,
+      vendorId: updatedPO.vendorId,
+      vendorName: updatedPO.vendor?.nameEn || updatedPO.vendor?.nameAr || null,
+      totalAmount: Number(updatedPO.totalAmount || 0),
+      currency: updatedPO.currency,
     });
 
     return NextResponse.json({

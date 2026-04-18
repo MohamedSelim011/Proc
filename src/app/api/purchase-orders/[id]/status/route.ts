@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { sendPOToVendor } from '@/lib/email-service';
 import { getAppBaseUrl } from '@/lib/app-base-url';
 import { randomBytes } from 'crypto';
+import { notifySoul } from '@/lib/soul-notifier';
 
 
 // PUT /api/purchase-orders/[id]/status - Update PO status
@@ -163,6 +164,18 @@ export async function PUT(
         ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null,
         userAgent: request.headers.get('user-agent') || null,
       },
+    });
+
+    void notifySoul('purchase_order.status_changed', {
+      id: updatedOrder.id,
+      poNumber: updatedOrder.poNumber,
+      previousStatus: currentStatus,
+      status,
+      updatedBy: updatedBy || null,
+      vendorId: updatedOrder.vendorId,
+      vendorName: updatedOrder.vendor?.nameEn || updatedOrder.vendor?.nameAr || null,
+      totalAmount: Number(updatedOrder.totalAmount || 0),
+      currency: updatedOrder.currency,
     });
 
     return NextResponse.json({

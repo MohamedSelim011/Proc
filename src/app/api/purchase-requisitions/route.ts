@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createActivityLog } from '@/lib/activity-log';
+import { notifySoul } from '@/lib/soul-notifier';
 
 const INVENTORY_SYNC_CATEGORY_CODE = 'INVENTORY';
 
@@ -369,6 +370,19 @@ export async function POST(request: NextRequest) {
       currency: 'OMR',
       createdBy: requisition.createdBy || requisition.requesterId || null,
       createdByName: requisition.requesterName || requisition.requesterEmail || undefined,
+    });
+
+    void notifySoul('purchase_requisition.created', {
+      id: requisition.id,
+      prNumber: requisition.prNumber,
+      status: body.autoSubmit ? 'PENDING_APPROVAL' : 'DRAFT',
+      requesterId: requisition.requesterId,
+      departmentId: requisition.departmentId || null,
+      projectId: requisition.projectId || null,
+      itemType: requisition.itemType,
+      priority: requisition.priority,
+      estimatedCost: Number(requisition.estimatedCost || 0),
+      createdAt: requisition.createdAt,
     });
 
     return NextResponse.json(requisition, { status: 201 });
