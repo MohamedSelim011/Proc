@@ -56,7 +56,9 @@ function extractRecords(body: unknown): unknown[] {
 export async function POST(request: NextRequest) {
   try {
     if (!authenticate(request)) {
-      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+      const receivedAuth = request.headers.get('authorization') || '(none)';
+      console.error('[MR Sync] 401 — received Authorization:', receivedAuth, '| expected token:', process.env.INTEGRATION_SERVICE_TOKEN ? 'set' : 'NOT SET');
+      return NextResponse.json({ error: 'Unauthorized.', received: receivedAuth }, { status: 401 });
     }
 
     let body: unknown;
