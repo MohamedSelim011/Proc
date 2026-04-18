@@ -103,7 +103,7 @@ const normalizePriority = (priority: string | null): PriorityEnum => {
 };
 
 export const pickInventoryExternalId = (record: PlainObject): string | null => {
-  return asString(record._id) || asString(record.id) || asString(record.externalId);
+  return asString(record._id) || asString(record.id) || asString(record.externalId) || asString(record.requisitionId);
 };
 
 export const mapInventoryMaterialRequisitionRecord = (entry: unknown) => {
@@ -121,7 +121,7 @@ export const mapInventoryMaterialRequisitionRecord = (entry: unknown) => {
     asString(record.number) ||
     asString(record.code) ||
     null;
-  const rawStatus = asString(record.status);
+  const rawStatus = asString(record.status) || asString(record.finalStatus);
   const rawPriority = asString(record.priority);
   const estimatedCost = asDecimal(record.estimatedCost) ?? asDecimal(record.committedCost) ?? 0;
   const normalizedItems = normalizeRequisitionItems(record.items);
